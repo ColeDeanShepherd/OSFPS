@@ -3,6 +3,7 @@ using NetLib;
 using UnityEngine.SceneManagement;
 using System.Collections.Generic;
 using System.Linq;
+using System.IO;
 
 public class Server
 {
@@ -18,6 +19,7 @@ public class Server
     {
         serverPeer = new ServerPeer();
         serverPeer.OnClientConnected += OnClientConnected;
+        serverPeer.OnReceiveDataFromClient += OnReceiveDataFromServer;
 
         clientInfos = new List<RemoteClientInfo>();
         serverPeer.Start(PortNumber, MaxPlayerCount);
@@ -102,5 +104,34 @@ public class Server
         var netId = _nextNetworkId;
         _nextNetworkId++;
         return netId;
+    }
+
+    private void OnReceiveDataFromServer(int connectionId, int channelId, byte[] bytesReceived)
+    {
+        var reader = new BinaryReader(new MemoryStream(bytesReceived));
+        var messageType = (NetworkMessageType)reader.ReadByte();
+
+        switch (messageType)
+        {
+            case NetworkMessageType.PlayerInput:
+                var playerInputMessage = new PlayerInputMessage();
+                playerInputMessage.Deserialize(reader);
+
+                HandlePlayerInputMessage(playerInputMessage);
+                break;
+            default:
+                throw new System.NotImplementedException("Unknown message type: " + messageType);
+        }
+    }
+    private void HandlePlayerInputMessage(PlayerInputMessage message)
+    {
+        if (message.PlayerId != OsFps.Instance.CurrentPlayerId)
+        {
+            OsFps.Instance.FindPlayerObject(message.PlayerId)
+                .GetComponent<PlayerComponent>()
+                .CurrentInput = message.PlayerInput;
+        }
+
+        SendMessageToAllClients(serverPeer.unreliableStateUpdateChannelId, message);
     }
 }

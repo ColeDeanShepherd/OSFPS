@@ -1,6 +1,6 @@
 ﻿using UnityEngine;
 
-public struct RemoteClientInfo
+public class RemoteClientInfo
 {
     public int ConnectionId;
     public uint PlayerId;

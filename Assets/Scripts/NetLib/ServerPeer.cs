@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using System;
+using UnityEngine;
 using UnityEngine.Networking;
 
 namespace NetLib
@@ -8,6 +9,9 @@ namespace NetLib
         public delegate void ClientConnectionChangeEventHandler(int connectionId);
         public event ClientConnectionChangeEventHandler OnClientConnected;
         public event ClientConnectionChangeEventHandler OnClientDisconnected;
+
+        public delegate void ReceiveDataFromServerHandler(int connectionId, int channelId, byte[] bytesReceived);
+        public event ReceiveDataFromServerHandler OnReceiveDataFromClient;
 
         public override bool Stop()
         {
@@ -52,7 +56,13 @@ namespace NetLib
         }
         protected override void OnReceiveData(int connectionId, int channelId, byte[] buffer, int numBytesReceived)
         {
-            Debug.Log("ServerOnReceivedData");
+            var bytesReceived = new byte[numBytesReceived];
+            Array.Copy(buffer, bytesReceived, numBytesReceived);
+
+            if (OnReceiveDataFromClient != null)
+            {
+                OnReceiveDataFromClient(connectionId, channelId, bytesReceived);
+            }
         }
     }
 }

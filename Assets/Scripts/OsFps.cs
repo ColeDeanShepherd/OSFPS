@@ -1,6 +1,7 @@
 ﻿using System.Linq;
 using UnityEngine;
 using UnityEngine.Networking;
+using UnityEngine.SceneManagement;
 
 public class OsFps : MonoBehaviour
 {
@@ -10,6 +11,14 @@ public class OsFps : MonoBehaviour
     
     public Server Server;
     public Client Client;
+
+    public uint? CurrentPlayerId
+    {
+        get
+        {
+            return (Client != null) ? Client.playerId : (uint?)null;
+        }
+    }
 
     // inspector-set variables
     public GameObject PlayerPrefab;
@@ -22,14 +31,14 @@ public class OsFps : MonoBehaviour
         clientInfo.GameObject = playerObject;
 
         var playerComponent = playerObject.GetComponent<PlayerComponent>();
-        playerComponent.clientInfo = clientInfo;
+        playerComponent.ClientInfo = clientInfo;
 
         return playerObject;
     }
     public GameObject FindPlayerObject(uint playerId)
     {
         return GameObject.FindGameObjectsWithTag("Player")
-            .FirstOrDefault(go => go.GetComponent<PlayerComponent>().clientInfo.PlayerId == playerId);
+            .FirstOrDefault(go => go.GetComponent<PlayerComponent>().ClientInfo.PlayerId == playerId);
     }
 
     private void Awake()
@@ -50,16 +59,6 @@ public class OsFps : MonoBehaviour
     {
         // Initialize & configure network.
         NetworkTransport.Init();
-
-        Server = new Server();
-        Server.OnServerStarted += () => {
-            Client = new Client();
-            Client.Start(false);
-
-            Client.StartConnectingToServer(LocalHostIpv4Address, Server.PortNumber);
-        };
-
-        Server.Start();
     }
     private void OnDestroy()
     {
@@ -89,5 +88,38 @@ public class OsFps : MonoBehaviour
         {
             Client.Update();
         }
+    }
+    private void OnGUI()
+    {
+        if((Server == null) && (Client == null))
+        {
+            if(GUI.Button(new Rect(10, 10, 200, 30), "Connect To Server"))
+            {
+                SceneManager.sceneLoaded += OnMapLoadedAsClient;
+                SceneManager.LoadScene("Test Map");
+            }
+
+            if (GUI.Button(new Rect(10, 50, 200, 30), "Start Server"))
+            {
+                Server = new Server();
+                Server.OnServerStarted += () => {
+                    Client = new Client();
+                    Client.Start(false);
+
+                    Client.StartConnectingToServer(LocalHostIpv4Address, Server.PortNumber);
+                };
+
+                Server.Start();
+            }
+        }
+    }
+
+    private void OnMapLoadedAsClient(Scene scene, LoadSceneMode loadSceneMode)
+    {
+        SceneManager.sceneLoaded -= OnMapLoadedAsClient;
+
+        Client = new Client();
+        Client.Start(true);
+        Client.StartConnectingToServer(LocalHostIpv4Address, Server.PortNumber);
     }
 }

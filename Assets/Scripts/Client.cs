@@ -9,6 +9,10 @@ public class Client
     public ClientPeer ClientPeer;
     public GameObject Camera;
 
+    public uint playerId;
+    public bool isServerRemote;
+    public List<RemoteClientInfo> clientInfos;
+
     public void Start(bool isServerRemote)
     {
         this.isServerRemote = isServerRemote;
@@ -19,6 +23,8 @@ public class Client
         ClientPeer.OnReceiveDataFromServer += OnReceiveDataFromServer;
 
         ClientPeer.Start(portNumber: null, maxConnectionCount: 1);
+
+        SendInputPeriodicFunction = new ThrottledAction(SendPlayerInput, 1.0f / 30);
 
         Camera = Object.Instantiate(OsFps.Instance.CameraPrefab);
     }
@@ -39,11 +45,21 @@ public class Client
     public void Update()
     {
         ClientPeer.ReceiveAndHandleNetworkEvents();
+        SendInputPeriodicFunction.TryToCall();
     }
 
-    private uint playerId;
-    private bool isServerRemote;
-    private List<RemoteClientInfo> clientInfos;
+    private void AttachCameraToPlayer(uint playerId)
+    {
+        var playerObject = OsFps.Instance.FindPlayerObject(playerId);
+        var cameraPointObject = playerObject.GetComponent<PlayerComponent>().cameraPointObject;
+
+        Camera.transform.position = Vector3.zero;
+        Camera.transform.rotation = Quaternion.identity;
+
+        Camera.transform.SetParent(cameraPointObject.transform, false);
+    }
+
+    private ThrottledAction SendInputPeriodicFunction;
 
     private void OnReceiveDataFromServer(int channelId, byte[] bytesReceived)
     {
@@ -52,7 +68,7 @@ public class Client
 
         switch(messageType)
         {
-            case NetworkMessageType.SetPlayerIdMessage:
+            case NetworkMessageType.SetPlayerId:
                 var setPlayerIdMessage = new SetPlayerIdMessage();
                 setPlayerIdMessage.Deserialize(reader);
 
@@ -63,6 +79,12 @@ public class Client
                 spawnPlayerMessage.Deserialize(reader);
 
                 HandleSpawnPlayerMessage(spawnPlayerMessage);
+                break;
+            case NetworkMessageType.PlayerInput:
+                var playerInputMessage = new PlayerInputMessage();
+                playerInputMessage.Deserialize(reader);
+
+                HandlePlayerInputMessage(playerInputMessage);
                 break;
             default:
                 throw new System.NotImplementedException("Unknown message type: " + messageType);
@@ -80,17 +102,44 @@ public class Client
     private void HandleSpawnPlayerMessage(SpawnPlayerMessage message)
     {
         var isSpawningMe = (message.PlayerId == playerId);
-        var clientInfo = clientInfos.First(ci => ci.PlayerId == message.PlayerId);
-        var playerObject = (!isSpawningMe || isServerRemote)
+        var clientInfo = clientInfos.FirstOrDefault(ci => ci.PlayerId == message.PlayerId);
+
+        if(clientInfo == null)
+        {
+            clientInfo = new RemoteClientInfo
+            {
+                PlayerId = message.PlayerId
+            };
+
+            clientInfos.Add(clientInfo);
+        }
+
+        var playerObject = isServerRemote
             ? OsFps.Instance.SpawnLocalPlayer(clientInfo)
             : OsFps.Instance.FindPlayerObject(clientInfo.PlayerId);
 
         if (isSpawningMe)
         {
-            Camera.transform.position = Vector3.zero;
-            Camera.transform.rotation = Quaternion.identity;
-
-            Camera.transform.SetParent(playerObject.transform);
+            AttachCameraToPlayer(clientInfo.PlayerId);
         }
+    }
+    private void HandlePlayerInputMessage(PlayerInputMessage message)
+    {
+        Debug.Log("Client Received Player Input Message");
+    }
+
+    private void SendPlayerInput()
+    {
+        var playerObject = OsFps.Instance.FindPlayerObject(playerId);
+        var playerComponent = (playerObject != null) ? playerObject.GetComponent<PlayerComponent>() : null;
+        if (playerComponent == null) return;
+
+        var message = new PlayerInputMessage
+        {
+            PlayerId = playerId,
+            PlayerInput = playerComponent.CurrentInput
+        };
+
+        ClientPeer.SendMessageToServer(ClientPeer.unreliableStateUpdateChannelId, message.Serialize());
     }
 }

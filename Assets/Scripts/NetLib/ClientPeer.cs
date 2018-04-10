@@ -72,8 +72,6 @@ namespace NetLib
         }
         public void DisconnectFromServer()
         {
-            Debug.Assert(IsConnectedToServer);
-
             byte networkErrorAsByte;
             var mysteryReturnedBool = NetworkTransport.Disconnect(
                 socketId.Value, serverConnectionId.Value, out networkErrorAsByte

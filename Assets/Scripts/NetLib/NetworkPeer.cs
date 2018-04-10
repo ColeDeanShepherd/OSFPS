@@ -9,6 +9,7 @@ namespace NetLib
 
         public int? socketId;
         public int reliableSequencedChannelId;
+        public int unreliableStateUpdateChannelId;
 
         public bool IsStarted
         {
@@ -22,6 +23,7 @@ namespace NetLib
         {
             var connectionConfig = new ConnectionConfig();
             reliableSequencedChannelId = connectionConfig.AddChannel(QosType.ReliableSequenced);
+            unreliableStateUpdateChannelId = connectionConfig.AddChannel(QosType.StateUpdate);
 
             return connectionConfig;
         }

@@ -1,5 +1,6 @@
 ﻿public enum NetworkMessageType
 {
-    SetPlayerIdMessage,
-    SpawnPlayer
+    SetPlayerId,
+    SpawnPlayer,
+    PlayerInput
 }
