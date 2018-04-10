@@ -1,42 +1,106 @@
 ﻿using UnityEngine;
-using UnityEngine.Networking;
+using NetLib;
+using UnityEngine.SceneManagement;
+using System.Collections.Generic;
+using System.Linq;
 
-public class Server : NetworkPeer
+public class Server
 {
-    public const int MaxPlayerCount = 4;
     public const int PortNumber = 32321;
+    public const int MaxPlayerCount = 4;
+
+    public delegate void ServerStartedHandler();
+    public event ServerStartedHandler OnServerStarted;
+
+    public ServerPeer serverPeer;
 
     public void Start()
     {
-        Debug.Assert(!IsStarted);
+        serverPeer = new ServerPeer();
+        serverPeer.OnClientConnected += OnClientConnected;
 
-        var hostTopology = new HostTopology(
-            CreateConnectionConfig(), MaxPlayerCount
-        );
-        socketId = NetworkTransport.AddHost(hostTopology, PortNumber);
+        clientInfos = new List<RemoteClientInfo>();
+        serverPeer.Start(PortNumber, MaxPlayerCount);
+
+        SceneManager.sceneLoaded += OnMapLoaded;
+        SceneManager.LoadScene("Test Map");
     }
-    public override bool Stop()
+    public void Stop()
     {
-        var succeeded = base.Stop();
+        serverPeer.Stop();
+    }
+    public void Update()
+    {
+        serverPeer.ReceiveAndHandleNetworkEvents();
+    }
+    public void OnClientConnected(int connectionId)
+    {
+        var playerId = GenerateNetworkId();
 
-        if(!succeeded)
+        // Store information about the client.
+        var clientInfo = new RemoteClientInfo
         {
-            Debug.Log("Failed stopping server.");
-        }
+            ConnectionId = connectionId,
+            PlayerId = playerId
+        };
+        clientInfos.Add(clientInfo);
 
-        return succeeded;
+        // Let the client know it's player ID.
+        var setPlayerIdMessage = new SetPlayerIdMessage
+        {
+            PlayerId = playerId
+        };
+        SendClientMessage(connectionId, serverPeer.reliableSequencedChannelId, setPlayerIdMessage);
+
+        // Spawn the player.
+        clientInfo.GameObject = SpawnPlayer(playerId);
     }
-    
-    protected override void OnConnect(int connectionId)
+
+    public void SendMessageToAllClients(int channelId, NetworkMessage message)
     {
-        Debug.Log("ServerOnConnect " + connectionId);
+        var serializedMessage = message.Serialize();
+        var connectionIds = clientInfos.Select(rci => rci.ConnectionId);
+
+        foreach(var connectionId in connectionIds)
+        {
+            serverPeer.SendMessageToClient(connectionId, channelId, serializedMessage);
+        }
     }
-    protected override void OnDisconnect(int connectionId)
+    public void SendClientMessage(int connectionId, int channelId, NetworkMessage message)
     {
-        Debug.Log("ServerOnDisconnect " + connectionId);
+        serverPeer.SendMessageToClient(connectionId, channelId, message.Serialize());
     }
-    protected override void OnReceiveData(int connectionId, int channelId, byte[] buffer, int numBytesReceived)
+
+    private List<RemoteClientInfo> clientInfos;
+
+    private GameObject SpawnPlayer(uint playerId)
     {
-        Debug.Log("ServerOnReceivedData");
+        var playerObject = OsFps.Instance.SpawnLocalPlayer(clientInfos.First(ci => ci.PlayerId == playerId));
+
+        var spawnPlayerMessage = new SpawnPlayerMessage
+        {
+            PlayerId = playerId
+        };
+        SendMessageToAllClients(serverPeer.reliableSequencedChannelId, spawnPlayerMessage);
+
+        return playerObject;
+    }
+
+    private void OnMapLoaded(Scene scene, LoadSceneMode loadSceneMode)
+    {
+        SceneManager.sceneLoaded -= OnMapLoaded;
+
+        if(OnServerStarted != null)
+        {
+            OnServerStarted();
+        }
+    }
+
+    private uint _nextNetworkId = 1;
+    private uint GenerateNetworkId()
+    {
+        var netId = _nextNetworkId;
+        _nextNetworkId++;
+        return netId;
     }
 }

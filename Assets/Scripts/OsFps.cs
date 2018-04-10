@@ -1,79 +1,93 @@
-﻿using UnityEngine;
+﻿using System.Linq;
+using UnityEngine;
 using UnityEngine.Networking;
 
 public class OsFps : MonoBehaviour
 {
-    public const int ReceiveBufferSize = 1024;
     public const string LocalHostIpv4Address = "127.0.0.1";
-    
-    public Server server;
-    public Client client;
 
+    public static OsFps Instance;
+    
+    public Server Server;
+    public Client Client;
+
+    // inspector-set variables
+    public GameObject PlayerPrefab;
+    public GameObject CameraPrefab;
+
+    public GameObject SpawnLocalPlayer(RemoteClientInfo clientInfo)
+    {
+        var playerObject = Instantiate(PlayerPrefab);
+
+        clientInfo.GameObject = playerObject;
+
+        var playerComponent = playerObject.GetComponent<PlayerComponent>();
+        playerComponent.clientInfo = clientInfo;
+
+        return playerObject;
+    }
+    public GameObject FindPlayerObject(uint playerId)
+    {
+        return GameObject.FindGameObjectsWithTag("Player")
+            .FirstOrDefault(go => go.GetComponent<PlayerComponent>().clientInfo.PlayerId == playerId);
+    }
+
+    private void Awake()
+    {
+        // Destroy the game object if there is already an OsFps instance.
+        if(Instance != null)
+        {
+            enabled = false;
+            gameObject.SetActive(false);
+            Destroy(gameObject);
+            return;
+        }
+
+        Instance = this;
+        DontDestroyOnLoad(gameObject);
+    }
     private void Start()
     {
         // Initialize & configure network.
         NetworkTransport.Init();
 
-        server = new Server();
-        server.Start();
+        Server = new Server();
+        Server.OnServerStarted += () => {
+            Client = new Client();
+            Client.Start(false);
 
-        client = new Client();
-        client.Start();
+            Client.StartConnectingToServer(LocalHostIpv4Address, Server.PortNumber);
+        };
 
-        client.StartConnectingToServer(LocalHostIpv4Address);
+        Server.Start();
     }
     private void OnDestroy()
     {
-        client.DisconnectFromServer();
-        client.Stop();
+        if (Client != null)
+        {
+            Client.DisconnectFromServer();
+            Client.Stop();
 
-        server.Stop();
+            Client = null;
+        }
+
+        if (Server != null)
+        {
+            Server = null;
+        }
         
         NetworkTransport.Shutdown();
     }
     private void Update()
     {
-        ReceiveAndHandleMessages();
-    }
-
-    private byte[] _netReceiveBuffer = new byte[ReceiveBufferSize];
-    private void ReceiveAndHandleMessages()
-    {
-        while(true)
+        if (Server != null)
         {
-            int socketId;
-            int connectionId;
-            int channelId;
-            int numBytesReceived;
-            byte networkErrorAsByte;
-            var networkEventType = NetworkTransport.Receive(
-               out socketId, out connectionId, out channelId, _netReceiveBuffer,
-               _netReceiveBuffer.Length, out numBytesReceived, out networkErrorAsByte
-            );
+            Server.Update();
+        }
 
-            if (networkEventType == NetworkEventType.Nothing)
-            {
-                break;
-            }
-
-            var networkError = (NetworkError)networkErrorAsByte;
-            var isServer = (server != null) && (socketId == server.socketId);
-            var isClient = (client != null) && (socketId == client.socketId);
-
-            if(isServer)
-            {
-                server.HandleNetworkEvent(
-                    networkEventType, connectionId, channelId,
-                    _netReceiveBuffer, numBytesReceived, networkError
-                );
-            }
-            else if(isClient)
-            {
-                client.HandleNetworkEvent(
-                    networkEventType, connectionId, channelId,
-                    _netReceiveBuffer, numBytesReceived, networkError
-                );
-            }
+        if (Client != null)
+        {
+            Client.Update();
         }
     }
 }
