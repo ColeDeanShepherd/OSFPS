@@ -36,13 +36,12 @@ public class OsFps : MonoBehaviour
         return connectionConfig;
     }
 
-    public GameObject SpawnLocalPlayer(PlayerState playerState, Vector3 position, float yAngle)
+    public GameObject SpawnLocalPlayer(PlayerState playerState)
     {
-        var playerObject = Instantiate(PlayerPrefab, position, Quaternion.AngleAxis(yAngle, Vector3.up));
+        var playerObject = Instantiate(
+            PlayerPrefab, playerState.Position, Quaternion.Euler(playerState.EulerAngles)
+        );
         var playerComponent = playerObject.GetComponent<PlayerComponent>();
-
-        playerState.Position = position;
-        playerState.EulerAngles = new Vector3(0, yAngle, 0);
 
         playerComponent.State = playerState;
         

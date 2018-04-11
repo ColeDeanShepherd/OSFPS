@@ -24,7 +24,7 @@ public class Server
 
         ServerPeer = new ServerPeer();
         ServerPeer.OnClientConnected += OnClientConnected;
-        ServerPeer.OnReceiveDataFromClient += OnReceiveDataFromServer;
+        ServerPeer.OnReceiveDataFromClient += OnReceiveDataFromClient;
 
         var connectionConfig = OsFps.Instance.CreateConnectionConfig(
             out reliableSequencedChannelId, out unreliableStateUpdateChannelId
@@ -42,6 +42,13 @@ public class Server
     public void Update()
     {
         ServerPeer.ReceiveAndHandleNetworkEvents();
+
+        UpdateGameState();
+
+        if(SendGameStatePeriodicFunction != null)
+        {
+            SendGameStatePeriodicFunction.TryToCall();
+        }
     }
     public void OnClientConnected(int connectionId)
     {
@@ -86,11 +93,15 @@ public class Server
     private int reliableSequencedChannelId;
     private int unreliableStateUpdateChannelId;
     private Dictionary<int, uint> playerIdsByConnectionId;
+    private ThrottledAction SendGameStatePeriodicFunction;
 
     private GameObject SpawnPlayer(uint playerId, Vector3 position, float yAngle)
     {
         var playerState = CurrentGameState.Players.First(ps => ps.Id == playerId);
-        var playerObject = OsFps.Instance.SpawnLocalPlayer(playerState, position, yAngle);
+        playerState.Position = position;
+        playerState.EulerAngles = new Vector3(0, yAngle, 0);
+
+        var playerObject = OsFps.Instance.SpawnLocalPlayer(playerState);
 
         var spawnPlayerMessage = new SpawnPlayerMessage
         {
@@ -98,7 +109,7 @@ public class Server
             PlayerPosition = position,
             PlayerYAngle = yAngle
         };
-        SendMessageToAllClients(reliableSequencedChannelId, spawnPlayerMessage);
+        //SendMessageToAllClients(reliableSequencedChannelId, spawnPlayerMessage);
 
         return playerObject;
     }
@@ -107,7 +118,9 @@ public class Server
     {
         SceneManager.sceneLoaded -= OnMapLoaded;
 
-        if(OnServerStarted != null)
+        SendGameStatePeriodicFunction = new ThrottledAction(SendGameState, 1.0f / 30);
+
+        if (OnServerStarted != null)
         {
             OnServerStarted();
         }
@@ -121,7 +134,31 @@ public class Server
         return netId;
     }
 
-    private void OnReceiveDataFromServer(int connectionId, int channelId, byte[] bytesReceived)
+    private void UpdateGameState()
+    {
+        foreach(var playerState in CurrentGameState.Players)
+        {
+            var playerObject = OsFps.Instance.FindPlayerObject(playerState.Id);
+            var playerComponent = playerObject.GetComponent<PlayerComponent>();
+
+            playerState.Position = playerObject.transform.position;
+            playerState.EulerAngles = new Vector3(
+                playerComponent.cameraPointObject.transform.localEulerAngles.x,
+                playerObject.transform.eulerAngles.x,
+                0
+            );
+            playerState.Input = playerComponent.State.Input;
+        }
+    }
+    private void SendGameState()
+    {
+        var message = new GameStateMessage
+        {
+            GameState = CurrentGameState
+        };
+        SendMessageToAllClients(unreliableStateUpdateChannelId, message);
+    }
+    private void OnReceiveDataFromClient(int connectionId, int channelId, byte[] bytesReceived)
     {
         var reader = new BinaryReader(new MemoryStream(bytesReceived));
         var messageType = (NetworkMessageType)reader.ReadByte();
@@ -144,9 +181,9 @@ public class Server
         {
             OsFps.Instance.FindPlayerObject(message.PlayerId)
                 .GetComponent<PlayerComponent>()
-                .CurrentInput = message.PlayerInput;
+                .State.Input = message.PlayerInput;
         }
 
-        SendMessageToAllClients(unreliableStateUpdateChannelId, message);
+        //SendMessageToAllClients(unreliableStateUpdateChannelId, message);
     }
 }

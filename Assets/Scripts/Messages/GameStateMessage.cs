@@ -16,6 +16,7 @@ public class GameStateMessage : INetworkMessage
     }
     public void Deserialize(BinaryReader reader)
     {
+        GameState = new GameState();
         GameState.Deserialize(reader);
     }
 }

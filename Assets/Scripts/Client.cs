@@ -9,7 +9,7 @@ public class Client
     public ClientPeer ClientPeer;
     public GameObject Camera;
 
-    public uint PlayerId;
+    public uint? PlayerId;
     public bool IsServerRemote;
     public GameState CurrentGameState;
 
@@ -50,6 +50,10 @@ public class Client
         ClientPeer.ReceiveAndHandleNetworkEvents();
         SendInputPeriodicFunction.TryToCall();
     }
+    
+    private int reliableSequencedChannelId;
+    private int unreliableStateUpdateChannelId;
+    private ThrottledAction SendInputPeriodicFunction;
 
     private void AttachCameraToPlayer(uint playerId)
     {
@@ -61,10 +65,54 @@ public class Client
 
         Camera.transform.SetParent(cameraPointObject.transform, false);
     }
+    private void ApplyGameState(GameState newGameState)
+    {
+        if (!PlayerId.HasValue) return; // Wait until the player ID has been set.
 
-    private int reliableSequencedChannelId;
-    private int unreliableStateUpdateChannelId;
-    private ThrottledAction SendInputPeriodicFunction;
+        // TODO: Despawn players if we haven't already.
+
+        foreach (var newPlayerState in newGameState.Players)
+        {
+            var isMe = newPlayerState.Id == PlayerId;
+            var currentPlayerStateIndex = CurrentGameState.Players
+                .FindIndex(ps => ps.Id == newPlayerState.Id);
+
+            // Spawn the player if we haven't already.
+            var needToSpawnPlayer = currentPlayerStateIndex < 0;
+            if (needToSpawnPlayer)
+            {
+                CurrentGameState.Players.Add(newPlayerState);
+                currentPlayerStateIndex = CurrentGameState.Players.Count - 1;
+                
+                if (IsServerRemote)
+                {
+                    OsFps.Instance.SpawnLocalPlayer(newPlayerState);
+                }
+
+                if (isMe)
+                {
+                    AttachCameraToPlayer(newPlayerState.Id);
+                }
+            }
+            
+            // Update the player.
+            if (!isMe)
+            {
+                CurrentGameState.Players[currentPlayerStateIndex] = newPlayerState;
+
+                if (IsServerRemote)
+                {
+                    var playerObject = OsFps.Instance.FindPlayerObject(newPlayerState.Id);
+                    var playerComponent = playerObject.GetComponent<PlayerComponent>();
+
+                    playerComponent.State = newPlayerState;
+                    playerObject.transform.position = newPlayerState.Position;
+                    playerObject.transform.localEulerAngles = new Vector3(0, newPlayerState.EulerAngles.y, 0);
+                    playerComponent.cameraPointObject.transform.localEulerAngles = new Vector3(newPlayerState.EulerAngles.x, 0, 0);
+                }
+            }
+        }
+    }
 
     private void OnReceiveDataFromServer(int channelId, byte[] bytesReceived)
     {
@@ -79,6 +127,12 @@ public class Client
 
                 HandleSetPlayerIdMessage(setPlayerIdMessage);
                 break;
+            case NetworkMessageType.GameState:
+                var gameStateMessage = new GameStateMessage();
+                gameStateMessage.Deserialize(reader);
+
+                HandleGameStateMessage(gameStateMessage);
+                return;
             case NetworkMessageType.SpawnPlayer:
                 var spawnPlayerMessage = new SpawnPlayerMessage();
                 spawnPlayerMessage.Deserialize(reader);
@@ -99,10 +153,14 @@ public class Client
     {
         PlayerId = message.PlayerId;
 
-        CurrentGameState.Players.Add(new PlayerState
+        /*CurrentGameState.Players.Add(new PlayerState
         {
             Id = message.PlayerId
-        });
+        });*/
+    }
+    private void HandleGameStateMessage(GameStateMessage message)
+    {
+        ApplyGameState(message.GameState);
     }
     private void HandleSpawnPlayerMessage(SpawnPlayerMessage message)
     {
@@ -114,17 +172,17 @@ public class Client
         {
             playerState = new PlayerState
             {
-                Id = message.PlayerId,
-                Position = message.PlayerPosition,
-                EulerAngles = new Vector3(0, message.PlayerYAngle, 0),
-                Input = new PlayerInput()
+                Id = message.PlayerId
             };
 
             CurrentGameState.Players.Add(playerState);
         }
+        
+        playerState.Position = message.PlayerPosition;
+        playerState.EulerAngles = new Vector3(0, message.PlayerYAngle, 0);
 
         var playerObject = IsServerRemote
-            ? OsFps.Instance.SpawnLocalPlayer(playerState, message.PlayerPosition, message.PlayerYAngle)
+            ? OsFps.Instance.SpawnLocalPlayer(playerState)
             : OsFps.Instance.FindPlayerObject(playerState.Id);
 
         if (isSpawningMe)
@@ -142,21 +200,23 @@ public class Client
             {
                 playerObject
                     .GetComponent<PlayerComponent>()
-                    .CurrentInput = message.PlayerInput;
+                    .State.Input = message.PlayerInput;
             }
         }
     }
 
     private void SendPlayerInput()
     {
-        var playerObject = OsFps.Instance.FindPlayerObject(PlayerId);
+        if (!PlayerId.HasValue) return;
+
+        var playerObject = OsFps.Instance.FindPlayerObject(PlayerId.Value);
         var playerComponent = (playerObject != null) ? playerObject.GetComponent<PlayerComponent>() : null;
         if (playerComponent == null) return;
 
         var message = new PlayerInputMessage
         {
-            PlayerId = PlayerId,
-            PlayerInput = playerComponent.CurrentInput
+            PlayerId = PlayerId.Value,
+            PlayerInput = playerComponent.State.Input
         };
 
         var serializedMessage = NetworkSerializationUtils.SerializeWithType(message);
