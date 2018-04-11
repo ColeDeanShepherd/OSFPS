@@ -9,20 +9,23 @@ public class Client
     public ClientPeer ClientPeer;
     public GameObject Camera;
 
-    public uint playerId;
-    public bool isServerRemote;
-    public List<RemoteClientInfo> clientInfos;
+    public uint PlayerId;
+    public bool IsServerRemote;
+    public GameState CurrentGameState;
 
     public void Start(bool isServerRemote)
     {
-        this.isServerRemote = isServerRemote;
+        IsServerRemote = isServerRemote;
 
-        clientInfos = new List<RemoteClientInfo>();
+        CurrentGameState = new GameState();
 
         ClientPeer = new ClientPeer();
         ClientPeer.OnReceiveDataFromServer += OnReceiveDataFromServer;
 
-        ClientPeer.Start(portNumber: null, maxConnectionCount: 1);
+        var connectionConfig = OsFps.Instance.CreateConnectionConfig(
+            out reliableSequencedChannelId, out unreliableStateUpdateChannelId
+        );
+        ClientPeer.Start(connectionConfig);
 
         SendInputPeriodicFunction = new ThrottledAction(SendPlayerInput, 1.0f / 30);
 
@@ -59,6 +62,8 @@ public class Client
         Camera.transform.SetParent(cameraPointObject.transform, false);
     }
 
+    private int reliableSequencedChannelId;
+    private int unreliableStateUpdateChannelId;
     private ThrottledAction SendInputPeriodicFunction;
 
     private void OnReceiveDataFromServer(int channelId, byte[] bytesReceived)
@@ -92,54 +97,69 @@ public class Client
     }
     private void HandleSetPlayerIdMessage(SetPlayerIdMessage message)
     {
-        playerId = message.PlayerId;
+        PlayerId = message.PlayerId;
 
-        clientInfos.Add(new RemoteClientInfo
+        CurrentGameState.Players.Add(new PlayerState
         {
-            PlayerId = message.PlayerId
+            Id = message.PlayerId
         });
     }
     private void HandleSpawnPlayerMessage(SpawnPlayerMessage message)
     {
-        var isSpawningMe = (message.PlayerId == playerId);
-        var clientInfo = clientInfos.FirstOrDefault(ci => ci.PlayerId == message.PlayerId);
+        var isSpawningMe = (message.PlayerId == PlayerId);
+        var playerState = CurrentGameState.Players
+            .FirstOrDefault(ps => ps.Id == message.PlayerId);
 
-        if(clientInfo == null)
+        if(playerState == null)
         {
-            clientInfo = new RemoteClientInfo
+            playerState = new PlayerState
             {
-                PlayerId = message.PlayerId
+                Id = message.PlayerId,
+                Position = message.PlayerPosition,
+                EulerAngles = new Vector3(0, message.PlayerYAngle, 0),
+                Input = new PlayerInput()
             };
 
-            clientInfos.Add(clientInfo);
+            CurrentGameState.Players.Add(playerState);
         }
 
-        var playerObject = isServerRemote
-            ? OsFps.Instance.SpawnLocalPlayer(clientInfo)
-            : OsFps.Instance.FindPlayerObject(clientInfo.PlayerId);
+        var playerObject = IsServerRemote
+            ? OsFps.Instance.SpawnLocalPlayer(playerState, message.PlayerPosition, message.PlayerYAngle)
+            : OsFps.Instance.FindPlayerObject(playerState.Id);
 
         if (isSpawningMe)
         {
-            AttachCameraToPlayer(clientInfo.PlayerId);
+            AttachCameraToPlayer(playerState.Id);
         }
     }
     private void HandlePlayerInputMessage(PlayerInputMessage message)
     {
-        Debug.Log("Client Received Player Input Message");
+        if (message.PlayerId != OsFps.Instance.CurrentPlayerId)
+        {
+            var playerObject = OsFps.Instance.FindPlayerObject(message.PlayerId);
+            
+            if(playerObject != null)
+            {
+                playerObject
+                    .GetComponent<PlayerComponent>()
+                    .CurrentInput = message.PlayerInput;
+            }
+        }
     }
 
     private void SendPlayerInput()
     {
-        var playerObject = OsFps.Instance.FindPlayerObject(playerId);
+        var playerObject = OsFps.Instance.FindPlayerObject(PlayerId);
         var playerComponent = (playerObject != null) ? playerObject.GetComponent<PlayerComponent>() : null;
         if (playerComponent == null) return;
 
         var message = new PlayerInputMessage
         {
-            PlayerId = playerId,
+            PlayerId = PlayerId,
             PlayerInput = playerComponent.CurrentInput
         };
 
-        ClientPeer.SendMessageToServer(ClientPeer.unreliableStateUpdateChannelId, message.Serialize());
+        var serializedMessage = NetworkSerializationUtils.SerializeWithType(message);
+        ClientPeer.SendMessageToServer(unreliableStateUpdateChannelId, serializedMessage);
     }
 }

@@ -1,22 +1,22 @@
 ﻿using System.IO;
 
 // Server <-> Client
-public class PlayerInputMessage : NetworkMessage
+public class PlayerInputMessage : INetworkMessage
 {
     public uint PlayerId;
     public PlayerInput PlayerInput;
 
-    public override NetworkMessageType GetMessageType()
+    public NetworkMessageType GetMessageType()
     {
         return NetworkMessageType.PlayerInput;
     }
 
-    protected override void SerializeWithoutType(BinaryWriter writer)
+    public void Serialize(BinaryWriter writer)
     {
         writer.Write(PlayerId);
         PlayerInput.Serialize(writer);
     }
-    protected override void DeserializeWithoutType(BinaryReader reader)
+    public void Deserialize(BinaryReader reader)
     {
         PlayerId = reader.ReadUInt32();
         PlayerInput.Deserialize(reader);

@@ -4,6 +4,7 @@ using UnityEngine.SceneManagement;
 using System.Collections.Generic;
 using System.Linq;
 using System.IO;
+using UnityEngine.Networking;
 
 public class Server
 {
@@ -13,77 +14,91 @@ public class Server
     public delegate void ServerStartedHandler();
     public event ServerStartedHandler OnServerStarted;
 
-    public ServerPeer serverPeer;
+    public ServerPeer ServerPeer;
+    public GameState CurrentGameState;
 
     public void Start()
     {
-        serverPeer = new ServerPeer();
-        serverPeer.OnClientConnected += OnClientConnected;
-        serverPeer.OnReceiveDataFromClient += OnReceiveDataFromServer;
+        playerIdsByConnectionId = new Dictionary<int, uint>();
+        CurrentGameState = new GameState();
 
-        clientInfos = new List<RemoteClientInfo>();
-        serverPeer.Start(PortNumber, MaxPlayerCount);
+        ServerPeer = new ServerPeer();
+        ServerPeer.OnClientConnected += OnClientConnected;
+        ServerPeer.OnReceiveDataFromClient += OnReceiveDataFromServer;
+
+        var connectionConfig = OsFps.Instance.CreateConnectionConfig(
+            out reliableSequencedChannelId, out unreliableStateUpdateChannelId
+        );
+        var hostTopology = new HostTopology(connectionConfig, MaxPlayerCount);
+        ServerPeer.Start(PortNumber, hostTopology);
 
         SceneManager.sceneLoaded += OnMapLoaded;
         SceneManager.LoadScene("Test Map");
     }
     public void Stop()
     {
-        serverPeer.Stop();
+        ServerPeer.Stop();
     }
     public void Update()
     {
-        serverPeer.ReceiveAndHandleNetworkEvents();
+        ServerPeer.ReceiveAndHandleNetworkEvents();
     }
     public void OnClientConnected(int connectionId)
     {
         var playerId = GenerateNetworkId();
 
         // Store information about the client.
-        var clientInfo = new RemoteClientInfo
+        playerIdsByConnectionId.Add(connectionId, playerId);
+        
+        var playerState = new PlayerState
         {
-            ConnectionId = connectionId,
-            PlayerId = playerId
+            Id = playerId
         };
-        clientInfos.Add(clientInfo);
+        CurrentGameState.Players.Add(playerState);
 
-        // Let the client know it's player ID.
+        // Let the client know its player ID.
         var setPlayerIdMessage = new SetPlayerIdMessage
         {
             PlayerId = playerId
         };
-        SendClientMessage(connectionId, serverPeer.reliableSequencedChannelId, setPlayerIdMessage);
+        SendMessageToClient(connectionId, reliableSequencedChannelId, setPlayerIdMessage);
 
         // Spawn the player.
-        clientInfo.GameObject = SpawnPlayer(playerId);
+        SpawnPlayer(playerId, Vector3.up, 0);
     }
 
-    public void SendMessageToAllClients(int channelId, NetworkMessage message)
+    public void SendMessageToAllClients(int channelId, INetworkMessage message)
     {
-        var serializedMessage = message.Serialize();
-        var connectionIds = clientInfos.Select(rci => rci.ConnectionId);
+        var serializedMessage = NetworkSerializationUtils.SerializeWithType(message);
+        var connectionIds = playerIdsByConnectionId.Keys.Select(x => x);
 
         foreach(var connectionId in connectionIds)
         {
-            serverPeer.SendMessageToClient(connectionId, channelId, serializedMessage);
+            ServerPeer.SendMessageToClient(connectionId, channelId, serializedMessage);
         }
     }
-    public void SendClientMessage(int connectionId, int channelId, NetworkMessage message)
+    public void SendMessageToClient(int connectionId, int channelId, INetworkMessage message)
     {
-        serverPeer.SendMessageToClient(connectionId, channelId, message.Serialize());
+        var serializedMessage = NetworkSerializationUtils.SerializeWithType(message);
+        ServerPeer.SendMessageToClient(connectionId, channelId, serializedMessage);
     }
+    
+    private int reliableSequencedChannelId;
+    private int unreliableStateUpdateChannelId;
+    private Dictionary<int, uint> playerIdsByConnectionId;
 
-    private List<RemoteClientInfo> clientInfos;
-
-    private GameObject SpawnPlayer(uint playerId)
+    private GameObject SpawnPlayer(uint playerId, Vector3 position, float yAngle)
     {
-        var playerObject = OsFps.Instance.SpawnLocalPlayer(clientInfos.First(ci => ci.PlayerId == playerId));
+        var playerState = CurrentGameState.Players.First(ps => ps.Id == playerId);
+        var playerObject = OsFps.Instance.SpawnLocalPlayer(playerState, position, yAngle);
 
         var spawnPlayerMessage = new SpawnPlayerMessage
         {
-            PlayerId = playerId
+            PlayerId = playerId,
+            PlayerPosition = position,
+            PlayerYAngle = yAngle
         };
-        SendMessageToAllClients(serverPeer.reliableSequencedChannelId, spawnPlayerMessage);
+        SendMessageToAllClients(reliableSequencedChannelId, spawnPlayerMessage);
 
         return playerObject;
     }
@@ -132,6 +147,6 @@ public class Server
                 .CurrentInput = message.PlayerInput;
         }
 
-        SendMessageToAllClients(serverPeer.unreliableStateUpdateChannelId, message);
+        SendMessageToAllClients(unreliableStateUpdateChannelId, message);
     }
 }

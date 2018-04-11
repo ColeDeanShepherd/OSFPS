@@ -16,7 +16,7 @@ public class OsFps : MonoBehaviour
     {
         get
         {
-            return (Client != null) ? Client.playerId : (uint?)null;
+            return (Client != null) ? Client.PlayerId : (uint?)null;
         }
     }
 
@@ -24,21 +24,34 @@ public class OsFps : MonoBehaviour
     public GameObject PlayerPrefab;
     public GameObject CameraPrefab;
 
-    public GameObject SpawnLocalPlayer(RemoteClientInfo clientInfo)
+    public ConnectionConfig CreateConnectionConfig(
+        out int reliableSequencedChannelId,
+        out int unreliableStateUpdateChannelId
+    )
     {
-        var playerObject = Instantiate(PlayerPrefab);
+        var connectionConfig = new ConnectionConfig();
+        reliableSequencedChannelId = connectionConfig.AddChannel(QosType.ReliableSequenced);
+        unreliableStateUpdateChannelId = connectionConfig.AddChannel(QosType.StateUpdate);
 
-        clientInfo.GameObject = playerObject;
+        return connectionConfig;
+    }
 
+    public GameObject SpawnLocalPlayer(PlayerState playerState, Vector3 position, float yAngle)
+    {
+        var playerObject = Instantiate(PlayerPrefab, position, Quaternion.AngleAxis(yAngle, Vector3.up));
         var playerComponent = playerObject.GetComponent<PlayerComponent>();
-        playerComponent.ClientInfo = clientInfo;
 
+        playerState.Position = position;
+        playerState.EulerAngles = new Vector3(0, yAngle, 0);
+
+        playerComponent.State = playerState;
+        
         return playerObject;
     }
     public GameObject FindPlayerObject(uint playerId)
     {
         return GameObject.FindGameObjectsWithTag("Player")
-            .FirstOrDefault(go => go.GetComponent<PlayerComponent>().ClientInfo.PlayerId == playerId);
+            .FirstOrDefault(go => go.GetComponent<PlayerComponent>().State.Id == playerId);
     }
 
     private void Awake()

@@ -1,21 +1,21 @@
 ﻿using System.IO;
 
 // Server -> Client
-public class SetPlayerIdMessage : INetworkMessage
+public class GameStateMessage : INetworkMessage
 {
-    public uint PlayerId;
+    public GameState GameState;
 
     public NetworkMessageType GetMessageType()
     {
-        return NetworkMessageType.SetPlayerId;
+        return NetworkMessageType.GameState;
     }
 
     public void Serialize(BinaryWriter writer)
     {
-        writer.Write(PlayerId);
+        GameState.Serialize(writer);
     }
     public void Deserialize(BinaryReader reader)
     {
-        PlayerId = reader.ReadUInt32();
+        GameState.Deserialize(reader);
     }
 }

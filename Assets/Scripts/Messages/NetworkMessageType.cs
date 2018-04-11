@@ -1,6 +1,7 @@
-﻿public enum NetworkMessageType
+﻿public enum NetworkMessageType : byte
 {
     SetPlayerId,
+    GameState,
     SpawnPlayer,
     PlayerInput
 }

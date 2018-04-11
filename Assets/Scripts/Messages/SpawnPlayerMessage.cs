@@ -1,22 +1,29 @@
 ﻿using System.IO;
+using UnityEngine;
 
 // Server -> Client
-public class SpawnPlayerMessage : NetworkMessage
+public class SpawnPlayerMessage : INetworkMessage
 {
     public uint PlayerId;
+    public Vector3 PlayerPosition;
+    public float PlayerYAngle;
 
-    public override NetworkMessageType GetMessageType()
+    public NetworkMessageType GetMessageType()
     {
         return NetworkMessageType.SpawnPlayer;
     }
 
-    protected override void SerializeWithoutType(BinaryWriter writer)
+    public void Serialize(BinaryWriter writer)
     {
         writer.Write(PlayerId);
+        NetworkSerializationUtils.Serialize(writer, PlayerPosition);
+        writer.Write(PlayerYAngle);
     }
 
-    protected override void DeserializeWithoutType(BinaryReader reader)
+    public void Deserialize(BinaryReader reader)
     {
         PlayerId = reader.ReadUInt32();
+        NetworkSerializationUtils.Deserialize(reader, ref PlayerPosition);
+        PlayerYAngle = reader.ReadSingle();
     }
 }

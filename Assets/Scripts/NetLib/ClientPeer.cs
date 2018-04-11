@@ -23,13 +23,13 @@ namespace NetLib
             }
         }
 
-        public void Start()
+        public void Start(ConnectionConfig connectionConfig)
         {
             Debug.Assert(!IsStarted);
 
             var maxConnectionCount = 1; // The client only connects to the server.
             var hostTopology = new HostTopology(
-                CreateConnectionConfig(), maxConnectionCount
+                connectionConfig, maxConnectionCount
             );
             socketId = NetworkTransport.AddHost(hostTopology);
         }
@@ -72,6 +72,8 @@ namespace NetLib
         }
         public void DisconnectFromServer()
         {
+            if (!IsConnectedToServer) return;
+
             byte networkErrorAsByte;
             var mysteryReturnedBool = NetworkTransport.Disconnect(
                 socketId.Value, serverConnectionId.Value, out networkErrorAsByte

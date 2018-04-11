@@ -2,7 +2,7 @@
 
 public class PlayerComponent : MonoBehaviour
 {
-    public RemoteClientInfo ClientInfo;
+    public PlayerState State;
     public PlayerInput CurrentInput;
     public GameObject cameraPointObject;
 
@@ -11,7 +11,7 @@ public class PlayerComponent : MonoBehaviour
         get
         {
             var client = OsFps.Instance.Client;
-            return (client != null) && (ClientInfo.PlayerId == client.playerId);
+            return (client != null) && (State.Id == client.PlayerId);
         }
     }
 

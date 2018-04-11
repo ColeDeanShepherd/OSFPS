@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using System.Collections.Generic;
+using UnityEngine;
 using UnityEngine.Networking;
 
 namespace NetLib
@@ -8,8 +9,6 @@ namespace NetLib
         public const int ReceiveBufferSize = 1024;
 
         public int? socketId;
-        public int reliableSequencedChannelId;
-        public int unreliableStateUpdateChannelId;
 
         public bool IsStarted
         {
@@ -19,21 +18,9 @@ namespace NetLib
             }
         }
 
-        public ConnectionConfig CreateConnectionConfig()
-        {
-            var connectionConfig = new ConnectionConfig();
-            reliableSequencedChannelId = connectionConfig.AddChannel(QosType.ReliableSequenced);
-            unreliableStateUpdateChannelId = connectionConfig.AddChannel(QosType.StateUpdate);
-
-            return connectionConfig;
-        }
-        public virtual void Start(ushort? portNumber, uint maxConnectionCount)
+        public virtual void Start(ushort? portNumber, HostTopology hostTopology)
         {
             Debug.Assert(!IsStarted);
-
-            var hostTopology = new HostTopology(
-                CreateConnectionConfig(), (int)maxConnectionCount
-            );
 
             if (portNumber.HasValue)
             {
@@ -51,7 +38,6 @@ namespace NetLib
             var succeeded = NetworkTransport.RemoveHost(socketId.Value);
 
             socketId = null;
-            reliableSequencedChannelId = 0;
 
             return succeeded;
         }
