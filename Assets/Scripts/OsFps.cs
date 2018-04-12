@@ -12,14 +12,6 @@ public class OsFps : MonoBehaviour
     public Server Server;
     public Client Client;
 
-    public uint? CurrentPlayerId
-    {
-        get
-        {
-            return (Client != null) ? Client.PlayerId : (uint?)null;
-        }
-    }
-
     // inspector-set variables
     public GameObject PlayerPrefab;
     public GameObject CameraPrefab;
@@ -41,16 +33,79 @@ public class OsFps : MonoBehaviour
         var playerObject = Instantiate(
             PlayerPrefab, playerState.Position, Quaternion.Euler(playerState.EulerAngles)
         );
-        var playerComponent = playerObject.GetComponent<PlayerComponent>();
+        playerObject.GetComponent<PlayerComponent>().Id = playerState.Id;
 
-        playerComponent.State = playerState;
-        
         return playerObject;
     }
     public GameObject FindPlayerObject(uint playerId)
     {
         return GameObject.FindGameObjectsWithTag("Player")
-            .FirstOrDefault(go => go.GetComponent<PlayerComponent>().State.Id == playerId);
+            .FirstOrDefault(go => go.GetComponent<PlayerComponent>().Id == playerId);
+    }
+    public PlayerComponent FindPlayerComponent(uint playerId)
+    {
+        var playerObject = FindPlayerObject(playerId);
+        return (playerObject != null) ? playerObject.GetComponent<PlayerComponent>() : null;
+    }
+    
+    public PlayerInput GetCurrentPlayersInput()
+    {
+        return new PlayerInput
+        {
+            IsMoveFowardPressed = Input.GetKey(KeyCode.W),
+            IsMoveBackwardPressed = Input.GetKey(KeyCode.S),
+            IsMoveRightPressed = Input.GetKey(KeyCode.D),
+            IsMoveLeftPressed = Input.GetKey(KeyCode.A)
+        };
+    }
+    public Vector3 GetRelativeMoveDirection(PlayerInput input)
+    {
+        var moveDirection = Vector3.zero;
+
+        if (input.IsMoveFowardPressed)
+        {
+            moveDirection += Vector3.forward;
+        }
+
+        if (input.IsMoveBackwardPressed)
+        {
+            moveDirection += Vector3.back;
+        }
+
+        if (input.IsMoveRightPressed)
+        {
+            moveDirection += Vector3.right;
+        }
+
+        if (input.IsMoveLeftPressed)
+        {
+            moveDirection += Vector3.left;
+        }
+
+        return moveDirection.normalized;
+    }
+    public void UpdatePlayer(PlayerState playerState)
+    {
+        var playerComponent = FindPlayerComponent(playerState.Id);
+
+        ApplyEulerAnglesToPlayer(playerComponent, playerState.EulerAngles);
+
+        var relativeMoveDirection = GetRelativeMoveDirection(playerState.Input);
+        playerComponent.Rigidbody.AddRelativeForce(10 * relativeMoveDirection);
+    }
+
+    public Vector3 GetPlayerEulerAngles(PlayerComponent playerComponent)
+    {
+        return new Vector3(
+            playerComponent.CameraPointObject.transform.localEulerAngles.x,
+            playerComponent.transform.eulerAngles.x,
+            0
+        );
+    }
+    public void ApplyEulerAnglesToPlayer(PlayerComponent playerComponent, Vector3 eulerAngles)
+    {
+        playerComponent.transform.localEulerAngles = new Vector3(0, eulerAngles.y, 0);
+        playerComponent.CameraPointObject.transform.localEulerAngles = new Vector3(eulerAngles.x, 0, 0);
     }
 
     private void Awake()
@@ -89,6 +144,13 @@ public class OsFps : MonoBehaviour
             Client.Update();
         }
     }
+    private void LateUpdate()
+    {
+        if (Server != null)
+        {
+            Server.LateUpdate();
+        }
+    }
     private void OnGUI()
     {
         if((Server == null) && (Client == null))
@@ -102,14 +164,6 @@ public class OsFps : MonoBehaviour
             if (GUI.Button(new Rect(10, 50, 200, 30), "Start Server"))
             {
                 Server = new Server();
-                Server.OnServerStarted += () => {
-                    Client = new Client();
-                    Client.OnDisconnectedFromServer += OnClientDisconnectedFromServer;
-                    Client.Start(false);
-
-                    Client.StartConnectingToServer(LocalHostIpv4Address, Server.PortNumber);
-                };
-
                 Server.Start();
             }
         }
@@ -127,6 +181,8 @@ public class OsFps : MonoBehaviour
 
         if (Server != null)
         {
+            Server.Stop();
+
             Server = null;
         }
     }

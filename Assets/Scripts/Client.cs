@@ -1,6 +1,5 @@
 ﻿using NetLib;
 using System.IO;
-using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.Networking;
@@ -11,15 +10,12 @@ public class Client
     public GameObject Camera;
 
     public uint? PlayerId;
-    public bool IsServerRemote;
     public GameState CurrentGameState;
     
     public event ClientPeer.ServerConnectionChangeEventHandler OnDisconnectedFromServer;
 
     public void Start(bool isServerRemote)
     {
-        IsServerRemote = isServerRemote;
-
         CurrentGameState = new GameState();
 
         ClientPeer = new ClientPeer();
@@ -69,6 +65,7 @@ public class Client
 
         if (ClientPeer.IsConnectedToServer)
         {
+            UpdateLocalPlayer();
             SendInputPeriodicFunction.TryToCall();
         }
     }
@@ -77,10 +74,28 @@ public class Client
     private int unreliableStateUpdateChannelId;
     private ThrottledAction SendInputPeriodicFunction;
 
+    private void UpdateLocalPlayer()
+    {
+        var playerState = CurrentGameState.Players.FirstOrDefault(ps => ps.Id == PlayerId);
+        if (playerState == null) return;
+
+        playerState.Input = OsFps.Instance.GetCurrentPlayersInput();
+
+        var mouseSensitivity = 3;
+        var deltaMouse = mouseSensitivity * new Vector2(Input.GetAxis("Mouse X"), Input.GetAxis("Mouse Y"));
+
+        playerState.EulerAngles = new Vector3(
+            Mathf.Clamp(playerState.EulerAngles.x - deltaMouse.y, -90, 90),
+            Mathf.Repeat(playerState.EulerAngles.y + deltaMouse.x, 360),
+            0
+        );
+
+        OsFps.Instance.UpdatePlayer(playerState);
+    }
     private void AttachCameraToPlayer(uint playerId)
     {
         var playerObject = OsFps.Instance.FindPlayerObject(playerId);
-        var cameraPointObject = playerObject.GetComponent<PlayerComponent>().cameraPointObject;
+        var cameraPointObject = playerObject.GetComponent<PlayerComponent>().CameraPointObject;
 
         Camera.transform.position = Vector3.zero;
         Camera.transform.rotation = Quaternion.identity;
@@ -115,33 +130,34 @@ public class Client
             {
                 CurrentGameState.Players.Add(newPlayerState);
                 currentPlayerStateIndex = CurrentGameState.Players.Count - 1;
-                
-                if (IsServerRemote)
-                {
-                    OsFps.Instance.SpawnLocalPlayer(newPlayerState);
-                }
+
+                OsFps.Instance.SpawnLocalPlayer(newPlayerState);
 
                 if (isMe)
                 {
                     AttachCameraToPlayer(newPlayerState.Id);
                 }
             }
-            
+
             // Update the player.
+            var playerObject = OsFps.Instance.FindPlayerObject(newPlayerState.Id);
+            var playerComponent = playerObject.GetComponent<PlayerComponent>();
+
+            var playerNeedsCorrection = Vector3.Distance(playerObject.transform.position, newPlayerState.Position) >= 0.5f;
+
+            if (playerNeedsCorrection)
+            {
+                playerObject.transform.position = newPlayerState.Position;
+            }
+            else
+            {
+                newPlayerState.Position = playerObject.transform.position;
+            }
+
             if (!isMe)
             {
                 CurrentGameState.Players[currentPlayerStateIndex] = newPlayerState;
-
-                if (IsServerRemote)
-                {
-                    var playerObject = OsFps.Instance.FindPlayerObject(newPlayerState.Id);
-                    var playerComponent = playerObject.GetComponent<PlayerComponent>();
-
-                    playerComponent.State = newPlayerState;
-                    playerObject.transform.position = newPlayerState.Position;
-                    playerObject.transform.localEulerAngles = new Vector3(0, newPlayerState.EulerAngles.y, 0);
-                    playerComponent.cameraPointObject.transform.localEulerAngles = new Vector3(newPlayerState.EulerAngles.x, 0, 0);
-                }
+                OsFps.Instance.ApplyEulerAnglesToPlayer(playerComponent, newPlayerState.EulerAngles);
             }
         }
     }
@@ -170,12 +186,6 @@ public class Client
                 spawnPlayerMessage.Deserialize(reader);
 
                 HandleSpawnPlayerMessage(spawnPlayerMessage);
-                break;
-            case NetworkMessageType.PlayerInput:
-                var playerInputMessage = new PlayerInputMessage();
-                playerInputMessage.Deserialize(reader);
-
-                HandlePlayerInputMessage(playerInputMessage);
                 break;
             default:
                 throw new System.NotImplementedException("Unknown message type: " + messageType);
@@ -213,27 +223,11 @@ public class Client
         playerState.Position = message.PlayerPosition;
         playerState.EulerAngles = new Vector3(0, message.PlayerYAngle, 0);
 
-        var playerObject = IsServerRemote
-            ? OsFps.Instance.SpawnLocalPlayer(playerState)
-            : OsFps.Instance.FindPlayerObject(playerState.Id);
+        var playerObject = OsFps.Instance.SpawnLocalPlayer(playerState);
 
         if (isSpawningMe)
         {
             AttachCameraToPlayer(playerState.Id);
-        }
-    }
-    private void HandlePlayerInputMessage(PlayerInputMessage message)
-    {
-        if (message.PlayerId != OsFps.Instance.CurrentPlayerId)
-        {
-            var playerObject = OsFps.Instance.FindPlayerObject(message.PlayerId);
-            
-            if(playerObject != null)
-            {
-                playerObject
-                    .GetComponent<PlayerComponent>()
-                    .State.Input = message.PlayerInput;
-            }
         }
     }
 
@@ -247,16 +241,14 @@ public class Client
 
     private void SendPlayerInput()
     {
-        if (!PlayerId.HasValue) return;
-
-        var playerObject = OsFps.Instance.FindPlayerObject(PlayerId.Value);
-        var playerComponent = (playerObject != null) ? playerObject.GetComponent<PlayerComponent>() : null;
-        if (playerComponent == null) return;
+        var playerState = CurrentGameState.Players.FirstOrDefault(ps => ps.Id == PlayerId);
+        if (playerState == null) return;
 
         var message = new PlayerInputMessage
         {
             PlayerId = PlayerId.Value,
-            PlayerInput = playerComponent.State.Input
+            PlayerInput = playerState.Input,
+            EulerAngles = playerState.EulerAngles
         };
 
         var serializedMessage = NetworkSerializationUtils.SerializeWithType(message);

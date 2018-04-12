@@ -44,9 +44,13 @@ public class Server
     {
         ServerPeer.ReceiveAndHandleNetworkEvents();
 
+        UpdatePlayers();
+    }
+    public void LateUpdate()
+    {
         UpdateGameState();
 
-        if(SendGameStatePeriodicFunction != null)
+        if (SendGameStatePeriodicFunction != null)
         {
             SendGameStatePeriodicFunction.TryToCall();
         }
@@ -155,20 +159,21 @@ public class Server
         return netId;
     }
 
+    private void UpdatePlayers()
+    {
+        foreach (var playerState in CurrentGameState.Players)
+        {
+            OsFps.Instance.UpdatePlayer(playerState);
+        }
+    }
     private void UpdateGameState()
     {
         foreach(var playerState in CurrentGameState.Players)
         {
-            var playerObject = OsFps.Instance.FindPlayerObject(playerState.Id);
-            var playerComponent = playerObject.GetComponent<PlayerComponent>();
+            var playerComponent = OsFps.Instance.FindPlayerComponent(playerState.Id);
 
-            playerState.Position = playerObject.transform.position;
-            playerState.EulerAngles = new Vector3(
-                playerComponent.cameraPointObject.transform.localEulerAngles.x,
-                playerObject.transform.eulerAngles.x,
-                0
-            );
-            playerState.Input = playerComponent.State.Input;
+            playerState.Position = playerComponent.transform.position;
+            playerState.EulerAngles = OsFps.Instance.GetPlayerEulerAngles(playerComponent);
         }
     }
     private void SendGameState()
@@ -199,13 +204,9 @@ public class Server
     }
     private void HandlePlayerInputMessage(PlayerInputMessage message)
     {
-        if (message.PlayerId != OsFps.Instance.CurrentPlayerId)
-        {
-            OsFps.Instance.FindPlayerObject(message.PlayerId)
-                .GetComponent<PlayerComponent>()
-                .State.Input = message.PlayerInput;
-        }
-
-        //SendMessageToAllClients(unreliableStateUpdateChannelId, message);
+        // TODO: Make sure the player ID is correct.
+        var playerState = CurrentGameState.Players.First(ps => ps.Id == message.PlayerId);
+        playerState.Input = message.PlayerInput;
+        playerState.EulerAngles = message.EulerAngles;
     }
 }

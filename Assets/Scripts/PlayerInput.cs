@@ -6,8 +6,6 @@ public struct PlayerInput
     public bool IsMoveBackwardPressed;
     public bool IsMoveRightPressed;
     public bool IsMoveLeftPressed;
-    public float XAngle;
-    public float YAngle;
 
     public void Serialize(BinaryWriter writer)
     {
@@ -15,8 +13,6 @@ public struct PlayerInput
         writer.Write(IsMoveBackwardPressed);
         writer.Write(IsMoveRightPressed);
         writer.Write(IsMoveLeftPressed);
-        writer.Write(XAngle);
-        writer.Write(YAngle);
     }
     public void Deserialize(BinaryReader reader)
     {
@@ -24,7 +20,5 @@ public struct PlayerInput
         IsMoveBackwardPressed = reader.ReadBoolean();
         IsMoveRightPressed = reader.ReadBoolean();
         IsMoveLeftPressed = reader.ReadBoolean();
-        XAngle = reader.ReadSingle();
-        YAngle = reader.ReadSingle();
     }
 }
