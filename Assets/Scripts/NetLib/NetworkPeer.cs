@@ -1,5 +1,4 @@
-﻿using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.Networking;
 
 namespace NetLib
@@ -42,11 +41,25 @@ namespace NetLib
             return succeeded;
         }
 
+        public NetworkError SendMessage(int connectionId, int channelId, byte[] messageBytes)
+        {
+            byte networkErrorAsByte;
+            var mysteryReturnedBool = NetworkTransport.Send(
+                socketId.Value, connectionId, channelId,
+                messageBytes, messageBytes.Length, out networkErrorAsByte
+            );
+
+            var networkError = (NetworkError)networkErrorAsByte;
+            return networkError;
+        }
+
         private byte[] _netReceiveBuffer = new byte[ReceiveBufferSize];
         public void ReceiveAndHandleNetworkEvents()
         {
             while (true)
             {
+                if (!socketId.HasValue) return;
+
                 int connectionId;
                 int channelId;
                 int numBytesReceived;
@@ -74,6 +87,7 @@ namespace NetLib
         protected virtual void OnPeerConnected(int connectionId) { }
         protected virtual void OnPeerDisconnected(int connectionId) { }
         protected virtual void OnReceiveData(int connectionId, int channelId, byte[] buffer, int numBytesReceived) { }
+        protected virtual void OnNetworkErrorEvent(int connectionId, int channelId, NetworkError error, NetworkEventType eventType, byte[] buffer, int numBytesReceived) { }
 
         private void HandleNetworkEvent(
             NetworkEventType networkEventType, int connectionId, int channelId,
@@ -82,11 +96,14 @@ namespace NetLib
         {
             if (networkError != NetworkError.Ok)
             {
-                var errorMessage = string.Format(
-                    "Failed receiving a message. Error: {0}. Event Type: {1}",
-                    networkError, networkEventType
-                );
-                Debug.LogError(errorMessage);
+                if ((networkError == NetworkError.WrongConnection) || (networkError == NetworkError.Timeout))
+                {
+                    OnPeerDisconnected(connectionId);
+                }
+                else
+                {
+                    OnNetworkErrorEvent(connectionId, channelId, networkError, networkEventType, buffer, numBytesReceived);
+                }
 
                 return;
             }

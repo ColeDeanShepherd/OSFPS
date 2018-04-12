@@ -12,7 +12,7 @@ namespace NetLib
 
         public delegate void ReceiveDataFromServerHandler(int connectionId, int channelId, byte[] bytesReceived);
         public event ReceiveDataFromServerHandler OnReceiveDataFromClient;
-
+        
         public override bool Stop()
         {
             var succeeded = base.Stop();
@@ -25,19 +25,15 @@ namespace NetLib
             return succeeded;
         }
 
-        public void SendMessageToClient(int connectionId, int channelId, byte[] messageBytes)
+        public NetworkError SendMessageToClient(int connectionId, int channelId, byte[] messageBytes)
         {
-            byte networkErrorAsByte;
-            var mysteryReturnedBool = NetworkTransport.Send(
-                socketId.Value, connectionId, channelId,
-                messageBytes, messageBytes.Length, out networkErrorAsByte
-            );
-
-            var networkError = (NetworkError)networkErrorAsByte;
+            var networkError = SendMessage(connectionId, channelId, messageBytes);
             if (networkError != NetworkError.Ok)
             {
                 Debug.LogError(string.Format("Failed sending message to client. Error: {0}", networkError));
             }
+
+            return networkError;
         }
 
         protected override void OnPeerConnected(int connectionId)
@@ -64,5 +60,14 @@ namespace NetLib
                 OnReceiveDataFromClient(connectionId, channelId, bytesReceived);
             }
         }
+        protected override void OnNetworkErrorEvent(int connectionId, int channelId, NetworkError error, NetworkEventType eventType, byte[] buffer, int numBytesReceived)
+        {
+            var errorMessage = string.Format(
+                "Network error. Error: {0}. Event Type: {1}",
+                error, eventType
+            );
+            Debug.LogError(errorMessage);
+        }
+
     }
 }

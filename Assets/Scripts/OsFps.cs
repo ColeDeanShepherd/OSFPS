@@ -74,19 +74,7 @@ public class OsFps : MonoBehaviour
     }
     private void OnDestroy()
     {
-        if (Client != null)
-        {
-            Client.DisconnectFromServer();
-            Client.Stop();
-
-            Client = null;
-        }
-
-        if (Server != null)
-        {
-            Server = null;
-        }
-        
+        ShutdownNetworkPeers();
         NetworkTransport.Shutdown();
     }
     private void Update()
@@ -116,6 +104,7 @@ public class OsFps : MonoBehaviour
                 Server = new Server();
                 Server.OnServerStarted += () => {
                     Client = new Client();
+                    Client.OnDisconnectedFromServer += OnClientDisconnectedFromServer;
                     Client.Start(false);
 
                     Client.StartConnectingToServer(LocalHostIpv4Address, Server.PortNumber);
@@ -126,12 +115,34 @@ public class OsFps : MonoBehaviour
         }
     }
 
+    private void ShutdownNetworkPeers()
+    {
+        if (Client != null)
+        {
+            Client.DisconnectFromServer();
+            Client.Stop();
+
+            Client = null;
+        }
+
+        if (Server != null)
+        {
+            Server = null;
+        }
+    }
+
     private void OnMapLoadedAsClient(Scene scene, LoadSceneMode loadSceneMode)
     {
         SceneManager.sceneLoaded -= OnMapLoadedAsClient;
 
         Client = new Client();
+        Client.OnDisconnectedFromServer += OnClientDisconnectedFromServer;
         Client.Start(true);
         Client.StartConnectingToServer(LocalHostIpv4Address, Server.PortNumber);
+    }
+    private void OnClientDisconnectedFromServer()
+    {
+        ShutdownNetworkPeers();
+        SceneManager.LoadScene("Start");
     }
 }

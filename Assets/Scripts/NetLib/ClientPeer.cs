@@ -47,7 +47,7 @@ namespace NetLib
             return succeeded;
         }
 
-        public void StartConnectingToServer(string serverIpv4Address, ushort serverPortNumber)
+        public NetworkError StartConnectingToServer(string serverIpv4Address, ushort serverPortNumber)
         {
             Debug.Assert(!IsConnectedToServer);
 
@@ -59,20 +59,11 @@ namespace NetLib
             );
 
             var networkError = (NetworkError)networkErrorAsByte;
-            if (networkError != NetworkError.Ok)
-            {
-                var errorMessage = string.Format(
-                    "Failed connecting to server {0}:{1}. Error: {2}",
-                    serverIpv4Address, serverPortNumber, networkError
-                );
-                Debug.LogError(errorMessage);
-
-                return;
-            }
+            return networkError;
         }
-        public void DisconnectFromServer()
+        public NetworkError DisconnectFromServer()
         {
-            if (!IsConnectedToServer) return;
+            if (!IsConnectedToServer) return NetworkError.Ok;
 
             byte networkErrorAsByte;
             var mysteryReturnedBool = NetworkTransport.Disconnect(
@@ -80,23 +71,14 @@ namespace NetLib
             );
 
             var networkError = (NetworkError)networkErrorAsByte;
-            if (networkError != NetworkError.Ok)
-            {
-                Debug.LogError(string.Format("Failed disconnecting from server. Error: {0}", networkError));
-            }
-
             serverConnectionId = null;
+
+            return networkError;
         }
 
         public void SendMessageToServer(int channelId, byte[] messageBytes)
         {
-            byte networkErrorAsByte;
-            var mysteryReturnedBool = NetworkTransport.Send(
-                socketId.Value, serverConnectionId.Value, channelId,
-                messageBytes, messageBytes.Length, out networkErrorAsByte
-            );
-
-            var networkError = (NetworkError)networkErrorAsByte;
+            var networkError = SendMessage(serverConnectionId.Value, channelId, messageBytes);
             if (networkError != NetworkError.Ok)
             {
                 Debug.LogError(string.Format("Failed sending message to server. Error: {0}", networkError));
@@ -105,8 +87,6 @@ namespace NetLib
 
         protected override void OnPeerConnected(int connectionId)
         {
-            Debug.Log("ClientOnConnect " + connectionId);
-
             serverConnectionId = connectionId;
 
             if(OnConnectedToServer != null)
@@ -116,8 +96,6 @@ namespace NetLib
         }
         protected override void OnPeerDisconnected(int connectionId)
         {
-            Debug.Log("ClientOnDisconnect " + connectionId);
-
             serverConnectionId = null;
 
             if(OnDisconnectedFromServer != null)
@@ -131,6 +109,14 @@ namespace NetLib
             Array.Copy(buffer, bytesReceived, numBytesReceived);
 
             OnReceiveDataFromServer(channelId, bytesReceived);
+        }
+        protected override void OnNetworkErrorEvent(int connectionId, int channelId, NetworkError error, NetworkEventType eventType, byte[] buffer, int numBytesReceived)
+        {
+            var errorMessage = string.Format(
+                    "Network error. Error: {0}. Event Type: {1}",
+                    error, eventType
+                );
+            Debug.LogError(errorMessage);
         }
     }
 }

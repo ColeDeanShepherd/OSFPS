@@ -3,6 +3,7 @@ using System.IO;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using UnityEngine.Networking;
 
 public class Client
 {
@@ -12,6 +13,8 @@ public class Client
     public uint? PlayerId;
     public bool IsServerRemote;
     public GameState CurrentGameState;
+    
+    public event ClientPeer.ServerConnectionChangeEventHandler OnDisconnectedFromServer;
 
     public void Start(bool isServerRemote)
     {
@@ -21,6 +24,7 @@ public class Client
 
         ClientPeer = new ClientPeer();
         ClientPeer.OnReceiveDataFromServer += OnReceiveDataFromServer;
+        ClientPeer.OnDisconnectedFromServer += InternalOnDisconnectedFromServer;
 
         var connectionConfig = OsFps.Instance.CreateConnectionConfig(
             out reliableSequencedChannelId, out unreliableStateUpdateChannelId
@@ -38,17 +42,35 @@ public class Client
 
     public void StartConnectingToServer(string serverIpv4Address, ushort serverPortNumber)
     {
-        ClientPeer.StartConnectingToServer(serverIpv4Address, serverPortNumber);
+        var networkError = ClientPeer.StartConnectingToServer(serverIpv4Address, serverPortNumber);
+
+        if (networkError != NetworkError.Ok)
+        {
+            var errorMessage = string.Format(
+                "Failed connecting to server {0}:{1}. Error: {2}",
+                serverIpv4Address, serverPortNumber, networkError
+            );
+            Debug.LogError(errorMessage);
+        }
     }
     public void DisconnectFromServer()
     {
-        ClientPeer.DisconnectFromServer();
+        var networkError = ClientPeer.DisconnectFromServer();
+
+        if (networkError != NetworkError.Ok)
+        {
+            Debug.LogError(string.Format("Failed disconnecting from server. Error: {0}", networkError));
+        }
     }
 
     public void Update()
     {
         ClientPeer.ReceiveAndHandleNetworkEvents();
-        SendInputPeriodicFunction.TryToCall();
+
+        if (ClientPeer.IsConnectedToServer)
+        {
+            SendInputPeriodicFunction.TryToCall();
+        }
     }
     
     private int reliableSequencedChannelId;
@@ -69,7 +91,17 @@ public class Client
     {
         if (!PlayerId.HasValue) return; // Wait until the player ID has been set.
 
-        // TODO: Despawn players if we haven't already.
+        // Despawn players.
+        var removedPlayerIds = CurrentGameState.Players
+            .Where(oldPs  => !newGameState.Players.Any(newPs => newPs.Id == oldPs.Id))
+            .Select(ps => ps.Id)
+            .ToList();
+
+        CurrentGameState.Players.RemoveAll(ps => removedPlayerIds.Contains(ps.Id));
+        foreach (var playerId in removedPlayerIds)
+        {
+            Object.Destroy(OsFps.Instance.FindPlayerObject(playerId));
+        }
 
         foreach (var newPlayerState in newGameState.Players)
         {
@@ -202,6 +234,14 @@ public class Client
                     .GetComponent<PlayerComponent>()
                     .State.Input = message.PlayerInput;
             }
+        }
+    }
+
+    private void InternalOnDisconnectedFromServer()
+    {
+        if (OnDisconnectedFromServer != null)
+        {
+            OnDisconnectedFromServer();
         }
     }
 

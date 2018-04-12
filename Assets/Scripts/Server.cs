@@ -24,6 +24,7 @@ public class Server
 
         ServerPeer = new ServerPeer();
         ServerPeer.OnClientConnected += OnClientConnected;
+        ServerPeer.OnClientDisconnected += OnClientDisconnected;
         ServerPeer.OnReceiveDataFromClient += OnReceiveDataFromClient;
 
         var connectionConfig = OsFps.Instance.CreateConnectionConfig(
@@ -73,21 +74,31 @@ public class Server
         // Spawn the player.
         SpawnPlayer(playerId, Vector3.up, 0);
     }
+    public void OnClientDisconnected(int connectionId)
+    {
+        var playerId = playerIdsByConnectionId[connectionId];
+        var playerStateIndex = CurrentGameState.Players.FindIndex(ps => ps.Id == playerId);
+
+        playerIdsByConnectionId.Remove(connectionId);
+        CurrentGameState.Players.RemoveAt(playerStateIndex);
+
+        Object.Destroy(OsFps.Instance.FindPlayerObject(playerId));
+    }
 
     public void SendMessageToAllClients(int channelId, INetworkMessage message)
     {
         var serializedMessage = NetworkSerializationUtils.SerializeWithType(message);
-        var connectionIds = playerIdsByConnectionId.Keys.Select(x => x);
+        var connectionIds = playerIdsByConnectionId.Keys.Select(x => x).ToList();
 
         foreach(var connectionId in connectionIds)
         {
-            ServerPeer.SendMessageToClient(connectionId, channelId, serializedMessage);
+            SendMessageToClientHandleErrors(connectionId, channelId, serializedMessage);
         }
     }
     public void SendMessageToClient(int connectionId, int channelId, INetworkMessage message)
     {
         var serializedMessage = NetworkSerializationUtils.SerializeWithType(message);
-        ServerPeer.SendMessageToClient(connectionId, channelId, serializedMessage);
+        SendMessageToClientHandleErrors(connectionId, channelId, serializedMessage);
     }
     
     private int reliableSequencedChannelId;
@@ -126,6 +137,16 @@ public class Server
         }
     }
 
+    private void SendMessageToClientHandleErrors(int connectionId, int channelId, byte[] serializedMessage)
+    {
+        var networkError = ServerPeer.SendMessageToClient(connectionId, channelId, serializedMessage);
+        
+        if (networkError != NetworkError.Ok)
+        {
+            Debug.LogError(string.Format("Failed sending message to client. Error: {0}", networkError));
+        }
+    }
+
     private uint _nextNetworkId = 1;
     private uint GenerateNetworkId()
     {
@@ -158,6 +179,7 @@ public class Server
         };
         SendMessageToAllClients(unreliableStateUpdateChannelId, message);
     }
+
     private void OnReceiveDataFromClient(int connectionId, int channelId, byte[] bytesReceived)
     {
         var reader = new BinaryReader(new MemoryStream(bytesReceived));
