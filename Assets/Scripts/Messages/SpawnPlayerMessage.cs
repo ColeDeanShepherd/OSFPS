@@ -6,7 +6,7 @@ public class SpawnPlayerMessage : INetworkMessage
 {
     public uint PlayerId;
     public Vector3 PlayerPosition;
-    public float PlayerYAngle;
+    public float PlayerLookDirYAngle;
 
     public NetworkMessageType GetMessageType()
     {
@@ -17,13 +17,13 @@ public class SpawnPlayerMessage : INetworkMessage
     {
         writer.Write(PlayerId);
         NetworkSerializationUtils.Serialize(writer, PlayerPosition);
-        writer.Write(PlayerYAngle);
+        writer.Write(PlayerLookDirYAngle);
     }
 
     public void Deserialize(BinaryReader reader)
     {
         PlayerId = reader.ReadUInt32();
         NetworkSerializationUtils.Deserialize(reader, ref PlayerPosition);
-        PlayerYAngle = reader.ReadSingle();
+        PlayerLookDirYAngle = reader.ReadSingle();
     }
 }

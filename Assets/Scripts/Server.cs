@@ -28,7 +28,9 @@ public class Server
         ServerPeer.OnReceiveDataFromClient += OnReceiveDataFromClient;
 
         var connectionConfig = OsFps.Instance.CreateConnectionConfig(
-            out reliableSequencedChannelId, out unreliableStateUpdateChannelId
+            out reliableSequencedChannelId,
+            out reliableChannelId,
+            out unreliableStateUpdateChannelId
         );
         var hostTopology = new HostTopology(connectionConfig, MaxPlayerCount);
         ServerPeer.Start(PortNumber, hostTopology);
@@ -106,15 +108,16 @@ public class Server
     }
     
     private int reliableSequencedChannelId;
+    private int reliableChannelId;
     private int unreliableStateUpdateChannelId;
     private Dictionary<int, uint> playerIdsByConnectionId;
     private ThrottledAction SendGameStatePeriodicFunction;
 
-    private GameObject SpawnPlayer(uint playerId, Vector3 position, float yAngle)
+    private GameObject SpawnPlayer(uint playerId, Vector3 position, float lookDirYAngle)
     {
         var playerState = CurrentGameState.Players.First(ps => ps.Id == playerId);
         playerState.Position = position;
-        playerState.EulerAngles = new Vector3(0, yAngle, 0);
+        playerState.LookDirAngles = new Vector2(0, lookDirYAngle);
 
         var playerObject = OsFps.Instance.SpawnLocalPlayer(playerState);
 
@@ -122,7 +125,7 @@ public class Server
         {
             PlayerId = playerId,
             PlayerPosition = position,
-            PlayerYAngle = yAngle
+            PlayerLookDirYAngle = lookDirYAngle
         };
         //SendMessageToAllClients(reliableSequencedChannelId, spawnPlayerMessage);
 
@@ -166,6 +169,25 @@ public class Server
             OsFps.Instance.UpdatePlayer(playerState);
         }
     }
+    private void PlayerPullTrigger(PlayerState playerState)
+    {
+        var playerComponent = OsFps.Instance.FindPlayerComponent(playerState.Id);
+        var shotRay = new Ray(
+            playerComponent.CameraPointObject.transform.position,
+            playerComponent.CameraPointObject.transform.forward
+        );
+        var raycastHits = Physics.RaycastAll(shotRay);
+
+        foreach (var hit in raycastHits)
+        {
+            var hitPlayerObject = GameObjectUtils.GetObjectOrAncestorWithTag(hit.collider.gameObject, OsFps.PlayerTag);
+
+            if (hitPlayerObject != null)
+            {
+                hitPlayerObject.transform.position += Vector3.up * 5;
+            }
+        }
+    }
     private void UpdateGameState()
     {
         foreach(var playerState in CurrentGameState.Players)
@@ -174,7 +196,7 @@ public class Server
 
             playerState.Position = playerComponent.transform.position;
             playerState.Velocity = playerComponent.Rigidbody.velocity;
-            playerState.EulerAngles = OsFps.Instance.GetPlayerEulerAngles(playerComponent);
+            playerState.LookDirAngles = OsFps.Instance.GetPlayerLookDirAngles(playerComponent);
         }
     }
     private void SendGameState()
@@ -199,6 +221,12 @@ public class Server
 
                 HandlePlayerInputMessage(playerInputMessage);
                 break;
+            case NetworkMessageType.TriggerPulled:
+                var triggerPulledMessage = new TriggerPulledMessage();
+                triggerPulledMessage.Deserialize(reader);
+
+                HandleTriggerPulledMessage(triggerPulledMessage);
+                break;
             default:
                 throw new System.NotImplementedException("Unknown message type: " + messageType);
         }
@@ -208,6 +236,12 @@ public class Server
         // TODO: Make sure the player ID is correct.
         var playerState = CurrentGameState.Players.First(ps => ps.Id == message.PlayerId);
         playerState.Input = message.PlayerInput;
-        playerState.EulerAngles = message.EulerAngles;
+        playerState.LookDirAngles = message.LookDirAngles;
+    }
+    private void HandleTriggerPulledMessage(TriggerPulledMessage message)
+    {
+        // TODO: Make sure the player ID is correct.
+        var playerState = CurrentGameState.Players.First(ps => ps.Id == message.PlayerId);
+        PlayerPullTrigger(playerState);
     }
 }

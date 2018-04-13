@@ -6,6 +6,8 @@ using UnityEngine.SceneManagement;
 public class OsFps : MonoBehaviour
 {
     public const string LocalHostIpv4Address = "127.0.0.1";
+    public const int FireMouseButtonNumber = 0;
+    public const string PlayerTag = "Player";
 
     public static OsFps Instance;
     
@@ -18,11 +20,13 @@ public class OsFps : MonoBehaviour
 
     public ConnectionConfig CreateConnectionConfig(
         out int reliableSequencedChannelId,
+        out int reliableChannelId,
         out int unreliableStateUpdateChannelId
     )
     {
         var connectionConfig = new ConnectionConfig();
         reliableSequencedChannelId = connectionConfig.AddChannel(QosType.ReliableSequenced);
+        reliableChannelId = connectionConfig.AddChannel(QosType.Reliable);
         unreliableStateUpdateChannelId = connectionConfig.AddChannel(QosType.StateUpdate);
 
         return connectionConfig;
@@ -31,7 +35,7 @@ public class OsFps : MonoBehaviour
     public GameObject SpawnLocalPlayer(PlayerState playerState)
     {
         var playerObject = Instantiate(
-            PlayerPrefab, playerState.Position, Quaternion.Euler(playerState.EulerAngles)
+            PlayerPrefab, playerState.Position, Quaternion.Euler(playerState.LookDirAngles)
         );
 
         var playerComponent = playerObject.GetComponent<PlayerComponent>();
@@ -42,7 +46,7 @@ public class OsFps : MonoBehaviour
     }
     public GameObject FindPlayerObject(uint playerId)
     {
-        return GameObject.FindGameObjectsWithTag("Player")
+        return GameObject.FindGameObjectsWithTag(PlayerTag)
             .FirstOrDefault(go => go.GetComponent<PlayerComponent>().Id == playerId);
     }
     public PlayerComponent FindPlayerComponent(uint playerId)
@@ -58,7 +62,8 @@ public class OsFps : MonoBehaviour
             IsMoveFowardPressed = Input.GetKey(KeyCode.W),
             IsMoveBackwardPressed = Input.GetKey(KeyCode.S),
             IsMoveRightPressed = Input.GetKey(KeyCode.D),
-            IsMoveLeftPressed = Input.GetKey(KeyCode.A)
+            IsMoveLeftPressed = Input.GetKey(KeyCode.A),
+            IsFirePressed = Input.GetMouseButton(FireMouseButtonNumber)
         };
     }
     public Vector3 GetRelativeMoveDirection(PlayerInput input)
@@ -91,24 +96,25 @@ public class OsFps : MonoBehaviour
     {
         var playerComponent = FindPlayerComponent(playerState.Id);
 
-        ApplyEulerAnglesToPlayer(playerComponent, playerState.EulerAngles);
+        ApplyLookDirAnglesToPlayer(playerComponent, playerState.LookDirAngles);
 
         var relativeMoveDirection = GetRelativeMoveDirection(playerState.Input);
         playerComponent.Rigidbody.AddRelativeForce(10 * relativeMoveDirection);
+
+        // TODO: Handle fire pressed?
     }
 
-    public Vector3 GetPlayerEulerAngles(PlayerComponent playerComponent)
+    public Vector2 GetPlayerLookDirAngles(PlayerComponent playerComponent)
     {
-        return new Vector3(
+        return new Vector2(
             playerComponent.CameraPointObject.transform.localEulerAngles.x,
-            playerComponent.transform.eulerAngles.y,
-            0
+            playerComponent.transform.eulerAngles.y
         );
     }
-    public void ApplyEulerAnglesToPlayer(PlayerComponent playerComponent, Vector3 eulerAngles)
+    public void ApplyLookDirAnglesToPlayer(PlayerComponent playerComponent, Vector2 LookDirAngles)
     {
-        playerComponent.transform.localEulerAngles = new Vector3(0, eulerAngles.y, 0);
-        playerComponent.CameraPointObject.transform.localEulerAngles = new Vector3(eulerAngles.x, 0, 0);
+        playerComponent.transform.localEulerAngles = new Vector3(0, LookDirAngles.y, 0);
+        playerComponent.CameraPointObject.transform.localEulerAngles = new Vector3(LookDirAngles.x, 0, 0);
     }
 
     private void Awake()

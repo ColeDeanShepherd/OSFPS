@@ -3,5 +3,6 @@
     SetPlayerId,
     GameState,
     SpawnPlayer,
-    PlayerInput
+    PlayerInput,
+    TriggerPulled
 }

@@ -24,7 +24,9 @@ public class Client
         ClientPeer.OnDisconnectedFromServer += InternalOnDisconnectedFromServer;
 
         var connectionConfig = OsFps.Instance.CreateConnectionConfig(
-            out reliableSequencedChannelId, out unreliableStateUpdateChannelId
+            out reliableSequencedChannelId,
+            out reliableChannelId,
+            out unreliableStateUpdateChannelId
         );
         ClientPeer.Start(connectionConfig);
 
@@ -82,10 +84,11 @@ public class Client
 
         playerState.Position = playerComponent.transform.position;
         playerState.Velocity = playerComponent.Rigidbody.velocity;
-        playerState.EulerAngles = OsFps.Instance.GetPlayerEulerAngles(playerComponent);
+        playerState.LookDirAngles = OsFps.Instance.GetPlayerLookDirAngles(playerComponent);
     }
     
     private int reliableSequencedChannelId;
+    private int reliableChannelId;
     private int unreliableStateUpdateChannelId;
     private ThrottledAction SendInputPeriodicFunction;
 
@@ -98,11 +101,18 @@ public class Client
             var mouseSensitivity = 3;
             var deltaMouse = mouseSensitivity * new Vector2(Input.GetAxis("Mouse X"), Input.GetAxis("Mouse Y"));
 
-            playerState.EulerAngles = new Vector3(
-                Mathf.Clamp(MathfExtensions.ToSignedAngleDegrees(playerState.EulerAngles.x - deltaMouse.y), -90, 90),
-                Mathf.Repeat(playerState.EulerAngles.y + deltaMouse.x, 360),
-                0
+            playerState.LookDirAngles = new Vector2(
+                Mathf.Clamp(MathfExtensions.ToSignedAngleDegrees(playerState.LookDirAngles.x - deltaMouse.y), -90, 90),
+                Mathf.Repeat(playerState.LookDirAngles.y + deltaMouse.x, 360)
             );
+
+            if (Input.GetMouseButtonDown(OsFps.FireMouseButtonNumber))
+            {
+                var message = new TriggerPulledMessage { PlayerId = playerState.Id };
+                ClientPeer.SendMessageToServer(
+                    reliableChannelId, NetworkSerializationUtils.SerializeWithType(message)
+                );
+            }
         }
 
         OsFps.Instance.UpdatePlayer(playerState);
@@ -122,13 +132,15 @@ public class Client
         var serverToClientLatency = roundTripTime / 2;
         var predictedPosition = serverPosition + (serverToClientLatency * serverVelocity);
         var positionDifference = predictedPosition - clientPosition;
-        var positionDelta = 0.1f * positionDifference;
+        var percentOfDiffToCorrect = 1f / 3;
+        var positionDelta = percentOfDiffToCorrect * positionDifference;
         return clientPosition + positionDelta;
     }
     private Vector3 CorrectedVelocity(Vector3 serverVelocity, float roundTripTime, Vector3 clientVelocity)
     {
         var serverToClientLatency = roundTripTime / 2;
-        var velocityDiff = 0.5f * (serverVelocity - clientVelocity);
+        var percentOfDiffToCorrect = 1f / 2;
+        var velocityDiff = percentOfDiffToCorrect * (serverVelocity - clientVelocity);
         return clientVelocity + velocityDiff;
     }
     private void ApplyGameState(GameState newGameState)
@@ -193,7 +205,7 @@ public class Client
             if (updatedPlayerState.Id != PlayerId)
             {
                 CurrentGameState.Players[currentPlayerStateIndex] = updatedPlayerState;
-                OsFps.Instance.ApplyEulerAnglesToPlayer(playerComponent, updatedPlayerState.EulerAngles);
+                OsFps.Instance.ApplyLookDirAnglesToPlayer(playerComponent, updatedPlayerState.LookDirAngles);
             }
         }
     }
@@ -257,7 +269,7 @@ public class Client
         }
         
         playerState.Position = message.PlayerPosition;
-        playerState.EulerAngles = new Vector3(0, message.PlayerYAngle, 0);
+        playerState.LookDirAngles = new Vector3(0, message.PlayerLookDirYAngle, 0);
 
         var playerObject = OsFps.Instance.SpawnLocalPlayer(playerState);
 
@@ -284,7 +296,7 @@ public class Client
         {
             PlayerId = PlayerId.Value,
             PlayerInput = playerState.Input,
-            EulerAngles = playerState.EulerAngles
+            LookDirAngles = playerState.LookDirAngles
         };
 
         var serializedMessage = NetworkSerializationUtils.SerializeWithType(message);

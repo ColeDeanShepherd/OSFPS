@@ -16,6 +16,16 @@ public static class NetworkSerializationUtils
         return memoryStream.ToArray();
     }
 
+    public static void Serialize(BinaryWriter writer, Vector2 v)
+    {
+        writer.Write(v.x);
+        writer.Write(v.y);
+    }
+    public static void Deserialize(BinaryReader reader, ref Vector2 v)
+    {
+        v.x = reader.ReadSingle();
+        v.y = reader.ReadSingle();
+    }
     public static void Serialize(BinaryWriter writer, Vector3 v)
     {
         writer.Write(v.x);

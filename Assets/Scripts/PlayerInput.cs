@@ -6,6 +6,7 @@ public struct PlayerInput
     public bool IsMoveBackwardPressed;
     public bool IsMoveRightPressed;
     public bool IsMoveLeftPressed;
+    public bool IsFirePressed;
 
     public void Serialize(BinaryWriter writer)
     {
@@ -13,6 +14,7 @@ public struct PlayerInput
         writer.Write(IsMoveBackwardPressed);
         writer.Write(IsMoveRightPressed);
         writer.Write(IsMoveLeftPressed);
+        writer.Write(IsFirePressed);
     }
     public void Deserialize(BinaryReader reader)
     {
@@ -20,5 +22,6 @@ public struct PlayerInput
         IsMoveBackwardPressed = reader.ReadBoolean();
         IsMoveRightPressed = reader.ReadBoolean();
         IsMoveLeftPressed = reader.ReadBoolean();
+        IsFirePressed = reader.ReadBoolean();
     }
 }
