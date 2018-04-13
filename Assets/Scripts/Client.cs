@@ -1,4 +1,5 @@
 ﻿using NetLib;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using UnityEngine;
@@ -65,30 +66,43 @@ public class Client
 
         if (ClientPeer.IsConnectedToServer)
         {
-            UpdateLocalPlayer();
+            foreach (var playerState in CurrentGameState.Players)
+            {
+                UpdatePlayer(playerState);
+            }
             SendInputPeriodicFunction.TryToCall();
         }
+    }
+    public void LateUpdate()
+    {
+        var playerState = CurrentGameState.Players.FirstOrDefault(ps => ps.Id == PlayerId);
+        if (playerState == null) return;
+
+        var playerComponent = OsFps.Instance.FindPlayerComponent(playerState.Id);
+
+        playerState.Position = playerComponent.transform.position;
+        playerState.EulerAngles = OsFps.Instance.GetPlayerEulerAngles(playerComponent);
     }
     
     private int reliableSequencedChannelId;
     private int unreliableStateUpdateChannelId;
     private ThrottledAction SendInputPeriodicFunction;
 
-    private void UpdateLocalPlayer()
+    private void UpdatePlayer(PlayerState playerState)
     {
-        var playerState = CurrentGameState.Players.FirstOrDefault(ps => ps.Id == PlayerId);
-        if (playerState == null) return;
+        if (playerState.Id == PlayerId)
+        {
+            playerState.Input = OsFps.Instance.GetCurrentPlayersInput();
 
-        playerState.Input = OsFps.Instance.GetCurrentPlayersInput();
+            var mouseSensitivity = 3;
+            var deltaMouse = mouseSensitivity * new Vector2(Input.GetAxis("Mouse X"), Input.GetAxis("Mouse Y"));
 
-        var mouseSensitivity = 3;
-        var deltaMouse = mouseSensitivity * new Vector2(Input.GetAxis("Mouse X"), Input.GetAxis("Mouse Y"));
-
-        playerState.EulerAngles = new Vector3(
-            Mathf.Clamp(playerState.EulerAngles.x - deltaMouse.y, -90, 90),
-            Mathf.Repeat(playerState.EulerAngles.y + deltaMouse.x, 360),
-            0
-        );
+            playerState.EulerAngles = new Vector3(
+                Mathf.Clamp(MathfExtensions.ToSignedAngleDegrees(playerState.EulerAngles.x - deltaMouse.y), -90, 90),
+                Mathf.Repeat(playerState.EulerAngles.y + deltaMouse.x, 360),
+                0
+            );
+        }
 
         OsFps.Instance.UpdatePlayer(playerState);
     }
@@ -108,8 +122,8 @@ public class Client
 
         // Despawn players.
         var removedPlayerIds = CurrentGameState.Players
-            .Where(oldPs  => !newGameState.Players.Any(newPs => newPs.Id == oldPs.Id))
-            .Select(ps => ps.Id)
+            .Where(curPs  => !newGameState.Players.Any(newPs => newPs.Id == curPs.Id))
+            .Select(curPs => curPs.Id)
             .ToList();
 
         CurrentGameState.Players.RemoveAll(ps => removedPlayerIds.Contains(ps.Id));
@@ -118,46 +132,49 @@ public class Client
             Object.Destroy(OsFps.Instance.FindPlayerObject(playerId));
         }
 
-        foreach (var newPlayerState in newGameState.Players)
+        // Spawn players.
+        var newPlayerStates = newGameState.Players
+            .Where(newPs => !CurrentGameState.Players.Any(curPs => curPs.Id == newPs.Id))
+            .ToList();
+        foreach (var newPlayerState in newPlayerStates)
         {
-            var isMe = newPlayerState.Id == PlayerId;
-            var currentPlayerStateIndex = CurrentGameState.Players
-                .FindIndex(ps => ps.Id == newPlayerState.Id);
+            CurrentGameState.Players.Add(newPlayerState);
+            OsFps.Instance.SpawnLocalPlayer(newPlayerState);
 
-            // Spawn the player if we haven't already.
-            var needToSpawnPlayer = currentPlayerStateIndex < 0;
-            if (needToSpawnPlayer)
+            if (newPlayerState.Id == PlayerId)
             {
-                CurrentGameState.Players.Add(newPlayerState);
-                currentPlayerStateIndex = CurrentGameState.Players.Count - 1;
-
-                OsFps.Instance.SpawnLocalPlayer(newPlayerState);
-
-                if (isMe)
-                {
-                    AttachCameraToPlayer(newPlayerState.Id);
-                }
+                AttachCameraToPlayer(newPlayerState.Id);
             }
+        }
+
+        var updatedPlayerStates = newGameState.Players
+            .Where(newPs => !newPlayerStates.Any(spawnedPs => spawnedPs.Id == newPs.Id));
+        foreach (var updatedPlayerState in updatedPlayerStates)
+        {
+            var currentPlayerStateIndex = CurrentGameState.Players
+                .FindIndex(curPs => curPs.Id == updatedPlayerState.Id);
 
             // Update the player.
-            var playerObject = OsFps.Instance.FindPlayerObject(newPlayerState.Id);
+            var playerObject = OsFps.Instance.FindPlayerObject(updatedPlayerState.Id);
             var playerComponent = playerObject.GetComponent<PlayerComponent>();
 
-            var playerNeedsCorrection = Vector3.Distance(playerObject.transform.position, newPlayerState.Position) >= 0.5f;
+            // Correct position.
+            var playerNeedsCorrection = Vector3.Distance(playerObject.transform.position, updatedPlayerState.Position) >= 0.5f;
 
             if (playerNeedsCorrection)
             {
-                playerObject.transform.position = newPlayerState.Position;
+                playerObject.transform.position = updatedPlayerState.Position;
             }
             else
             {
-                newPlayerState.Position = playerObject.transform.position;
+                updatedPlayerState.Position = playerObject.transform.position;
             }
 
-            if (!isMe)
+            // Update state & rotate.
+            if (updatedPlayerState.Id != PlayerId)
             {
-                CurrentGameState.Players[currentPlayerStateIndex] = newPlayerState;
-                OsFps.Instance.ApplyEulerAnglesToPlayer(playerComponent, newPlayerState.EulerAngles);
+                CurrentGameState.Players[currentPlayerStateIndex] = updatedPlayerState;
+                OsFps.Instance.ApplyEulerAnglesToPlayer(playerComponent, updatedPlayerState.EulerAngles);
             }
         }
     }

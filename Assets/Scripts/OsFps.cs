@@ -98,7 +98,7 @@ public class OsFps : MonoBehaviour
     {
         return new Vector3(
             playerComponent.CameraPointObject.transform.localEulerAngles.x,
-            playerComponent.transform.eulerAngles.x,
+            playerComponent.transform.eulerAngles.y,
             0
         );
     }
@@ -149,6 +149,11 @@ public class OsFps : MonoBehaviour
         if (Server != null)
         {
             Server.LateUpdate();
+        }
+
+        if (Client != null)
+        {
+            Client.LateUpdate();
         }
     }
     private void OnGUI()
