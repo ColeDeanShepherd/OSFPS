@@ -8,6 +8,9 @@ public class OsFps : MonoBehaviour
     public const string LocalHostIpv4Address = "127.0.0.1";
     public const int FireMouseButtonNumber = 0;
     public const string PlayerTag = "Player";
+    public const int MaxPlayerHealth = 100;
+    public const int GunShotDamage = 10;
+    public const float RespawnTime = 3;
 
     public static OsFps Instance;
     
@@ -95,6 +98,7 @@ public class OsFps : MonoBehaviour
     public void UpdatePlayer(PlayerState playerState)
     {
         var playerComponent = FindPlayerComponent(playerState.Id);
+        if (playerComponent == null) return;
 
         ApplyLookDirAnglesToPlayer(playerComponent, playerState.LookDirAngles);
 

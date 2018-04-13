@@ -72,19 +72,23 @@ public class Client
             {
                 UpdatePlayer(playerState);
             }
+
             SendInputPeriodicFunction.TryToCall();
         }
     }
     public void LateUpdate()
     {
         var playerState = CurrentGameState.Players.FirstOrDefault(ps => ps.Id == PlayerId);
-        if (playerState == null) return;
-
-        var playerComponent = OsFps.Instance.FindPlayerComponent(playerState.Id);
-
-        playerState.Position = playerComponent.transform.position;
-        playerState.Velocity = playerComponent.Rigidbody.velocity;
-        playerState.LookDirAngles = OsFps.Instance.GetPlayerLookDirAngles(playerComponent);
+        if (playerState != null)
+        {
+            var playerComponent = OsFps.Instance.FindPlayerComponent(playerState.Id);
+            if (playerComponent != null)
+            {
+                playerState.Position = playerComponent.transform.position;
+                playerState.Velocity = playerComponent.Rigidbody.velocity;
+                playerState.LookDirAngles = OsFps.Instance.GetPlayerLookDirAngles(playerComponent);
+            }
+        }
     }
     
     private int reliableSequencedChannelId;
@@ -126,6 +130,10 @@ public class Client
         Camera.transform.rotation = Quaternion.identity;
 
         Camera.transform.SetParent(cameraPointObject.transform, false);
+    }
+    private void DetachCameraFromPlayer()
+    {
+        Camera.transform.SetParent(null, true);
     }
     private Vector3 CorrectedPosition(Vector3 serverPosition, Vector3 serverVelocity, float roundTripTime, Vector3 clientPosition)
     {
@@ -178,15 +186,48 @@ public class Client
             .Where(newPs => !newPlayerStates.Any(spawnedPs => spawnedPs.Id == newPs.Id));
         foreach (var updatedPlayerState in updatedPlayerStates)
         {
-            var currentPlayerStateIndex = CurrentGameState.Players
+            ApplyPlayerState(updatedPlayerState);
+        }
+    }
+    private void ApplyPlayerState(PlayerState updatedPlayerState)
+    {
+        var currentPlayerStateIndex = CurrentGameState.Players
                 .FindIndex(curPs => curPs.Id == updatedPlayerState.Id);
+        var currentPlayerState = CurrentGameState.Players[currentPlayerStateIndex];
 
-            // Update the player.
-            var playerObject = OsFps.Instance.FindPlayerObject(updatedPlayerState.Id);
+        var isPlayerMe = updatedPlayerState.Id == PlayerId;
+        var roundTripTime = ClientPeer.RoundTripTime.Value;
+
+        var playerObject = OsFps.Instance.FindPlayerObject(updatedPlayerState.Id);
+
+        // Handle player killed.
+        if ((playerObject != null) && !updatedPlayerState.IsAlive)
+        {
+            if (isPlayerMe)
+            {
+                DetachCameraFromPlayer();
+            }
+
+            Object.Destroy(playerObject);
+        }
+
+        // Handle player spawned.
+        if ((playerObject == null) && updatedPlayerState.IsAlive)
+        {
+            OsFps.Instance.SpawnLocalPlayer(updatedPlayerState);
+
+            if (isPlayerMe)
+            {
+                AttachCameraToPlayer(updatedPlayerState.Id);
+            }
+        }
+
+        // Update player object.
+        if (playerObject != null)
+        {
             var playerComponent = playerObject.GetComponent<PlayerComponent>();
 
             // Correct position.
-            var roundTripTime = ClientPeer.RoundTripTime.Value;
             var correctedPosition = CorrectedPosition(
                 updatedPlayerState.Position, updatedPlayerState.Velocity,
                 roundTripTime, playerComponent.transform.position
@@ -194,20 +235,29 @@ public class Client
             playerComponent.transform.position = correctedPosition;
             updatedPlayerState.Position = correctedPosition;
 
-            // Set velocity.
+            // Correct velocity.
             var correctedVelocity = CorrectedVelocity(
                 updatedPlayerState.Velocity, roundTripTime, playerComponent.Rigidbody.velocity
             );
             playerComponent.Rigidbody.velocity = correctedVelocity;
             updatedPlayerState.Velocity = correctedVelocity;
 
-            // Update state & rotate.
-            if (updatedPlayerState.Id != PlayerId)
+            // Update look direction.
+            if (isPlayerMe)
             {
-                CurrentGameState.Players[currentPlayerStateIndex] = updatedPlayerState;
-                OsFps.Instance.ApplyLookDirAnglesToPlayer(playerComponent, updatedPlayerState.LookDirAngles);
+                updatedPlayerState.LookDirAngles = OsFps.Instance.GetPlayerLookDirAngles(playerComponent);
             }
+
+            OsFps.Instance.ApplyLookDirAnglesToPlayer(playerComponent, updatedPlayerState.LookDirAngles);
         }
+
+        // Update state.
+        if (isPlayerMe)
+        {
+            updatedPlayerState.Input = currentPlayerState.Input;
+        }
+
+        CurrentGameState.Players[currentPlayerStateIndex] = updatedPlayerState;
     }
 
     private void OnReceiveDataFromServer(int channelId, byte[] bytesReceived)
@@ -269,6 +319,7 @@ public class Client
         }
         
         playerState.Position = message.PlayerPosition;
+        playerState.Health = OsFps.MaxPlayerHealth;
         playerState.LookDirAngles = new Vector3(0, message.PlayerLookDirYAngle, 0);
 
         var playerObject = OsFps.Instance.SpawnLocalPlayer(playerState);

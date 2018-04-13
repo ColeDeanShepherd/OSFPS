@@ -50,7 +50,7 @@ public class Server
     }
     public void LateUpdate()
     {
-        UpdateGameState();
+        UpdateGameStateFromObjects();
 
         if (SendGameStatePeriodicFunction != null)
         {
@@ -118,16 +118,17 @@ public class Server
         var playerState = CurrentGameState.Players.First(ps => ps.Id == playerId);
         playerState.Position = position;
         playerState.LookDirAngles = new Vector2(0, lookDirYAngle);
+        playerState.Health = OsFps.MaxPlayerHealth;
 
         var playerObject = OsFps.Instance.SpawnLocalPlayer(playerState);
 
-        var spawnPlayerMessage = new SpawnPlayerMessage
+        /*var spawnPlayerMessage = new SpawnPlayerMessage
         {
             PlayerId = playerId,
             PlayerPosition = position,
             PlayerLookDirYAngle = lookDirYAngle
         };
-        //SendMessageToAllClients(reliableSequencedChannelId, spawnPlayerMessage);
+        SendMessageToAllClients(reliableSequencedChannelId, spawnPlayerMessage);*/
 
         return playerObject;
     }
@@ -162,41 +163,82 @@ public class Server
         return netId;
     }
 
+    private PositionOrientation3d GetNextSpawnPoint(PlayerState playerState)
+    {
+        return new PositionOrientation3d
+        {
+            Position = new Vector3(0, 25, 0),
+            Orientation = Quaternion.identity
+        };
+    }
     private void UpdatePlayers()
     {
         foreach (var playerState in CurrentGameState.Players)
         {
             OsFps.Instance.UpdatePlayer(playerState);
+
+            if (!playerState.IsAlive)
+            {
+                playerState.RespawnTimeLeft -= Time.deltaTime;
+
+                if (playerState.RespawnTimeLeft <= 0)
+                {
+                    var spawnPoint = GetNextSpawnPoint(playerState);
+                    SpawnPlayer(playerState.Id, spawnPoint.Position, spawnPoint.Orientation.eulerAngles.y);
+                }
+            }
         }
     }
     private void PlayerPullTrigger(PlayerState playerState)
     {
         var playerComponent = OsFps.Instance.FindPlayerComponent(playerState.Id);
-        var shotRay = new Ray(
-            playerComponent.CameraPointObject.transform.position,
-            playerComponent.CameraPointObject.transform.forward
-        );
-        var raycastHits = Physics.RaycastAll(shotRay);
 
-        foreach (var hit in raycastHits)
+        if (playerComponent != null)
         {
-            var hitPlayerObject = GameObjectUtils.GetObjectOrAncestorWithTag(hit.collider.gameObject, OsFps.PlayerTag);
+            var shotRay = new Ray(
+                playerComponent.CameraPointObject.transform.position,
+                playerComponent.CameraPointObject.transform.forward
+            );
+            var raycastHits = Physics.RaycastAll(shotRay);
 
-            if (hitPlayerObject != null)
+            foreach (var hit in raycastHits)
             {
-                hitPlayerObject.transform.position += Vector3.up * 5;
+                var hitPlayerObject = GameObjectUtils.GetObjectOrAncestorWithTag(hit.collider.gameObject, OsFps.PlayerTag);
+
+                if ((hitPlayerObject != null) && (hitPlayerObject != playerComponent.gameObject))
+                {
+                    var hitPlayerComponent = hitPlayerObject.GetComponent<PlayerComponent>();
+                    var hitPlayerState = CurrentGameState.Players.Find(ps => ps.Id == hitPlayerComponent.Id);
+
+                    DamagePlayer(hitPlayerState);
+                }
             }
         }
     }
-    private void UpdateGameState()
+    private void DamagePlayer(PlayerState playerState)
+    {
+        playerState.Health -= OsFps.GunShotDamage;
+
+        if (!playerState.IsAlive)
+        {
+            var playerComponent = OsFps.Instance.FindPlayerComponent(playerState.Id);
+            Object.Destroy(playerComponent.gameObject);
+
+            playerState.RespawnTimeLeft = OsFps.RespawnTime;
+        }
+    }
+    private void UpdateGameStateFromObjects()
     {
         foreach(var playerState in CurrentGameState.Players)
         {
             var playerComponent = OsFps.Instance.FindPlayerComponent(playerState.Id);
 
-            playerState.Position = playerComponent.transform.position;
-            playerState.Velocity = playerComponent.Rigidbody.velocity;
-            playerState.LookDirAngles = OsFps.Instance.GetPlayerLookDirAngles(playerComponent);
+            if (playerComponent != null)
+            {
+                playerState.Position = playerComponent.transform.position;
+                playerState.Velocity = playerComponent.Rigidbody.velocity;
+                playerState.LookDirAngles = OsFps.Instance.GetPlayerLookDirAngles(playerComponent);
+            }
         }
     }
     private void SendGameState()
