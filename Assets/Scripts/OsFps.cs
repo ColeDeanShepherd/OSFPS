@@ -33,7 +33,10 @@ public class OsFps : MonoBehaviour
         var playerObject = Instantiate(
             PlayerPrefab, playerState.Position, Quaternion.Euler(playerState.EulerAngles)
         );
-        playerObject.GetComponent<PlayerComponent>().Id = playerState.Id;
+
+        var playerComponent = playerObject.GetComponent<PlayerComponent>();
+        playerComponent.Id = playerState.Id;
+        playerComponent.Rigidbody.velocity = playerState.Velocity;
 
         return playerObject;
     }

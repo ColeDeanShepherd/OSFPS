@@ -81,6 +81,7 @@ public class Client
         var playerComponent = OsFps.Instance.FindPlayerComponent(playerState.Id);
 
         playerState.Position = playerComponent.transform.position;
+        playerState.Velocity = playerComponent.Rigidbody.velocity;
         playerState.EulerAngles = OsFps.Instance.GetPlayerEulerAngles(playerComponent);
     }
     
@@ -115,6 +116,20 @@ public class Client
         Camera.transform.rotation = Quaternion.identity;
 
         Camera.transform.SetParent(cameraPointObject.transform, false);
+    }
+    private Vector3 CorrectedPosition(Vector3 serverPosition, Vector3 serverVelocity, float roundTripTime, Vector3 clientPosition)
+    {
+        var serverToClientLatency = roundTripTime / 2;
+        var predictedPosition = serverPosition + (serverToClientLatency * serverVelocity);
+        var positionDifference = predictedPosition - clientPosition;
+        var positionDelta = 0.1f * positionDifference;
+        return clientPosition + positionDelta;
+    }
+    private Vector3 CorrectedVelocity(Vector3 serverVelocity, float roundTripTime, Vector3 clientVelocity)
+    {
+        var serverToClientLatency = roundTripTime / 2;
+        var velocityDiff = 0.5f * (serverVelocity - clientVelocity);
+        return clientVelocity + velocityDiff;
     }
     private void ApplyGameState(GameState newGameState)
     {
@@ -159,16 +174,20 @@ public class Client
             var playerComponent = playerObject.GetComponent<PlayerComponent>();
 
             // Correct position.
-            var playerNeedsCorrection = Vector3.Distance(playerObject.transform.position, updatedPlayerState.Position) >= 0.5f;
+            var roundTripTime = ClientPeer.RoundTripTime.Value;
+            var correctedPosition = CorrectedPosition(
+                updatedPlayerState.Position, updatedPlayerState.Velocity,
+                roundTripTime, playerComponent.transform.position
+            );
+            playerComponent.transform.position = correctedPosition;
+            updatedPlayerState.Position = correctedPosition;
 
-            if (playerNeedsCorrection)
-            {
-                playerObject.transform.position = updatedPlayerState.Position;
-            }
-            else
-            {
-                updatedPlayerState.Position = playerObject.transform.position;
-            }
+            // Set velocity.
+            var correctedVelocity = CorrectedVelocity(
+                updatedPlayerState.Velocity, roundTripTime, playerComponent.Rigidbody.velocity
+            );
+            playerComponent.Rigidbody.velocity = correctedVelocity;
+            updatedPlayerState.Velocity = correctedVelocity;
 
             // Update state & rotate.
             if (updatedPlayerState.Id != PlayerId)

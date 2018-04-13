@@ -22,6 +22,19 @@ namespace NetLib
                 return serverConnectionId.HasValue;
             }
         }
+        public float? RoundTripTime
+        {
+            get
+            {
+                if (!socketId.HasValue || !serverConnectionId.HasValue) return null;
+
+                byte networkErrorAsByte;
+                var rttInMs = NetworkTransport.GetCurrentRTT(socketId.Value, serverConnectionId.Value, out networkErrorAsByte);
+
+                var networkError = (NetworkError)networkErrorAsByte;
+                return (networkError == NetworkError.Ok) ? ((float)rttInMs / 1000) : (float?)null;
+            }
+        }
 
         public void Start(ConnectionConfig connectionConfig)
         {

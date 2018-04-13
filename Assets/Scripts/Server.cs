@@ -173,6 +173,7 @@ public class Server
             var playerComponent = OsFps.Instance.FindPlayerComponent(playerState.Id);
 
             playerState.Position = playerComponent.transform.position;
+            playerState.Velocity = playerComponent.Rigidbody.velocity;
             playerState.EulerAngles = OsFps.Instance.GetPlayerEulerAngles(playerComponent);
         }
     }
