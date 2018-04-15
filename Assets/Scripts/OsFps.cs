@@ -12,15 +12,24 @@ public class OsFps : MonoBehaviour
     public const int MaxPlayerHealth = 100;
     public const int GunShotDamage = 10;
     public const float RespawnTime = 3;
+    public const float MuzzleFlashDuration = 0.1f;
 
     public static OsFps Instance;
     
     public Server Server;
     public Client Client;
 
-    // inspector-set variables
+    public GameObject CanvasObject;
+
+    #region Inspector-set Variables
     public GameObject PlayerPrefab;
     public GameObject CameraPrefab;
+    public GameObject PistolPrefab;
+    public GameObject MuzzleFlashPrefab;
+
+    public GameObject GUIContainerPrefab;
+    public GameObject CrosshairPrefab;
+    #endregion
 
     public ConnectionConfig CreateConnectionConfig(
         out int reliableSequencedChannelId,
@@ -135,6 +144,11 @@ public class OsFps : MonoBehaviour
 
         Instance = this;
         DontDestroyOnLoad(gameObject);
+
+        GameObject guiContainer = Instantiate(GUIContainerPrefab);
+        DontDestroyOnLoad(guiContainer);
+
+        CanvasObject = guiContainer.FindDescendant("Canvas");
     }
     private void Start()
     {

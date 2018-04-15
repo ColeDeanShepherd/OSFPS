@@ -51,7 +51,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 85d9bf97959ff2f4aa6473ce13eca90d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  CanvasObject: {fileID: 0}
   PlayerPrefab: {fileID: 1884725033880392, guid: dfcdd0cce8eced1418b0e59689f81abf,
     type: 2}
   CameraPrefab: {fileID: 1878530499864850, guid: 0ff536ec9b5a64a44ace81754935e61b,
+    type: 2}
+  PistolPrefab: {fileID: 1010797790457592, guid: 5d87d3b5c75bc3949a4c736ad3313d75,
+    type: 2}
+  MuzzleFlashPrefab: {fileID: 1354871173001656, guid: 1855e5917da52b84ab776dd490c388c5,
+    type: 2}
+  GUIContainerPrefab: {fileID: 1410910292466234, guid: a291db3f081f57f4885188377b67d40d,
+    type: 2}
+  CrosshairPrefab: {fileID: 1079905431263802, guid: d696d05410e7ca643ba8c20978d1f17e,
     type: 2}

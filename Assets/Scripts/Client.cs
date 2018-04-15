@@ -8,11 +8,11 @@ using UnityEngine.Networking;
 public class Client
 {
     public ClientPeer ClientPeer;
-    public GameObject Camera;
-
     public uint? PlayerId;
     public GameState CurrentGameState;
-    
+    public GameObject Camera;
+    public GameObject GuiContainer;
+
     public event ClientPeer.ServerConnectionChangeEventHandler OnDisconnectedFromServer;
 
     public void Start(bool isServerRemote)
@@ -33,10 +33,23 @@ public class Client
         SendInputPeriodicFunction = new ThrottledAction(SendPlayerInput, 1.0f / 30);
 
         Camera = Object.Instantiate(OsFps.Instance.CameraPrefab);
+
+        GuiContainer = new GameObject("GUI Container");
+        GuiContainer.transform.SetParent(OsFps.Instance.CanvasObject.transform);
+        GuiContainer.transform.localPosition = Vector3.zero;
+        GuiContainer.transform.localRotation = Quaternion.identity;
+
+        GameObject crosshair = Object.Instantiate(OsFps.Instance.CrosshairPrefab);
+        crosshair.transform.SetParent(GuiContainer.transform);
+        crosshair.transform.localPosition = Vector3.zero;
+        crosshair.transform.localRotation = Quaternion.identity;
+
+        Cursor.lockState = CursorLockMode.Locked;
     }
     public void Stop()
     {
         ClientPeer.Stop();
+        Object.Destroy(GuiContainer);
     }
 
     public void StartConnectingToServer(string serverIpv4Address, ushort serverPortNumber)
@@ -90,6 +103,8 @@ public class Client
             }
         }
     }
+
+    #region GUI
     public void OnGui()
     {
         if (Input.GetKey(KeyCode.Tab))
@@ -97,7 +112,34 @@ public class Client
             DrawScoreBoard(new Vector2(100, 100));
         }
     }
-    
+    private void DrawScoreBoard(Vector2 position)
+    {
+        const float playerIdColumnWidth = 50;
+        const float killsColumnWidth = 100;
+        const float deathsColumnWidth = 100;
+        const float rowHeight = 50;
+
+        var idColumnX = position.x;
+        var killsColumnX = idColumnX + playerIdColumnWidth;
+        var deathsColumnX = killsColumnX + killsColumnWidth;
+
+        // Draw table header.
+        GUI.Label(new Rect(idColumnX, position.y, playerIdColumnWidth, rowHeight), "ID");
+        GUI.Label(new Rect(killsColumnX, position.y, killsColumnWidth, rowHeight), "Kills");
+        GUI.Label(new Rect(deathsColumnX, position.y, deathsColumnWidth, rowHeight), "Deaths");
+        position.y += rowHeight;
+
+        // Draw player rows.
+        foreach (var playerState in CurrentGameState.Players)
+        {
+            GUI.Label(new Rect(idColumnX, position.y, playerIdColumnWidth, rowHeight), playerState.Id.ToString());
+            GUI.Label(new Rect(killsColumnX, position.y, killsColumnWidth, rowHeight), playerState.Kills.ToString());
+            GUI.Label(new Rect(deathsColumnX, position.y, deathsColumnWidth, rowHeight), playerState.Deaths.ToString());
+            position.y += rowHeight;
+        }
+    }
+    #endregion
+
     private int reliableSequencedChannelId;
     private int reliableChannelId;
     private int unreliableStateUpdateChannelId;
@@ -117,12 +159,9 @@ public class Client
                 Mathf.Repeat(playerState.LookDirAngles.y + deltaMouse.x, 360)
             );
 
-            if (Input.GetMouseButtonDown(OsFps.FireMouseButtonNumber))
+            if (playerState.IsAlive && Input.GetMouseButtonDown(OsFps.FireMouseButtonNumber))
             {
-                var message = new TriggerPulledMessage { PlayerId = playerState.Id };
-                ClientPeer.SendMessageToServer(
-                    reliableChannelId, NetworkSerializationUtils.SerializeWithType(message)
-                );
+                Shoot(playerState);
             }
         }
 
@@ -132,16 +171,41 @@ public class Client
     {
         var playerObject = OsFps.Instance.FindPlayerObject(playerId);
         var cameraPointObject = playerObject.GetComponent<PlayerComponent>().CameraPointObject;
+        
+        Camera.transform.SetParent(cameraPointObject.transform);
 
-        Camera.transform.position = Vector3.zero;
-        Camera.transform.rotation = Quaternion.identity;
-
-        Camera.transform.SetParent(cameraPointObject.transform, false);
+        Camera.transform.localPosition = Vector3.zero;
+        Camera.transform.localRotation = Quaternion.identity;
     }
     private void DetachCameraFromPlayer()
     {
         Camera.transform.SetParent(null, true);
     }
+    private void EquipWeapon(PlayerState playerState)
+    {
+        // TODO: implement weapon changing
+        var playerComponent = OsFps.Instance.FindPlayerComponent(playerState.Id);
+
+        GameObject weaponObject = Object.Instantiate(OsFps.Instance.PistolPrefab, Vector3.zero, Quaternion.identity);
+        weaponObject.transform.SetParent(playerComponent.HandsPointObject.transform, false);
+    }
+    private void Shoot(PlayerState playerState)
+    {
+        GameObject muzzleFlashObject = Object.Instantiate(
+            OsFps.Instance.MuzzleFlashPrefab, Vector3.zero, Quaternion.identity
+        );
+        var playerComponent = OsFps.Instance.FindPlayerComponent(playerState.Id);
+        var barrelExitObject = playerComponent.HandsPointObject.FindDescendant("BarrelExit");
+        muzzleFlashObject.transform.SetParent(barrelExitObject.transform, false);
+
+        Object.Destroy(muzzleFlashObject, OsFps.MuzzleFlashDuration);
+
+        var message = new TriggerPulledMessage { PlayerId = playerState.Id };
+        ClientPeer.SendMessageToServer(
+            reliableChannelId, NetworkSerializationUtils.SerializeWithType(message)
+        );
+    }
+
     private Vector3 CorrectedPosition(Vector3 serverPosition, Vector3 serverVelocity, float roundTripTime, Vector3 clientPosition)
     {
         var serverToClientLatency = roundTripTime / 2;
@@ -158,6 +222,7 @@ public class Client
         var velocityDiff = percentOfDiffToCorrect * (serverVelocity - clientVelocity);
         return clientVelocity + velocityDiff;
     }
+
     private void ApplyGameState(GameState newGameState)
     {
         if (!PlayerId.HasValue) return; // Wait until the player ID has been set.
@@ -181,12 +246,7 @@ public class Client
         foreach (var newPlayerState in newPlayerStates)
         {
             CurrentGameState.Players.Add(newPlayerState);
-            OsFps.Instance.SpawnLocalPlayer(newPlayerState);
-
-            if (newPlayerState.Id == PlayerId)
-            {
-                AttachCameraToPlayer(newPlayerState.Id);
-            }
+            SpawnPlayer(newPlayerState);
         }
 
         var updatedPlayerStates = newGameState.Players
@@ -221,7 +281,7 @@ public class Client
         // Handle player spawned.
         if ((playerObject == null) && updatedPlayerState.IsAlive)
         {
-            OsFps.Instance.SpawnLocalPlayer(updatedPlayerState);
+            SpawnPlayer(updatedPlayerState);
 
             if (isPlayerMe)
             {
@@ -266,7 +326,18 @@ public class Client
 
         CurrentGameState.Players[currentPlayerStateIndex] = updatedPlayerState;
     }
+    private void SpawnPlayer(PlayerState playerState)
+    {
+        OsFps.Instance.SpawnLocalPlayer(playerState);
+        EquipWeapon(playerState);
 
+        if (playerState.Id == PlayerId)
+        {
+            AttachCameraToPlayer(playerState.Id);
+        }
+    }
+
+    #region Message Handlers
     private void OnReceiveDataFromServer(int channelId, byte[] bytesReceived)
     {
         var reader = new BinaryReader(new MemoryStream(bytesReceived));
@@ -336,6 +407,7 @@ public class Client
             AttachCameraToPlayer(playerState.Id);
         }
     }
+    #endregion
 
     private void InternalOnDisconnectedFromServer()
     {
@@ -359,32 +431,5 @@ public class Client
 
         var serializedMessage = NetworkSerializationUtils.SerializeWithType(message);
         ClientPeer.SendMessageToServer(unreliableStateUpdateChannelId, serializedMessage);
-    }
-
-    private void DrawScoreBoard(Vector2 position)
-    {
-        const float playerIdColumnWidth = 50;
-        const float killsColumnWidth = 100;
-        const float deathsColumnWidth = 100;
-        const float rowHeight = 50;
-
-        var idColumnX = position.x;
-        var killsColumnX = idColumnX + playerIdColumnWidth;
-        var deathsColumnX = killsColumnX + killsColumnWidth;
-
-        // Draw table header.
-        GUI.Label(new Rect(idColumnX, position.y, playerIdColumnWidth, rowHeight), "ID");
-        GUI.Label(new Rect(killsColumnX, position.y, killsColumnWidth, rowHeight), "Kills");
-        GUI.Label(new Rect(deathsColumnX, position.y, deathsColumnWidth, rowHeight), "Deaths");
-        position.y += rowHeight;
-
-        // Draw player rows.
-        foreach (var playerState in CurrentGameState.Players)
-        {
-            GUI.Label(new Rect(idColumnX, position.y, playerIdColumnWidth, rowHeight), playerState.Id.ToString());
-            GUI.Label(new Rect(killsColumnX, position.y, killsColumnWidth, rowHeight), playerState.Kills.ToString());
-            GUI.Label(new Rect(deathsColumnX, position.y, deathsColumnWidth, rowHeight), playerState.Deaths.ToString());
-            position.y += rowHeight;
-        }
     }
 }

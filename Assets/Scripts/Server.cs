@@ -229,7 +229,7 @@ public class Server
 
             foreach (var hit in raycastHits)
             {
-                var hitPlayerObject = GameObjectUtils.GetObjectOrAncestorWithTag(hit.collider.gameObject, OsFps.PlayerTag);
+                var hitPlayerObject = hit.collider.gameObject.FindObjectOrAncestorWithTag(OsFps.PlayerTag);
 
                 if ((hitPlayerObject != null) && (hitPlayerObject != playerComponent.gameObject))
                 {
