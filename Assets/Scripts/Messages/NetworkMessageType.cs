@@ -4,5 +4,6 @@
     GameState,
     SpawnPlayer,
     PlayerInput,
-    TriggerPulled
+    TriggerPulled,
+    ReloadPressed
 }

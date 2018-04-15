@@ -3,5 +3,5 @@
 public interface INetworkSerializable
 {
     void Serialize(BinaryWriter writer);
-    void Deserialize(BinaryReader writer);
+    void Deserialize(BinaryReader reader);
 }

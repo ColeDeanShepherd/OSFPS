@@ -13,6 +13,9 @@ public class OsFps : MonoBehaviour
     public const int GunShotDamage = 10;
     public const float RespawnTime = 3;
     public const float MuzzleFlashDuration = 0.1f;
+    public const int PistolMaxAmmo = 100;
+    public const int PistolBulletsPerMagazine = 10;
+    public const float PistolReloadTime = 1;
 
     public static OsFps Instance;
     

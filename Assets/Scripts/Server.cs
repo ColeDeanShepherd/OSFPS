@@ -126,6 +126,13 @@ public class Server
         playerState.Position = position;
         playerState.LookDirAngles = new Vector2(0, lookDirYAngle);
         playerState.Health = OsFps.MaxPlayerHealth;
+        playerState.Weapon0 = new WeaponState
+        {
+            Type = WeaponType.Pistol,
+            BulletsLeft = OsFps.PistolMaxAmmo,
+            BulletsLeftInMagazine = OsFps.PistolBulletsPerMagazine
+        };
+        playerState.Weapon1 = null;
 
         var playerObject = OsFps.Instance.SpawnLocalPlayer(playerState);
 
@@ -217,29 +224,40 @@ public class Server
     }
     private void PlayerPullTrigger(PlayerState playerState)
     {
-        var playerComponent = OsFps.Instance.FindPlayerComponent(playerState.Id);
+        if (!playerState.CanShoot) return;
 
-        if (playerComponent != null)
-        {
-            var shotRay = new Ray(
+        var playerComponent = OsFps.Instance.FindPlayerComponent(playerState.Id);
+        if (playerComponent == null) return;
+
+        var shotRay = new Ray(
                 playerComponent.CameraPointObject.transform.position,
                 playerComponent.CameraPointObject.transform.forward
             );
-            var raycastHits = Physics.RaycastAll(shotRay);
+        var raycastHits = Physics.RaycastAll(shotRay);
 
-            foreach (var hit in raycastHits)
+        foreach (var hit in raycastHits)
+        {
+            var hitPlayerObject = hit.collider.gameObject.FindObjectOrAncestorWithTag(OsFps.PlayerTag);
+
+            if ((hitPlayerObject != null) && (hitPlayerObject != playerComponent.gameObject))
             {
-                var hitPlayerObject = hit.collider.gameObject.FindObjectOrAncestorWithTag(OsFps.PlayerTag);
+                var hitPlayerComponent = hitPlayerObject.GetComponent<PlayerComponent>();
+                var hitPlayerState = CurrentGameState.Players.Find(ps => ps.Id == hitPlayerComponent.Id);
 
-                if ((hitPlayerObject != null) && (hitPlayerObject != playerComponent.gameObject))
-                {
-                    var hitPlayerComponent = hitPlayerObject.GetComponent<PlayerComponent>();
-                    var hitPlayerState = CurrentGameState.Players.Find(ps => ps.Id == hitPlayerComponent.Id);
-
-                    DamagePlayer(hitPlayerState, playerState);
-                }
+                DamagePlayer(hitPlayerState, playerState);
             }
         }
+
+        playerState.CurrentWeapon.BulletsLeftInMagazine--;
+        playerState.CurrentWeapon.BulletsLeft--;
+    }
+    private void PlayerReload(PlayerState playerState)
+    {
+        var weapon = playerState.CurrentWeapon;
+        if (weapon == null) return;
+
+        var bulletsToAddToMagazine = (ushort)Mathf.Min(weapon.BulletsPerMagazine - weapon.BulletsLeftInMagazine, weapon.BulletsLeftOutOfMagazine);
+        weapon.BulletsLeftInMagazine += bulletsToAddToMagazine;
     }
     private void DamagePlayer(PlayerState playerState, PlayerState attackingPlayerState)
     {
@@ -302,6 +320,12 @@ public class Server
 
                 HandleTriggerPulledMessage(triggerPulledMessage);
                 break;
+            case NetworkMessageType.ReloadPressed:
+                var reloadPressedMessage = new ReloadPressedMessage();
+                reloadPressedMessage.Deserialize(reader);
+
+                HandleReloadPressedMessage(reloadPressedMessage);
+                break;
             default:
                 throw new System.NotImplementedException("Unknown message type: " + messageType);
         }
@@ -318,5 +342,11 @@ public class Server
         // TODO: Make sure the player ID is correct.
         var playerState = CurrentGameState.Players.First(ps => ps.Id == message.PlayerId);
         PlayerPullTrigger(playerState);
+    }
+    private void HandleReloadPressedMessage(ReloadPressedMessage message)
+    {
+        // TODO: Make sure the player ID is correct.
+        var playerState = CurrentGameState.Players.First(ps => ps.Id == message.PlayerId);
+        PlayerReload(playerState);
     }
 }

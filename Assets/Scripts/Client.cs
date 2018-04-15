@@ -34,15 +34,7 @@ public class Client
 
         Camera = Object.Instantiate(OsFps.Instance.CameraPrefab);
 
-        GuiContainer = new GameObject("GUI Container");
-        GuiContainer.transform.SetParent(OsFps.Instance.CanvasObject.transform);
-        GuiContainer.transform.localPosition = Vector3.zero;
-        GuiContainer.transform.localRotation = Quaternion.identity;
-
-        GameObject crosshair = Object.Instantiate(OsFps.Instance.CrosshairPrefab);
-        crosshair.transform.SetParent(GuiContainer.transform);
-        crosshair.transform.localPosition = Vector3.zero;
-        crosshair.transform.localRotation = Quaternion.identity;
+        CreateGui();
 
         Cursor.lockState = CursorLockMode.Locked;
     }
@@ -105,9 +97,39 @@ public class Client
     }
 
     #region GUI
+    private void CreateGui()
+    {
+        GuiContainer = new GameObject("GUI Container");
+        GuiContainer.transform.SetParent(OsFps.Instance.CanvasObject.transform);
+        GuiContainer.transform.localPosition = Vector3.zero;
+        GuiContainer.transform.localRotation = Quaternion.identity;
+
+        GameObject crosshair = Object.Instantiate(OsFps.Instance.CrosshairPrefab);
+        crosshair.transform.SetParent(GuiContainer.transform);
+        crosshair.transform.localPosition = Vector3.zero;
+        crosshair.transform.localRotation = Quaternion.identity;
+    }
     public void OnGui()
     {
-        if (Input.GetKey(KeyCode.Tab))
+        if (!Input.GetKey(KeyCode.Tab))
+        {
+            var playerState = CurrentGameState.Players.FirstOrDefault(ps => ps.Id == PlayerId);
+
+            if (playerState != null)
+            {
+                GUI.Label(new Rect(10, 10, 100, 30), "Health: " + playerState.Health);
+
+                if (playerState.CurrentWeapon != null)
+                {
+                    var weapon = playerState.CurrentWeapon;
+                    GUI.Label(
+                        new Rect(110, 10, 100, 30),
+                        "Ammo: " + weapon.BulletsLeftInMagazine + " / " + weapon.BulletsLeftOutOfMagazine
+                    );
+                }
+            }
+        }
+        else
         {
             DrawScoreBoard(new Vector2(100, 100));
         }
@@ -144,7 +166,7 @@ public class Client
     private int reliableChannelId;
     private int unreliableStateUpdateChannelId;
     private ThrottledAction SendInputPeriodicFunction;
-
+    
     private void UpdatePlayer(PlayerState playerState)
     {
         if (playerState.Id == PlayerId)
@@ -159,7 +181,12 @@ public class Client
                 Mathf.Repeat(playerState.LookDirAngles.y + deltaMouse.x, 360)
             );
 
-            if (playerState.IsAlive && Input.GetMouseButtonDown(OsFps.FireMouseButtonNumber))
+            if (Input.GetKeyDown(KeyCode.R))
+            {
+                Reload(playerState);
+            }
+
+            if (Input.GetMouseButtonDown(OsFps.FireMouseButtonNumber) && playerState.CanShoot)
             {
                 Shoot(playerState);
             }
@@ -188,6 +215,13 @@ public class Client
 
         GameObject weaponObject = Object.Instantiate(OsFps.Instance.PistolPrefab, Vector3.zero, Quaternion.identity);
         weaponObject.transform.SetParent(playerComponent.HandsPointObject.transform, false);
+    }
+    private void Reload(PlayerState playerState)
+    {
+        var message = new ReloadPressedMessage { PlayerId = playerState.Id };
+        ClientPeer.SendMessageToServer(
+            reliableChannelId, NetworkSerializationUtils.SerializeWithType(message)
+        );
     }
     private void Shoot(PlayerState playerState)
     {

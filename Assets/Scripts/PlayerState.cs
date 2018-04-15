@@ -12,12 +12,28 @@ public class PlayerState : INetworkSerializable
     public float RespawnTimeLeft;
     public int Kills;
     public int Deaths;
+    public WeaponState Weapon0;
+    public WeaponState Weapon1;
 
     public bool IsAlive
     {
         get
         {
             return Health > 0;
+        }
+    }
+    public WeaponState CurrentWeapon
+    {
+        get
+        {
+            return Weapon0;
+        }
+    }
+    public bool CanShoot
+    {
+        get
+        {
+            return IsAlive && (CurrentWeapon != null) && (CurrentWeapon.BulletsLeftInMagazine > 0);
         }
     }
 
@@ -32,6 +48,8 @@ public class PlayerState : INetworkSerializable
         writer.Write(RespawnTimeLeft);
         writer.Write(Kills);
         writer.Write(Deaths);
+        NetworkSerializationUtils.SerializeNullable(writer, Weapon0);
+        NetworkSerializationUtils.SerializeNullable(writer, Weapon1);
     }
     public void Deserialize(BinaryReader reader)
     {
@@ -44,5 +62,7 @@ public class PlayerState : INetworkSerializable
         RespawnTimeLeft = reader.ReadSingle();
         Kills = reader.ReadInt32();
         Deaths = reader.ReadInt32();
+        Weapon0 = NetworkSerializationUtils.DeserializeNullable<WeaponState>(reader);
+        Weapon1 = NetworkSerializationUtils.DeserializeNullable<WeaponState>(reader);
     }
 }

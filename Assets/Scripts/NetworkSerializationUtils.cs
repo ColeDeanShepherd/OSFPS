@@ -62,4 +62,31 @@ public static class NetworkSerializationUtils
             list.Add(element);
         }
     }
+
+
+    public static void SerializeNullable<T>(BinaryWriter writer, T value) where T : INetworkSerializable
+    {
+        writer.Write(value != null);
+
+        if (value != null)
+        {
+            value.Serialize(writer);
+        }
+    }
+    public static T DeserializeNullable<T>(BinaryReader reader) where T : INetworkSerializable, new()
+    {
+        var isNotNull = reader.ReadBoolean();
+
+        if (isNotNull)
+        {
+            var value = new T();
+            value.Deserialize(reader);
+
+            return value;
+        }
+        else
+        {
+            return default(T);
+        }
+    }
 }
