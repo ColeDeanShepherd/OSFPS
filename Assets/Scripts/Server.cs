@@ -78,7 +78,7 @@ public class Server
         SendMessageToClient(connectionId, reliableSequencedChannelId, setPlayerIdMessage);
 
         // Spawn the player.
-        SpawnPlayer(playerId, Vector3.up, 0);
+        SpawnPlayer(playerState);
     }
     public void OnClientDisconnected(int connectionId)
     {
@@ -113,6 +113,11 @@ public class Server
     private Dictionary<int, uint> playerIdsByConnectionId;
     private ThrottledAction SendGameStatePeriodicFunction;
 
+    private GameObject SpawnPlayer(PlayerState playerState)
+    {
+        var spawnPoint = GetNextSpawnPoint(playerState);
+        return SpawnPlayer(playerState.Id, spawnPoint.Position, spawnPoint.Orientation.eulerAngles.y);
+    }
     private GameObject SpawnPlayer(uint playerId, Vector3 position, float lookDirYAngle)
     {
         var playerState = CurrentGameState.Players.First(ps => ps.Id == playerId);
@@ -165,6 +170,26 @@ public class Server
 
     private PositionOrientation3d GetNextSpawnPoint(PlayerState playerState)
     {
+        var spawnPointObjects = GameObject.FindGameObjectsWithTag(OsFps.SpawnPointTag);
+
+        if (spawnPointObjects.Length > 0)
+        {
+            var spawnPointObject = spawnPointObjects[Random.Range(0, spawnPointObjects.Length)];
+
+            return new PositionOrientation3d
+            {
+                Position = spawnPointObject.transform.position,
+                Orientation = spawnPointObject.transform.rotation
+            };
+        }
+        else
+        {
+            return new PositionOrientation3d
+            {
+                Position = Vector3.zero,
+                Orientation = Quaternion.identity
+            };
+        }
         return new PositionOrientation3d
         {
             Position = new Vector3(0, 25, 0),
@@ -183,8 +208,7 @@ public class Server
 
                 if (playerState.RespawnTimeLeft <= 0)
                 {
-                    var spawnPoint = GetNextSpawnPoint(playerState);
-                    SpawnPlayer(playerState.Id, spawnPoint.Position, spawnPoint.Orientation.eulerAngles.y);
+                    SpawnPlayer(playerState);
                 }
             }
         }
