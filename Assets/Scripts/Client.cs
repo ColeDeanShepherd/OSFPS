@@ -90,6 +90,13 @@ public class Client
             }
         }
     }
+    public void OnGui()
+    {
+        if (Input.GetKey(KeyCode.Tab))
+        {
+            DrawScoreBoard(new Vector2(100, 100));
+        }
+    }
     
     private int reliableSequencedChannelId;
     private int reliableChannelId;
@@ -352,5 +359,32 @@ public class Client
 
         var serializedMessage = NetworkSerializationUtils.SerializeWithType(message);
         ClientPeer.SendMessageToServer(unreliableStateUpdateChannelId, serializedMessage);
+    }
+
+    private void DrawScoreBoard(Vector2 position)
+    {
+        const float playerIdColumnWidth = 50;
+        const float killsColumnWidth = 100;
+        const float deathsColumnWidth = 100;
+        const float rowHeight = 50;
+
+        var idColumnX = position.x;
+        var killsColumnX = idColumnX + playerIdColumnWidth;
+        var deathsColumnX = killsColumnX + killsColumnWidth;
+
+        // Draw table header.
+        GUI.Label(new Rect(idColumnX, position.y, playerIdColumnWidth, rowHeight), "ID");
+        GUI.Label(new Rect(killsColumnX, position.y, killsColumnWidth, rowHeight), "Kills");
+        GUI.Label(new Rect(deathsColumnX, position.y, deathsColumnWidth, rowHeight), "Deaths");
+        position.y += rowHeight;
+
+        // Draw player rows.
+        foreach (var playerState in CurrentGameState.Players)
+        {
+            GUI.Label(new Rect(idColumnX, position.y, playerIdColumnWidth, rowHeight), playerState.Id.ToString());
+            GUI.Label(new Rect(killsColumnX, position.y, killsColumnWidth, rowHeight), playerState.Kills.ToString());
+            GUI.Label(new Rect(deathsColumnX, position.y, deathsColumnWidth, rowHeight), playerState.Deaths.ToString());
+            position.y += rowHeight;
+        }
     }
 }

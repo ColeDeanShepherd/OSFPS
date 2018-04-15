@@ -66,7 +66,9 @@ public class Server
         
         var playerState = new PlayerState
         {
-            Id = playerId
+            Id = playerId,
+            Kills = 0,
+            Deaths = 0
         };
         CurrentGameState.Players.Add(playerState);
 
@@ -234,12 +236,12 @@ public class Server
                     var hitPlayerComponent = hitPlayerObject.GetComponent<PlayerComponent>();
                     var hitPlayerState = CurrentGameState.Players.Find(ps => ps.Id == hitPlayerComponent.Id);
 
-                    DamagePlayer(hitPlayerState);
+                    DamagePlayer(hitPlayerState, playerState);
                 }
             }
         }
     }
-    private void DamagePlayer(PlayerState playerState)
+    private void DamagePlayer(PlayerState playerState, PlayerState attackingPlayerState)
     {
         playerState.Health -= OsFps.GunShotDamage;
 
@@ -247,6 +249,13 @@ public class Server
         {
             var playerComponent = OsFps.Instance.FindPlayerComponent(playerState.Id);
             Object.Destroy(playerComponent.gameObject);
+
+            playerState.Deaths++;
+
+            if (attackingPlayerState != null)
+            {
+                attackingPlayerState.Kills++;
+            }
 
             playerState.RespawnTimeLeft = OsFps.RespawnTime;
         }

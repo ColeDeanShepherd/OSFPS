@@ -10,6 +10,8 @@ public class PlayerState : INetworkSerializable
     public PlayerInput Input;
     public int Health;
     public float RespawnTimeLeft;
+    public int Kills;
+    public int Deaths;
 
     public bool IsAlive
     {
@@ -28,6 +30,8 @@ public class PlayerState : INetworkSerializable
         Input.Serialize(writer);
         writer.Write(Health);
         writer.Write(RespawnTimeLeft);
+        writer.Write(Kills);
+        writer.Write(Deaths);
     }
     public void Deserialize(BinaryReader reader)
     {
@@ -38,5 +42,7 @@ public class PlayerState : INetworkSerializable
         Input.Deserialize(reader);
         Health = reader.ReadInt32();
         RespawnTimeLeft = reader.ReadSingle();
+        Kills = reader.ReadInt32();
+        Deaths = reader.ReadInt32();
     }
 }

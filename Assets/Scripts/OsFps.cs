@@ -186,6 +186,13 @@ public class OsFps : MonoBehaviour
                 Server.Start();
             }
         }
+        else
+        {
+            if (Client != null)
+            {
+                Client.OnGui();
+            }
+        }
     }
 
     private void ShutdownNetworkPeers()
