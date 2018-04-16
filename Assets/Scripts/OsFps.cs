@@ -1,4 +1,5 @@
-﻿using System.Linq;
+﻿using System;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.Networking;
 using UnityEngine.SceneManagement;
@@ -13,9 +14,27 @@ public class OsFps : MonoBehaviour
     public const int GunShotDamage = 10;
     public const float RespawnTime = 3;
     public const float MuzzleFlashDuration = 0.1f;
-    public const int PistolMaxAmmo = 100;
-    public const int PistolBulletsPerMagazine = 10;
-    public const float PistolReloadTime = 1;
+
+    public const float KillPlaneY = -100;
+
+    public static WeaponDefinition PistolDefinition = new WeaponDefinition
+    {
+        Type = WeaponType.Pistol,
+        MaxAmmo = 100,
+        BulletsPerMagazine = 10,
+        DamagePerBullet = 10,
+        ReloadTime = 1
+    };
+    public static WeaponDefinition GetWeaponDefinitionByType(WeaponType type)
+    {
+        switch (type)
+        {
+            case WeaponType.Pistol:
+                return PistolDefinition;
+            default:
+                throw new NotImplementedException();
+        }
+    }
 
     public static OsFps Instance;
     

@@ -215,6 +215,10 @@ public class Client
 
         GameObject weaponObject = Object.Instantiate(OsFps.Instance.PistolPrefab, Vector3.zero, Quaternion.identity);
         weaponObject.transform.SetParent(playerComponent.HandsPointObject.transform, false);
+
+        var weaponComponent = weaponObject.GetComponent<WeaponComponent>();
+        Object.Destroy(weaponComponent.Rigidbody);
+        Object.Destroy(weaponComponent.Collider);
     }
     private void Reload(PlayerState playerState)
     {

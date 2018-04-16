@@ -1,11 +1,23 @@
 ﻿using System;
 using System.IO;
+using System.Linq;
+using UnityEngine;
 
 public class WeaponState : INetworkSerializable
 {
     public WeaponType Type;
     public ushort BulletsLeft;
     public ushort BulletsLeftInMagazine;
+
+    public WeaponState()
+    {
+    }
+    public WeaponState(WeaponType type, ushort bulletsLeft)
+    {
+        Type = type;
+        BulletsLeft = (ushort)Mathf.Min(bulletsLeft, Definition.MaxAmmo);
+        BulletsLeftInMagazine = (ushort)Mathf.Min(BulletsLeft, Definition.BulletsPerMagazine);
+    }
 
     public ushort BulletsLeftOutOfMagazine
     {
@@ -14,30 +26,11 @@ public class WeaponState : INetworkSerializable
             return (ushort)(BulletsLeft - BulletsLeftInMagazine);
         }
     }
-    public ushort BulletsPerMagazine
+    public WeaponDefinition Definition
     {
         get
         {
-            switch (Type)
-            {
-                case WeaponType.Pistol:
-                    return OsFps.PistolBulletsPerMagazine;
-                default:
-                    throw new NotImplementedException();
-            }
-        }
-    }
-    public ushort MaxAmmo
-    {
-        get
-        {
-            switch (Type)
-            {
-                case WeaponType.Pistol:
-                    return OsFps.PistolMaxAmmo;
-                default:
-                    throw new NotImplementedException();
-            }
+            return OsFps.GetWeaponDefinitionByType(Type);
         }
     }
 

@@ -126,12 +126,7 @@ public class Server
         playerState.Position = position;
         playerState.LookDirAngles = new Vector2(0, lookDirYAngle);
         playerState.Health = OsFps.MaxPlayerHealth;
-        playerState.Weapon0 = new WeaponState
-        {
-            Type = WeaponType.Pistol,
-            BulletsLeft = OsFps.PistolMaxAmmo,
-            BulletsLeftInMagazine = OsFps.PistolBulletsPerMagazine
-        };
+        playerState.Weapon0 = new WeaponState(WeaponType.Pistol, OsFps.PistolDefinition.MaxAmmo);
         playerState.Weapon1 = null;
 
         var playerObject = OsFps.Instance.SpawnLocalPlayer(playerState);
@@ -151,12 +146,45 @@ public class Server
     {
         SceneManager.sceneLoaded -= OnMapLoaded;
 
+        CurrentGameState.DynamicObjects = GetDynamicObjectStatesFromGameObjects();
         SendGameStatePeriodicFunction = new ThrottledAction(SendGameState, 1.0f / 30);
 
         if (OnServerStarted != null)
         {
             OnServerStarted();
         }
+    }
+    private DynamicObjectState ToDynamicObjectState(WeaponComponent weaponComponent)
+    {
+        DynamicObjectState dynamicObjectState;
+
+        switch (weaponComponent.Type)
+        {
+            case WeaponType.Pistol:
+                dynamicObjectState = new PistolObjectState();
+                break;
+            default:
+                throw new System.NotImplementedException();
+        }
+
+        dynamicObjectState.Position = weaponComponent.transform.position;
+        dynamicObjectState.Velocity = weaponComponent.Rigidbody.velocity;
+        dynamicObjectState.EulerAngles = weaponComponent.transform.eulerAngles;
+        dynamicObjectState.AngularVelocity = weaponComponent.Rigidbody.angularVelocity;
+
+        return dynamicObjectState;
+    }
+    private List<DynamicObjectState> GetDynamicObjectStatesFromGameObjects()
+    {
+        var dynamicObjectStates = new List<DynamicObjectState>();
+
+        var weaponComponents = Object.FindObjectsOfType<WeaponComponent>();
+        foreach (var weaponComponent in weaponComponents)
+        {
+            dynamicObjectStates.Add(ToDynamicObjectState(weaponComponent));
+        }
+
+        return dynamicObjectStates;
     }
 
     private void SendMessageToClientHandleErrors(int connectionId, int channelId, byte[] serializedMessage)
@@ -209,8 +237,6 @@ public class Server
     {
         foreach (var playerState in CurrentGameState.Players)
         {
-            OsFps.Instance.UpdatePlayer(playerState);
-
             if (!playerState.IsAlive)
             {
                 playerState.RespawnTimeLeft -= Time.deltaTime;
@@ -219,6 +245,13 @@ public class Server
                 {
                     SpawnPlayer(playerState);
                 }
+            }
+
+            OsFps.Instance.UpdatePlayer(playerState);
+
+            if (playerState.Position.y <= OsFps.KillPlaneY)
+            {
+                DamagePlayer(playerState, 9999, null);
             }
         }
     }
@@ -244,7 +277,7 @@ public class Server
                 var hitPlayerComponent = hitPlayerObject.GetComponent<PlayerComponent>();
                 var hitPlayerState = CurrentGameState.Players.Find(ps => ps.Id == hitPlayerComponent.Id);
 
-                DamagePlayer(hitPlayerState, playerState);
+                DamagePlayer(hitPlayerState, playerState.CurrentWeapon.Definition.DamagePerBullet, playerState);
             }
         }
 
@@ -256,16 +289,19 @@ public class Server
         var weapon = playerState.CurrentWeapon;
         if (weapon == null) return;
 
-        var bulletsToAddToMagazine = (ushort)Mathf.Min(weapon.BulletsPerMagazine - weapon.BulletsLeftInMagazine, weapon.BulletsLeftOutOfMagazine);
+        var bulletsUsedInMagazine = weapon.Definition.BulletsPerMagazine - weapon.BulletsLeftInMagazine;
+        var bulletsToAddToMagazine = (ushort)Mathf.Min(bulletsUsedInMagazine, weapon.BulletsLeftOutOfMagazine);
         weapon.BulletsLeftInMagazine += bulletsToAddToMagazine;
     }
-    private void DamagePlayer(PlayerState playerState, PlayerState attackingPlayerState)
+    private void DamagePlayer(PlayerState playerState, int damage, PlayerState attackingPlayerState)
     {
-        playerState.Health -= OsFps.GunShotDamage;
+        var playerComponent = OsFps.Instance.FindPlayerComponent(playerState.Id);
+        if (playerComponent == null) return;
+
+        playerState.Health -= damage;
 
         if (!playerState.IsAlive)
         {
-            var playerComponent = OsFps.Instance.FindPlayerComponent(playerState.Id);
             Object.Destroy(playerComponent.gameObject);
 
             playerState.Deaths++;

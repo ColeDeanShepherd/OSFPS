@@ -63,6 +63,27 @@ public static class NetworkSerializationUtils
         }
     }
 
+    public static void Serialize<T>(BinaryWriter writer, List<T> list, Action<BinaryWriter, T> serializeElementFunc)
+    {
+        writer.Write(list.Count);
+
+        foreach (var element in list)
+        {
+            serializeElementFunc(writer, element);
+        }
+    }
+    public static void Deserialize<T>(BinaryReader reader, List<T> list, Func<BinaryReader, T> deserializeElementFunc)
+    {
+        list.Clear();
+
+        var listSize = reader.ReadInt32();
+
+        for (var i = 0; i < listSize; i++)
+        {
+            var element = deserializeElementFunc(reader);
+            list.Add(element);
+        }
+    }
 
     public static void SerializeNullable<T>(BinaryWriter writer, T value) where T : INetworkSerializable
     {
@@ -87,6 +108,28 @@ public static class NetworkSerializationUtils
         else
         {
             return default(T);
+        }
+    }
+
+    public static void SerializeDynamicObjectState(BinaryWriter writer, DynamicObjectState objectState)
+    {
+        writer.Write((byte)objectState.GetObjectType());
+        objectState.Serialize(writer);
+    }
+    public static DynamicObjectState DeserializeDynamicObjectState(BinaryReader reader)
+    {
+        var objectType = (DynamicObjectType)reader.ReadByte();
+
+        switch (objectType)
+        {
+            case DynamicObjectType.Pistol:
+                var pistolObject = new PistolObjectState();
+                pistolObject.Deserialize(reader);
+
+                return pistolObject;
+                break;
+            default:
+                throw new NotImplementedException();
         }
     }
 }
