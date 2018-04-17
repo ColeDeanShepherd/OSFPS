@@ -149,6 +149,8 @@ public class Server
         CurrentGameState.DynamicObjects = GetDynamicObjectStatesFromGameObjects();
         SendGameStatePeriodicFunction = new ThrottledAction(SendGameState, 1.0f / 30);
 
+        SpawnWeapons();
+
         if (OnServerStarted != null)
         {
             OnServerStarted();
@@ -167,6 +169,7 @@ public class Server
                 throw new System.NotImplementedException();
         }
 
+        dynamicObjectState.Id = GenerateNetworkId();
         dynamicObjectState.Position = weaponComponent.transform.position;
         dynamicObjectState.Velocity = weaponComponent.Rigidbody.velocity;
         dynamicObjectState.EulerAngles = weaponComponent.transform.eulerAngles;
@@ -314,6 +317,33 @@ public class Server
             playerState.RespawnTimeLeft = OsFps.RespawnTime;
         }
     }
+
+    private void SpawnWeapons()
+    {
+        var weaponSpawnerComponents = Object.FindObjectsOfType<WeaponSpawnerComponent>();
+
+        foreach (var weaponSpawnerComponent in weaponSpawnerComponents)
+        {
+            GameObject weaponObject;
+
+            switch (weaponSpawnerComponent.WeaponType)
+            {
+                case WeaponType.Pistol:
+                    weaponObject = Object.Instantiate(
+                        OsFps.Instance.PistolPrefab,
+                        weaponSpawnerComponent.transform.position,
+                        weaponSpawnerComponent.transform.rotation
+                    );
+                    break;
+                default:
+                    throw new System.NotImplementedException();
+            }
+
+            var weaponComponent = weaponObject.GetComponent<WeaponComponent>();
+            CurrentGameState.DynamicObjects.Add(ToDynamicObjectState(weaponComponent));
+        }
+    }
+
     private void UpdateGameStateFromObjects()
     {
         foreach(var playerState in CurrentGameState.Players)

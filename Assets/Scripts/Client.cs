@@ -261,34 +261,57 @@ public class Client
         return clientVelocity + velocityDiff;
     }
 
+    private void GetChanges<T>(
+        List<T> oldList,
+        List<T> newList,
+        System.Func<T, T, bool> doElementsMatch,
+        out IEnumerable<T> removedElements,
+        out IEnumerable<T> addedElements,
+        out IEnumerable<T> updatedElements
+    )
+    {
+        removedElements = oldList.Where(oldElement =>
+            !newList.Any(newElement => doElementsMatch(oldElement, newElement))
+        );
+        addedElements = newList.Where(newElement =>
+            !oldList.Any(oldElement => doElementsMatch(oldElement, newElement))
+        );
+        updatedElements = newList.Where(newElement =>
+            oldList.Any(oldElement => doElementsMatch(oldElement, newElement))
+        );
+    }
+
     private void ApplyGameState(GameState newGameState)
     {
         if (!PlayerId.HasValue) return; // Wait until the player ID has been set.
 
-        // Despawn players.
-        var removedPlayerIds = CurrentGameState.Players
-            .Where(curPs  => !newGameState.Players.Any(newPs => newPs.Id == curPs.Id))
-            .Select(curPs => curPs.Id)
-            .ToList();
+        ApplyPlayerStates(newGameState);
+        ApplyDynamicObjectStates(newGameState);
+    }
 
-        CurrentGameState.Players.RemoveAll(ps => removedPlayerIds.Contains(ps.Id));
-        foreach (var playerId in removedPlayerIds)
+    private void ApplyPlayerStates(GameState newGameState)
+    {
+        IEnumerable<PlayerState> removedPlayerStates, addedPlayerStates, updatedPlayerStates;
+        GetChanges(
+            CurrentGameState.Players, newGameState.Players, (p1, p2) => p1.Id == p2.Id,
+            out removedPlayerStates, out addedPlayerStates, out updatedPlayerStates
+        );
+
+        // Despawn players.
+        foreach (var removedPlayerState in removedPlayerStates)
         {
-            Object.Destroy(OsFps.Instance.FindPlayerObject(playerId));
+            Object.Destroy(OsFps.Instance.FindPlayerObject(removedPlayerState.Id));
+            CurrentGameState.Players.RemoveAll(ps => ps.Id == removedPlayerState.Id);
         }
 
         // Spawn players.
-        var newPlayerStates = newGameState.Players
-            .Where(newPs => !CurrentGameState.Players.Any(curPs => curPs.Id == newPs.Id))
-            .ToList();
-        foreach (var newPlayerState in newPlayerStates)
+        foreach (var addedPlayerState in addedPlayerStates)
         {
-            CurrentGameState.Players.Add(newPlayerState);
-            SpawnPlayer(newPlayerState);
+            CurrentGameState.Players.Add(addedPlayerState);
+            SpawnPlayer(addedPlayerState);
         }
 
-        var updatedPlayerStates = newGameState.Players
-            .Where(newPs => !newPlayerStates.Any(spawnedPs => spawnedPs.Id == newPs.Id));
+        // Update existing players.
         foreach (var updatedPlayerState in updatedPlayerStates)
         {
             ApplyPlayerState(updatedPlayerState);
@@ -364,6 +387,36 @@ public class Client
 
         CurrentGameState.Players[currentPlayerStateIndex] = updatedPlayerState;
     }
+    
+    private void ApplyDynamicObjectStates(GameState newGameState)
+    {
+        IEnumerable<DynamicObjectState> removedDynamicObjectStates, addedDynamicObjectStates, updatedDynamicObjectStates;
+        GetChanges(
+            CurrentGameState.DynamicObjects, newGameState.DynamicObjects, (d1, d2) => d1.Id == d2.Id,
+            out removedDynamicObjectStates, out addedDynamicObjectStates, out updatedDynamicObjectStates
+        );
+        /*
+        // Despawn dynamic objects.
+        foreach (var removedDynamicObjectState in removedDynamicObjectStates)
+        {
+            Object.Destroy(OsFps.Instance.FindDynamicObjectObject(removedDynamicObjectState.Id));
+            CurrentGameState.DynamicObjects.RemoveAll(ps => ps.Id == removedDynamicObjectState.Id);
+        }
+
+        // Spawn dynamic objects.
+        foreach (var addedDynamicObjectState in addedDynamicObjectStates)
+        {
+            CurrentGameState.DynamicObjects.Add(addedDynamicObjectState);
+            SpawnDynamicObject(addedDynamicObjectState);
+        }
+
+        // Update dynamic objects.
+        foreach (var updatedDynamicObjectState in updatedDynamicObjectStates)
+        {
+            ApplyDynamicObjectState(updatedDynamicObjectState);
+        }*/
+    }
+
     private void SpawnPlayer(PlayerState playerState)
     {
         OsFps.Instance.SpawnLocalPlayer(playerState);

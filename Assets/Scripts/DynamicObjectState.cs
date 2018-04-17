@@ -5,6 +5,7 @@ public abstract class DynamicObjectState : INetworkSerializable
 {
     public abstract DynamicObjectType GetObjectType();
 
+    public uint Id;
     public Vector3 Position;
     public Vector3 Velocity;
     public Vector3 EulerAngles;
