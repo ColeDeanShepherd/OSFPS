@@ -98,6 +98,8 @@ public class OsFps : MonoBehaviour
 
         var weaponObjectComponent = weaponObject.GetComponent<WeaponComponent>();
         weaponObjectComponent.Id = weaponObjectState.Id;
+        weaponObjectComponent.BulletsLeftInMagazine = weaponObjectState.BulletsLeftInMagazine;
+        weaponObjectComponent.BulletsLeftOutOfMagazine = weaponObjectState.BulletsLeftOutOfMagazine;
 
         return weaponObject;
     }
@@ -180,6 +182,14 @@ public class OsFps : MonoBehaviour
     {
         playerComponent.transform.localEulerAngles = new Vector3(0, LookDirAngles.y, 0);
         playerComponent.CameraPointObject.transform.localEulerAngles = new Vector3(LookDirAngles.x, 0, 0);
+    }
+
+    public void OnPlayerCollidingWithWeapon(GameObject playerObject, GameObject weaponObject)
+    {
+        if (Server != null)
+        {
+            Server.OnPlayerCollidingWithWeapon(playerObject, weaponObject);
+        }
     }
 
     private void Awake()

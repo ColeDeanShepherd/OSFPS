@@ -416,8 +416,11 @@ public class Client
         foreach (var removedWeaponObjectState in removedWeaponObjectStates)
         {
             Object.Destroy(OsFps.Instance.FindWeaponObject(removedWeaponObjectState.Id));
-            CurrentGameState.WeaponObjects.RemoveAll(ps => ps.Id == removedWeaponObjectState.Id);
         }
+        var removedWeaponObjectIds = removedWeaponObjectStates
+            .Select(wos => wos.Id)
+            .ToList();
+        CurrentGameState.WeaponObjects.RemoveAll(ps => removedWeaponObjectIds.Contains(ps.Id));
 
         // Spawn weapon objects.
         foreach (var addedWeaponObjectState in addedWeaponObjectStates)

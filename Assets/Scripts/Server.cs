@@ -109,7 +109,71 @@ public class Server
         var serializedMessage = NetworkSerializationUtils.SerializeWithType(message);
         SendMessageToClientHandleErrors(connectionId, channelId, serializedMessage);
     }
-    
+
+    public int AddBullets(WeaponState weaponState, int numBulletsToTryToAdd)
+    {
+        var numBulletsCanAdd = weaponState.Definition.MaxAmmo - weaponState.BulletsLeft;
+        var bulletsToPickUp = Mathf.Min(numBulletsToTryToAdd, numBulletsCanAdd);
+
+        weaponState.BulletsLeft += (ushort)bulletsToPickUp;
+        weaponState.BulletsLeftInMagazine = (ushort)Mathf.Min(
+            weaponState.BulletsLeftInMagazine + bulletsToPickUp,
+            weaponState.Definition.BulletsPerMagazine
+        );
+
+        return bulletsToPickUp;
+    }
+    public void RemoveBullets(WeaponObjectState weaponObjectState, int numBulletsToRemove)
+    {
+        var bulletsToRemoveFromMagazine = Mathf.Min(weaponObjectState.BulletsLeftInMagazine, numBulletsToRemove);
+        weaponObjectState.BulletsLeftInMagazine -= (ushort)bulletsToRemoveFromMagazine;
+        numBulletsToRemove -= bulletsToRemoveFromMagazine;
+
+        if (numBulletsToRemove > 0)
+        {
+            weaponObjectState.BulletsLeftOutOfMagazine -= (ushort)Mathf.Min(
+                weaponObjectState.BulletsLeftOutOfMagazine,
+                numBulletsToRemove
+            );
+        }
+    }
+    public void OnPlayerCollidingWithWeapon(GameObject playerObject, GameObject weaponObject)
+    {
+        var playerComponent = playerObject.GetComponent<PlayerComponent>();
+        var playerState = CurrentGameState.Players.First(ps => ps.Id == playerComponent.Id);
+        var weaponComponent = weaponObject.GetComponent<WeaponComponent>();
+        var weaponObjectState = CurrentGameState.WeaponObjects.First(wos => wos.Id == weaponComponent.Id);
+
+        WeaponState playersMatchingWeapon;
+
+        if ((playerState.Weapon0 != null) && (playerState.Weapon0.Type == weaponComponent.Type))
+        {
+            playersMatchingWeapon = playerState.Weapon0;
+        }
+        else if ((playerState.Weapon1 != null) && (playerState.Weapon1.Type == weaponComponent.Type))
+        {
+            playersMatchingWeapon = playerState.Weapon1;
+        }
+        else
+        {
+            playersMatchingWeapon = null;
+        }
+
+        if (playersMatchingWeapon != null)
+        {
+            var numBulletsPickedUp = AddBullets(playersMatchingWeapon, weaponObjectState.BulletsLeft);
+            RemoveBullets(weaponObjectState, numBulletsPickedUp);
+
+            if(weaponObjectState.BulletsLeft == 0)
+            {
+                var weaponObjectId = weaponComponent.Id;
+                Object.Destroy(weaponObject);
+
+                CurrentGameState.WeaponObjects.RemoveAll(wos => wos.Id == weaponObjectId);
+            }
+        }
+    }
+
     private int reliableSequencedChannelId;
     private int reliableChannelId;
     private int unreliableStateUpdateChannelId;
@@ -173,6 +237,8 @@ public class Server
         {
             Id = GenerateNetworkId(),
             Type = weaponComponent.Type,
+            BulletsLeftInMagazine = weaponComponent.BulletsLeftInMagazine,
+            BulletsLeftOutOfMagazine = weaponComponent.BulletsLeftOutOfMagazine,
             RigidBodyState = ToRigidBodyState(weaponComponent.Rigidbody)
         };
 
@@ -285,6 +351,11 @@ public class Server
 
                 DamagePlayer(hitPlayerState, playerState.CurrentWeapon.Definition.DamagePerBullet, playerState);
             }
+
+            if (hit.rigidbody != null)
+            {
+                hit.rigidbody.AddForceAtPosition(5 * shotRay.direction, hit.point, ForceMode.Impulse);
+            }
         }
 
         playerState.CurrentWeapon.BulletsLeftInMagazine--;
@@ -331,6 +402,8 @@ public class Server
             {
                 Id = GenerateNetworkId(),
                 Type = weaponSpawnerComponent.WeaponType,
+                BulletsLeftInMagazine = 3,
+                BulletsLeftOutOfMagazine = 3,
                 RigidBodyState = new RigidBodyState
                 {
                     Position = weaponSpawnerComponent.transform.position,
@@ -375,6 +448,10 @@ public class Server
             {
                 var weaponComponent = weaponObject.GetComponent<WeaponComponent>();
                 UpdateRigidBodyStateFromRigidBody(weaponObjectState.RigidBodyState, weaponComponent.Rigidbody);
+            }
+            else
+            {
+                // remove weapon object state???
             }
         }
     }
