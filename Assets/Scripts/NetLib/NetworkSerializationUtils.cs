@@ -110,26 +110,4 @@ public static class NetworkSerializationUtils
             return default(T);
         }
     }
-
-    public static void SerializeDynamicObjectState(BinaryWriter writer, DynamicObjectState objectState)
-    {
-        writer.Write((byte)objectState.GetObjectType());
-        objectState.Serialize(writer);
-    }
-    public static DynamicObjectState DeserializeDynamicObjectState(BinaryReader reader)
-    {
-        var objectType = (DynamicObjectType)reader.ReadByte();
-
-        switch (objectType)
-        {
-            case DynamicObjectType.Pistol:
-                var pistolObject = new PistolObjectState();
-                pistolObject.Deserialize(reader);
-
-                return pistolObject;
-                break;
-            default:
-                throw new NotImplementedException();
-        }
-    }
 }

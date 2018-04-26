@@ -253,12 +253,28 @@ public class Client
         var positionDelta = percentOfDiffToCorrect * positionDifference;
         return clientPosition + positionDelta;
     }
+    private Vector3 CorrectedEulerAngles(Vector3 serverEulerAngles, Vector3 serverAngularVelocity, float roundTripTime, Vector3 clientEulerAngles)
+    {
+        var serverToClientLatency = roundTripTime / 2;
+        var predictedEulerAngles = serverEulerAngles + (serverToClientLatency * serverAngularVelocity);
+        var eulerAnglesDifference = predictedEulerAngles - clientEulerAngles;
+        var percentOfDiffToCorrect = 1f / 3;
+        var eulerAnglesDelta = percentOfDiffToCorrect * eulerAnglesDifference;
+        return clientEulerAngles + eulerAnglesDelta;
+    }
     private Vector3 CorrectedVelocity(Vector3 serverVelocity, float roundTripTime, Vector3 clientVelocity)
     {
         var serverToClientLatency = roundTripTime / 2;
         var percentOfDiffToCorrect = 1f / 2;
         var velocityDiff = percentOfDiffToCorrect * (serverVelocity - clientVelocity);
         return clientVelocity + velocityDiff;
+    }
+    private Vector3 CorrectedAngularVelocity(Vector3 serverAngularVelocity, float roundTripTime, Vector3 clientAngularVelocity)
+    {
+        var serverToClientLatency = roundTripTime / 2;
+        var percentOfDiffToCorrect = 1f / 2;
+        var angularVelocityDiff = percentOfDiffToCorrect * (serverAngularVelocity - clientAngularVelocity);
+        return clientAngularVelocity + angularVelocityDiff;
     }
 
     private void GetChanges<T>(
@@ -286,7 +302,7 @@ public class Client
         if (!PlayerId.HasValue) return; // Wait until the player ID has been set.
 
         ApplyPlayerStates(newGameState);
-        ApplyDynamicObjectStates(newGameState);
+        ApplyWeaponObjectStates(newGameState);
     }
 
     private void ApplyPlayerStates(GameState newGameState)
@@ -321,7 +337,6 @@ public class Client
     {
         var currentPlayerStateIndex = CurrentGameState.Players
                 .FindIndex(curPs => curPs.Id == updatedPlayerState.Id);
-        var currentPlayerState = CurrentGameState.Players[currentPlayerStateIndex];
 
         var isPlayerMe = updatedPlayerState.Id == PlayerId;
         var roundTripTime = ClientPeer.RoundTripTime.Value;
@@ -382,39 +397,95 @@ public class Client
         // Update state.
         if (isPlayerMe)
         {
+            var currentPlayerState = CurrentGameState.Players[currentPlayerStateIndex];
             updatedPlayerState.Input = currentPlayerState.Input;
         }
 
         CurrentGameState.Players[currentPlayerStateIndex] = updatedPlayerState;
     }
     
-    private void ApplyDynamicObjectStates(GameState newGameState)
+    private void ApplyWeaponObjectStates(GameState newGameState)
     {
-        IEnumerable<DynamicObjectState> removedDynamicObjectStates, addedDynamicObjectStates, updatedDynamicObjectStates;
+        IEnumerable<WeaponObjectState> removedWeaponObjectStates, addedWeaponObjectStates, updatedWeaponObjectStates;
         GetChanges(
-            CurrentGameState.DynamicObjects, newGameState.DynamicObjects, (d1, d2) => d1.Id == d2.Id,
-            out removedDynamicObjectStates, out addedDynamicObjectStates, out updatedDynamicObjectStates
+            CurrentGameState.WeaponObjects, newGameState.WeaponObjects, (wo1, wo2) => wo1.Id == wo2.Id,
+            out removedWeaponObjectStates, out addedWeaponObjectStates, out updatedWeaponObjectStates
         );
-        /*
-        // Despawn dynamic objects.
-        foreach (var removedDynamicObjectState in removedDynamicObjectStates)
+
+        // Despawn weapon objects.
+        foreach (var removedWeaponObjectState in removedWeaponObjectStates)
         {
-            Object.Destroy(OsFps.Instance.FindDynamicObjectObject(removedDynamicObjectState.Id));
-            CurrentGameState.DynamicObjects.RemoveAll(ps => ps.Id == removedDynamicObjectState.Id);
+            Object.Destroy(OsFps.Instance.FindWeaponObject(removedWeaponObjectState.Id));
+            CurrentGameState.WeaponObjects.RemoveAll(ps => ps.Id == removedWeaponObjectState.Id);
         }
 
-        // Spawn dynamic objects.
-        foreach (var addedDynamicObjectState in addedDynamicObjectStates)
+        // Spawn weapon objects.
+        foreach (var addedWeaponObjectState in addedWeaponObjectStates)
         {
-            CurrentGameState.DynamicObjects.Add(addedDynamicObjectState);
-            SpawnDynamicObject(addedDynamicObjectState);
+            CurrentGameState.WeaponObjects.Add(addedWeaponObjectState);
+            OsFps.Instance.SpawnLocalWeaponObject(addedWeaponObjectState);
         }
 
-        // Update dynamic objects.
-        foreach (var updatedDynamicObjectState in updatedDynamicObjectStates)
+        // Update existing weapon objects.
+        foreach (var updatedWeaponObjectState in updatedWeaponObjectStates)
         {
-            ApplyDynamicObjectState(updatedDynamicObjectState);
-        }*/
+            ApplyWeaponObjectState(updatedWeaponObjectState);
+        }
+    }
+    private void ApplyRigidbodyState(RigidBodyState newRigidBodyState, RigidBodyState oldRigidBodyState, Rigidbody rigidbody)
+    {
+        var roundTripTime = ClientPeer.RoundTripTime.Value;
+
+        // Correct position.
+        var correctedPosition = CorrectedPosition(
+            newRigidBodyState.Position, newRigidBodyState.Velocity,
+            roundTripTime, rigidbody.transform.position
+        );
+        rigidbody.transform.position = correctedPosition;
+        newRigidBodyState.Position = correctedPosition;
+
+        // Correct orientation.
+        var correctedEulerAngles = CorrectedEulerAngles(
+            newRigidBodyState.EulerAngles, newRigidBodyState.AngularVelocity,
+            roundTripTime, rigidbody.transform.eulerAngles
+        );
+        rigidbody.transform.eulerAngles = correctedEulerAngles;
+        newRigidBodyState.EulerAngles = correctedEulerAngles;
+
+        // Correct velocity.
+        var correctedVelocity = CorrectedVelocity(
+            newRigidBodyState.Velocity, roundTripTime, rigidbody.velocity
+        );
+        rigidbody.velocity = correctedVelocity;
+        newRigidBodyState.Velocity = correctedVelocity;
+
+        // Correct angular velocity.
+        var correctedAngularVelocity = CorrectedAngularVelocity(
+            newRigidBodyState.AngularVelocity, roundTripTime, rigidbody.angularVelocity
+        );
+        rigidbody.angularVelocity = correctedAngularVelocity;
+        newRigidBodyState.AngularVelocity = correctedAngularVelocity;
+    }
+    private void ApplyWeaponObjectState(WeaponObjectState updatedWeaponObjectState)
+    {
+        var currentWeaponObjectStateIndex = CurrentGameState.WeaponObjects
+                .FindIndex(curPs => curPs.Id == updatedWeaponObjectState.Id);
+        var currentWeaponObjectState = CurrentGameState.WeaponObjects[currentWeaponObjectStateIndex];
+        var weaponObject = OsFps.Instance.FindWeaponObject(updatedWeaponObjectState.Id);
+
+        // Update weapon object.
+        if (weaponObject != null)
+        {
+            var weaponComponent = weaponObject.GetComponent<WeaponComponent>();
+            ApplyRigidbodyState(
+                updatedWeaponObjectState.RigidBodyState,
+                currentWeaponObjectState.RigidBodyState,
+                weaponComponent.Rigidbody
+            );
+        }
+
+        // Update state.
+        CurrentGameState.WeaponObjects[currentWeaponObjectStateIndex] = updatedWeaponObjectState;
     }
 
     private void SpawnPlayer(PlayerState playerState)

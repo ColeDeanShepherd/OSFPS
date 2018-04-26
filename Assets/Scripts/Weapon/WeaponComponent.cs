@@ -2,6 +2,7 @@
 
 public class WeaponComponent : MonoBehaviour
 {
+    public uint Id;
     public WeaponType Type;
     public WeaponDefinition Definition
     {

@@ -1,4 +1,4 @@
-﻿using System;
+﻿
 using System.Linq;
 using UnityEngine;
 using UnityEngine.Networking;
@@ -32,7 +32,7 @@ public class OsFps : MonoBehaviour
             case WeaponType.Pistol:
                 return PistolDefinition;
             default:
-                throw new NotImplementedException();
+                throw new System.NotImplementedException();
         }
     }
 
@@ -79,10 +79,39 @@ public class OsFps : MonoBehaviour
 
         return playerObject;
     }
+    public GameObject SpawnLocalWeaponObject(WeaponObjectState weaponObjectState)
+    {
+        GameObject weaponObject;
+
+        switch (weaponObjectState.Type)
+        {
+            case WeaponType.Pistol:
+                weaponObject = Instantiate(
+                    PistolPrefab,
+                    weaponObjectState.RigidBodyState.Position,
+                    Quaternion.Euler(weaponObjectState.RigidBodyState.EulerAngles)
+                );
+                break;
+            default:
+                throw new System.NotImplementedException();
+        }
+
+        var weaponObjectComponent = weaponObject.GetComponent<WeaponComponent>();
+        weaponObjectComponent.Id = weaponObjectState.Id;
+
+        return weaponObject;
+    }
     public GameObject FindPlayerObject(uint playerId)
     {
         return GameObject.FindGameObjectsWithTag(PlayerTag)
             .FirstOrDefault(go => go.GetComponent<PlayerComponent>().Id == playerId);
+    }
+    public GameObject FindWeaponObject(uint id)
+    {
+        var weaponComponent = FindObjectsOfType<WeaponComponent>()
+            .FirstOrDefault(wc => wc.Id == id);
+
+        return (weaponComponent != null) ? weaponComponent.gameObject : null;
     }
     public PlayerComponent FindPlayerComponent(uint playerId)
     {

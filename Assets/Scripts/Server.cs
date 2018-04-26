@@ -57,6 +57,7 @@ public class Server
             SendGameStatePeriodicFunction.TryToCall();
         }
     }
+
     public void OnClientConnected(int connectionId)
     {
         var playerId = GenerateNetworkId();
@@ -146,7 +147,7 @@ public class Server
     {
         SceneManager.sceneLoaded -= OnMapLoaded;
 
-        CurrentGameState.DynamicObjects = GetDynamicObjectStatesFromGameObjects();
+        CurrentGameState.WeaponObjects = GetWeaponObjectStatesFromGameObjects();
         SendGameStatePeriodicFunction = new ThrottledAction(SendGameState, 1.0f / 30);
 
         SpawnWeapons();
@@ -156,38 +157,40 @@ public class Server
             OnServerStarted();
         }
     }
-    private DynamicObjectState ToDynamicObjectState(WeaponComponent weaponComponent)
+    private RigidBodyState ToRigidBodyState(Rigidbody rigidbody)
     {
-        DynamicObjectState dynamicObjectState;
-
-        switch (weaponComponent.Type)
+        return new RigidBodyState
         {
-            case WeaponType.Pistol:
-                dynamicObjectState = new PistolObjectState();
-                break;
-            default:
-                throw new System.NotImplementedException();
-        }
-
-        dynamicObjectState.Id = GenerateNetworkId();
-        dynamicObjectState.Position = weaponComponent.transform.position;
-        dynamicObjectState.Velocity = weaponComponent.Rigidbody.velocity;
-        dynamicObjectState.EulerAngles = weaponComponent.transform.eulerAngles;
-        dynamicObjectState.AngularVelocity = weaponComponent.Rigidbody.angularVelocity;
-
-        return dynamicObjectState;
+            Position = rigidbody.transform.position,
+            EulerAngles = rigidbody.transform.eulerAngles,
+            Velocity = rigidbody.velocity,
+            AngularVelocity = rigidbody.angularVelocity
+        };
     }
-    private List<DynamicObjectState> GetDynamicObjectStatesFromGameObjects()
+    private WeaponObjectState ToWeaponObjectState(WeaponComponent weaponComponent)
     {
-        var dynamicObjectStates = new List<DynamicObjectState>();
+        var state = new WeaponObjectState
+        {
+            Id = GenerateNetworkId(),
+            Type = weaponComponent.Type,
+            RigidBodyState = ToRigidBodyState(weaponComponent.Rigidbody)
+        };
+
+        weaponComponent.Id = state.Id;
+
+        return state;
+    }
+    private List<WeaponObjectState> GetWeaponObjectStatesFromGameObjects()
+    {
+        var weaponObjectStates = new List<WeaponObjectState>();
 
         var weaponComponents = Object.FindObjectsOfType<WeaponComponent>();
         foreach (var weaponComponent in weaponComponents)
         {
-            dynamicObjectStates.Add(ToDynamicObjectState(weaponComponent));
+            weaponObjectStates.Add(ToWeaponObjectState(weaponComponent));
         }
 
-        return dynamicObjectStates;
+        return weaponObjectStates;
     }
 
     private void SendMessageToClientHandleErrors(int connectionId, int channelId, byte[] serializedMessage)
@@ -324,26 +327,32 @@ public class Server
 
         foreach (var weaponSpawnerComponent in weaponSpawnerComponents)
         {
-            GameObject weaponObject;
-
-            switch (weaponSpawnerComponent.WeaponType)
+            var weaponObjectState = new WeaponObjectState
             {
-                case WeaponType.Pistol:
-                    weaponObject = Object.Instantiate(
-                        OsFps.Instance.PistolPrefab,
-                        weaponSpawnerComponent.transform.position,
-                        weaponSpawnerComponent.transform.rotation
-                    );
-                    break;
-                default:
-                    throw new System.NotImplementedException();
-            }
+                Id = GenerateNetworkId(),
+                Type = weaponSpawnerComponent.WeaponType,
+                RigidBodyState = new RigidBodyState
+                {
+                    Position = weaponSpawnerComponent.transform.position,
+                    EulerAngles = weaponSpawnerComponent.transform.eulerAngles,
+                    Velocity = Vector3.zero,
+                    AngularVelocity = Vector3.zero
+                }
+            };
+            var weaponObject = OsFps.Instance.SpawnLocalWeaponObject(weaponObjectState);
 
             var weaponComponent = weaponObject.GetComponent<WeaponComponent>();
-            CurrentGameState.DynamicObjects.Add(ToDynamicObjectState(weaponComponent));
+            CurrentGameState.WeaponObjects.Add(weaponObjectState);
         }
     }
 
+    private void UpdateRigidBodyStateFromRigidBody(RigidBodyState rigidBodyState, Rigidbody rigidbody)
+    {
+        rigidBodyState.Position = rigidbody.transform.position;
+        rigidBodyState.EulerAngles = rigidbody.transform.eulerAngles;
+        rigidBodyState.Velocity = rigidbody.velocity;
+        rigidBodyState.AngularVelocity = rigidbody.angularVelocity;
+    }
     private void UpdateGameStateFromObjects()
     {
         foreach(var playerState in CurrentGameState.Players)
@@ -357,6 +366,17 @@ public class Server
                 playerState.LookDirAngles = OsFps.Instance.GetPlayerLookDirAngles(playerComponent);
             }
         }
+
+        foreach(var weaponObjectState in CurrentGameState.WeaponObjects)
+        {
+            var weaponObject = OsFps.Instance.FindWeaponObject(weaponObjectState.Id);
+
+            if (weaponObject != null)
+            {
+                var weaponComponent = weaponObject.GetComponent<WeaponComponent>();
+                UpdateRigidBodyStateFromRigidBody(weaponObjectState.RigidBodyState, weaponComponent.Rigidbody);
+            }
+        }
     }
     private void SendGameState()
     {
@@ -367,6 +387,7 @@ public class Server
         SendMessageToAllClients(unreliableStateUpdateChannelId, message);
     }
 
+    #region Message Handlers
     private void OnReceiveDataFromClient(int connectionId, int channelId, byte[] bytesReceived)
     {
         var reader = new BinaryReader(new MemoryStream(bytesReceived));
@@ -415,4 +436,5 @@ public class Server
         var playerState = CurrentGameState.Players.First(ps => ps.Id == message.PlayerId);
         PlayerReload(playerState);
     }
+    #endregion
 }
