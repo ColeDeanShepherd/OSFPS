@@ -535,6 +535,8 @@ public class Server
         // TODO: Make sure the player ID is correct.
         var playerState = CurrentGameState.Players.First(ps => ps.Id == message.PlayerId);
         PlayerPullTrigger(playerState);
+
+        SendMessageToAllClients(reliableSequencedChannelId, message);
     }
     private void HandleReloadPressedMessage(ReloadPressedMessage message)
     {

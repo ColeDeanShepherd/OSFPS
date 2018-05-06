@@ -295,6 +295,11 @@ public class Client
         }
 
         OsFps.Instance.UpdatePlayerMovement(playerState);
+
+        if (playerState.IsReloading)
+        {
+            playerState.ReloadTimeLeft -= Time.deltaTime;
+        }
     }
     private void AttachCameraToPlayer(uint playerId)
     {
@@ -330,7 +335,8 @@ public class Client
             reliableChannelId, NetworkSerializationUtils.SerializeWithType(message)
         );
     }
-    private void Shoot(PlayerState playerState)
+
+    private void ShowMuzzleFlash(PlayerState playerState)
     {
         GameObject muzzleFlashObject = Object.Instantiate(
             OsFps.Instance.MuzzleFlashPrefab, Vector3.zero, Quaternion.identity
@@ -340,6 +346,10 @@ public class Client
         muzzleFlashObject.transform.SetParent(barrelExitObject.transform, false);
 
         Object.Destroy(muzzleFlashObject, OsFps.MuzzleFlashDuration);
+    }
+    private void Shoot(PlayerState playerState)
+    {
+        ShowMuzzleFlash(playerState);
 
         var message = new TriggerPulledMessage { PlayerId = playerState.Id };
         ClientPeer.SendMessageToServer(
@@ -520,9 +530,10 @@ public class Client
             var weaponGameObject = (weaponComponent != null) ? weaponComponent.gameObject : null;
             if (weaponGameObject != null)
             {
-                weaponGameObject.transform.localPosition = !updatedPlayerState.IsReloading
-                    ? Vector3.zero
-                    : -Vector3.up;
+                var percentDoneReloading = updatedPlayerState.ReloadTimeLeft / updatedPlayerState.CurrentWeapon.Definition.ReloadTime;
+
+                var y = -(1.0f - Mathf.Abs((2 * percentDoneReloading) - 1));
+                weaponGameObject.transform.localPosition = new Vector3(0, y, 0);
             }
         }
 
@@ -660,6 +671,12 @@ public class Client
 
                 HandleSpawnPlayerMessage(spawnPlayerMessage);
                 break;
+            case NetworkMessageType.TriggerPulled:
+                var triggerPulledMessage = new TriggerPulledMessage();
+                triggerPulledMessage.Deserialize(reader);
+
+                HandleTriggerPulledMessage(triggerPulledMessage);
+                break;
             case NetworkMessageType.Chat:
                 var chatMessage = new ChatMessage();
                 chatMessage.Deserialize(reader);
@@ -709,6 +726,17 @@ public class Client
         {
             AttachCameraToPlayer(playerState.Id);
         }
+    }
+    private void HandleTriggerPulledMessage(TriggerPulledMessage message)
+    {
+        // Don't anything if we pulled the trigger.
+        if (message.PlayerId == PlayerId)
+        {
+            return;
+        }
+
+        var playerState = CurrentGameState.Players.First(ps => ps.Id == message.PlayerId);
+        ShowMuzzleFlash(playerState);
     }
     private void HandleChatMessage(ChatMessage message)
     {
