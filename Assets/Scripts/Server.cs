@@ -309,6 +309,7 @@ public class Server
     {
         foreach (var playerState in CurrentGameState.Players)
         {
+            // respawn
             if (!playerState.IsAlive)
             {
                 playerState.RespawnTimeLeft -= Time.deltaTime;
@@ -319,8 +320,21 @@ public class Server
                 }
             }
 
-            OsFps.Instance.UpdatePlayer(playerState);
+            // reload
+            if (playerState.IsReloading)
+            {
+                playerState.ReloadTimeLeft -= Time.deltaTime;
 
+                if (playerState.ReloadTimeLeft <= 0)
+                {
+                    PlayerFinishReload(playerState);
+                }
+            }
+
+            // update movement
+            OsFps.Instance.UpdatePlayerMovement(playerState);
+
+            // kill if too low in map
             if (playerState.Position.y <= OsFps.KillPlaneY)
             {
                 DamagePlayer(playerState, 9999, null);
@@ -361,7 +375,16 @@ public class Server
         playerState.CurrentWeapon.BulletsLeftInMagazine--;
         playerState.CurrentWeapon.BulletsLeft--;
     }
-    private void PlayerReload(PlayerState playerState)
+    private void PlayerStartReload(PlayerState playerState)
+    {
+        if (!playerState.IsAlive) return;
+
+        var weapon = playerState.CurrentWeapon;
+        if (weapon == null) return;
+
+        playerState.ReloadTimeLeft = weapon.Definition.ReloadTime;
+    }
+    private void PlayerFinishReload(PlayerState playerState)
     {
         var weapon = playerState.CurrentWeapon;
         if (weapon == null) return;
@@ -511,7 +534,11 @@ public class Server
     {
         // TODO: Make sure the player ID is correct.
         var playerState = CurrentGameState.Players.First(ps => ps.Id == message.PlayerId);
-        PlayerReload(playerState);
+
+        if (playerState.CanReload)
+        {
+            PlayerStartReload(playerState);
+        }
     }
     #endregion
 }

@@ -14,6 +14,7 @@ public class PlayerState : INetworkSerializable
     public int Deaths;
     public WeaponState Weapon0;
     public WeaponState Weapon1;
+    public float ReloadTimeLeft;
 
     public bool IsAlive
     {
@@ -33,7 +34,29 @@ public class PlayerState : INetworkSerializable
     {
         get
         {
-            return IsAlive && (CurrentWeapon != null) && (CurrentWeapon.BulletsLeftInMagazine > 0);
+            return
+                IsAlive &&
+                (CurrentWeapon != null) &&
+                (CurrentWeapon.BulletsLeftInMagazine > 0) &&
+                !IsReloading;
+        }
+    }
+    public bool CanReload
+    {
+        get
+        {
+            return
+                IsAlive &&
+                (CurrentWeapon != null) &&
+                !IsReloading &&
+                (CurrentWeapon.BulletsLeftInMagazine < CurrentWeapon.Definition.BulletsPerMagazine);
+        }
+    }
+    public bool IsReloading
+    {
+        get
+        {
+            return ReloadTimeLeft >= 0;
         }
     }
 
@@ -50,6 +73,7 @@ public class PlayerState : INetworkSerializable
         writer.Write(Deaths);
         NetworkSerializationUtils.SerializeNullable(writer, Weapon0);
         NetworkSerializationUtils.SerializeNullable(writer, Weapon1);
+        writer.Write(ReloadTimeLeft);
     }
     public void Deserialize(BinaryReader reader)
     {
@@ -64,5 +88,6 @@ public class PlayerState : INetworkSerializable
         Deaths = reader.ReadInt32();
         Weapon0 = NetworkSerializationUtils.DeserializeNullable<WeaponState>(reader);
         Weapon1 = NetworkSerializationUtils.DeserializeNullable<WeaponState>(reader);
+        ReloadTimeLeft = reader.ReadSingle();
     }
 }

@@ -79,22 +79,24 @@ public class OsFps : MonoBehaviour
 
         return playerObject;
     }
-    public GameObject SpawnLocalWeaponObject(WeaponObjectState weaponObjectState)
+    public GameObject GetWeaponPrefab(WeaponType weaponType)
     {
-        GameObject weaponObject;
-
-        switch (weaponObjectState.Type)
+        switch (weaponType)
         {
             case WeaponType.Pistol:
-                weaponObject = Instantiate(
-                    PistolPrefab,
-                    weaponObjectState.RigidBodyState.Position,
-                    Quaternion.Euler(weaponObjectState.RigidBodyState.EulerAngles)
-                );
-                break;
+                return PistolPrefab;
             default:
                 throw new System.NotImplementedException();
         }
+    }
+    public GameObject SpawnLocalWeaponObject(WeaponObjectState weaponObjectState)
+    {
+        var weaponPrefab = GetWeaponPrefab(weaponObjectState.Type);
+        var weaponObject = Instantiate(
+            weaponPrefab,
+            weaponObjectState.RigidBodyState.Position,
+            Quaternion.Euler(weaponObjectState.RigidBodyState.EulerAngles)
+        );
 
         var weaponObjectComponent = weaponObject.GetComponent<WeaponComponent>();
         weaponObjectComponent.Id = weaponObjectState.Id;
@@ -158,7 +160,7 @@ public class OsFps : MonoBehaviour
 
         return moveDirection.normalized;
     }
-    public void UpdatePlayer(PlayerState playerState)
+    public void UpdatePlayerMovement(PlayerState playerState)
     {
         var playerComponent = FindPlayerComponent(playerState.Id);
         if (playerComponent == null) return;

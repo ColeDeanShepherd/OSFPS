@@ -192,7 +192,7 @@ public class Client
             }
         }
 
-        OsFps.Instance.UpdatePlayer(playerState);
+        OsFps.Instance.UpdatePlayerMovement(playerState);
     }
     private void AttachCameraToPlayer(uint playerId)
     {
@@ -213,6 +213,7 @@ public class Client
         // TODO: implement weapon changing
         var playerComponent = OsFps.Instance.FindPlayerComponent(playerState.Id);
 
+        var weaponPrefab = OsFps.Instance.GetWeaponPrefab(playerState.CurrentWeapon.Type);
         GameObject weaponObject = Object.Instantiate(OsFps.Instance.PistolPrefab, Vector3.zero, Quaternion.identity);
         weaponObject.transform.SetParent(playerComponent.HandsPointObject.transform, false);
 
@@ -392,6 +393,16 @@ public class Client
             }
 
             OsFps.Instance.ApplyLookDirAnglesToPlayer(playerComponent, updatedPlayerState.LookDirAngles);
+
+            // Update weapon if reloading.
+            var weaponComponent = playerComponent.GetComponentInChildren<WeaponComponent>();
+            var weaponGameObject = (weaponComponent != null) ? weaponComponent.gameObject : null;
+            if (weaponGameObject != null)
+            {
+                weaponGameObject.transform.localPosition = !updatedPlayerState.IsReloading
+                    ? Vector3.zero
+                    : -Vector3.up;
+            }
         }
 
         // Update state.
