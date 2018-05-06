@@ -220,6 +220,12 @@ public class OsFps : MonoBehaviour
     }
     private void OnDestroy()
     {
+        // Don't do anything if we're destroying a duplicate OsFps object.
+        if (this != Instance)
+        {
+            return;
+        }
+
         ShutdownNetworkPeers();
         NetworkTransport.Shutdown();
     }

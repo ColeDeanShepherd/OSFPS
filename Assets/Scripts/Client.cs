@@ -232,9 +232,20 @@ public class Client
     }
     private void DrawMenu()
     {
-        if (GUI.Button(new Rect(new Vector2(300, 100), new Vector2(100, 50)), "Exit Menu"))
+        var buttonSize = new Vector2(100, 50);
+        var buttonVerticalSpacing = 10;
+        var curPosition = new Vector2(300, 100);
+
+        if (GUI.Button(new Rect(curPosition, buttonSize), "Exit Menu"))
         {
             _isShowingMenu = false;
+        }
+
+        curPosition.y += buttonSize.y + buttonVerticalSpacing;
+
+        if (GUI.Button(new Rect(curPosition, buttonSize), "Quit"))
+        {
+            DisconnectFromServer();
         }
     }
     #endregion
@@ -392,20 +403,20 @@ public class Client
         List<T> oldList,
         List<T> newList,
         System.Func<T, T, bool> doElementsMatch,
-        out IEnumerable<T> removedElements,
-        out IEnumerable<T> addedElements,
-        out IEnumerable<T> updatedElements
+        out List<T> removedElements,
+        out List<T> addedElements,
+        out List<T> updatedElements
     )
     {
         removedElements = oldList.Where(oldElement =>
             !newList.Any(newElement => doElementsMatch(oldElement, newElement))
-        );
+        ).ToList();
         addedElements = newList.Where(newElement =>
             !oldList.Any(oldElement => doElementsMatch(oldElement, newElement))
-        );
+        ).ToList();
         updatedElements = newList.Where(newElement =>
             oldList.Any(oldElement => doElementsMatch(oldElement, newElement))
-        );
+        ).ToList();
     }
 
     private void ApplyGameState(GameState newGameState)
@@ -418,7 +429,7 @@ public class Client
 
     private void ApplyPlayerStates(GameState newGameState)
     {
-        IEnumerable<PlayerState> removedPlayerStates, addedPlayerStates, updatedPlayerStates;
+        List<PlayerState> removedPlayerStates, addedPlayerStates, updatedPlayerStates;
         GetChanges(
             CurrentGameState.Players, newGameState.Players, (p1, p2) => p1.Id == p2.Id,
             out removedPlayerStates, out addedPlayerStates, out updatedPlayerStates
@@ -527,7 +538,7 @@ public class Client
     
     private void ApplyWeaponObjectStates(GameState newGameState)
     {
-        IEnumerable<WeaponObjectState> removedWeaponObjectStates, addedWeaponObjectStates, updatedWeaponObjectStates;
+        List<WeaponObjectState> removedWeaponObjectStates, addedWeaponObjectStates, updatedWeaponObjectStates;
         GetChanges(
             CurrentGameState.WeaponObjects, newGameState.WeaponObjects, (wo1, wo2) => wo1.Id == wo2.Id,
             out removedWeaponObjectStates, out addedWeaponObjectStates, out updatedWeaponObjectStates
