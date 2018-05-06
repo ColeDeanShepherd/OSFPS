@@ -5,5 +5,6 @@
     SpawnPlayer,
     PlayerInput,
     TriggerPulled,
-    ReloadPressed
+    ReloadPressed,
+    Chat
 }

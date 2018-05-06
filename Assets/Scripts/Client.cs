@@ -80,6 +80,37 @@ public class Client
 
             SendInputPeriodicFunction.TryToCall();
         }
+
+        if (Input.GetKeyDown(KeyCode.Return))
+        {
+            if (!_isShowingChatMessageInput)
+            {
+                _isShowingChatMessageInput = true;
+                _justOpenedChatMessageInput = true;
+                _chatMessageBeingTyped = "";
+
+                Cursor.lockState = CursorLockMode.None;
+            }
+            else
+            {
+                ConfirmChatMessage();
+            }
+        }
+
+        if (Input.GetKeyDown(KeyCode.Escape))
+        {
+            if (!_isShowingMenu)
+            {
+                Cursor.lockState = CursorLockMode.None;
+            }
+
+            _isShowingMenu = !_isShowingMenu;
+        }
+
+        if (!_isShowingChatMessageInput && !_isShowingMenu)
+        {
+            Cursor.lockState = CursorLockMode.Locked;
+        }
     }
     public void LateUpdate()
     {
@@ -133,6 +164,13 @@ public class Client
         {
             DrawScoreBoard(new Vector2(100, 100));
         }
+
+        if (_isShowingMenu)
+        {
+            DrawMenu();
+        }
+
+        DrawChatWindow(new Vector2(100, Screen.height - 500));
     }
     private void DrawScoreBoard(Vector2 position)
     {
@@ -160,35 +198,88 @@ public class Client
             position.y += rowHeight;
         }
     }
+    private void DrawChatWindow(Vector2 position)
+    {
+        var width = 300;
+        var lineHeight = 50;
+
+        var chatMessagesRect = new Rect(position, new Vector2(width, 300));
+
+        for (var i = 0; i < _chatMessages.Count; i++)
+        {
+            var chatMessageIndex = (_chatMessages.Count - 1) - i;
+            var y = chatMessagesRect.yMax - ((i + 1) * lineHeight);
+            GUI.Label(new Rect(new Vector2(position.x, y), new Vector2(width, lineHeight)), _chatMessages[chatMessageIndex]);
+        }
+
+        if (_isShowingChatMessageInput)
+        {
+            if ((Event.current.type == EventType.KeyDown) && (Event.current.keyCode == KeyCode.Return))
+            {
+                ConfirmChatMessage();
+            }
+
+            GUI.SetNextControlName("chatMessageInput");
+            var chatMessageTextFieldRect = new Rect(new Vector3(position.x, chatMessagesRect.yMax), new Vector2(width, lineHeight));
+            _chatMessageBeingTyped = GUI.TextField(chatMessageTextFieldRect, _chatMessageBeingTyped);
+        }
+
+        if (_justOpenedChatMessageInput)
+        {
+            GUI.FocusControl("chatMessageInput");
+            _justOpenedChatMessageInput = false;
+        }
+    }
+    private void DrawMenu()
+    {
+        if (GUI.Button(new Rect(new Vector2(300, 100), new Vector2(100, 50)), "Exit Menu"))
+        {
+            _isShowingMenu = false;
+        }
+    }
     #endregion
 
     private int reliableSequencedChannelId;
     private int reliableChannelId;
     private int unreliableStateUpdateChannelId;
     private ThrottledAction SendInputPeriodicFunction;
-    
+
+    private bool _isShowingChatMessageInput;
+    private bool _justOpenedChatMessageInput;
+    private string _chatMessageBeingTyped;
+    private List<string> _chatMessages = new List<string>();
+
+    private bool _isShowingMenu;
+
     private void UpdatePlayer(PlayerState playerState)
     {
         if (playerState.Id == PlayerId)
         {
-            playerState.Input = OsFps.Instance.GetCurrentPlayersInput();
-
-            var mouseSensitivity = 3;
-            var deltaMouse = mouseSensitivity * new Vector2(Input.GetAxis("Mouse X"), Input.GetAxis("Mouse Y"));
-
-            playerState.LookDirAngles = new Vector2(
-                Mathf.Clamp(MathfExtensions.ToSignedAngleDegrees(playerState.LookDirAngles.x - deltaMouse.y), -90, 90),
-                Mathf.Repeat(playerState.LookDirAngles.y + deltaMouse.x, 360)
-            );
-
-            if (Input.GetKeyDown(KeyCode.R))
+            if (!_isShowingChatMessageInput && !_isShowingMenu)
             {
-                Reload(playerState);
+                playerState.Input = OsFps.Instance.GetCurrentPlayersInput();
+
+                var mouseSensitivity = 3;
+                var deltaMouse = mouseSensitivity * new Vector2(Input.GetAxis("Mouse X"), Input.GetAxis("Mouse Y"));
+
+                playerState.LookDirAngles = new Vector2(
+                    Mathf.Clamp(MathfExtensions.ToSignedAngleDegrees(playerState.LookDirAngles.x - deltaMouse.y), -90, 90),
+                    Mathf.Repeat(playerState.LookDirAngles.y + deltaMouse.x, 360)
+                );
+
+                if (Input.GetKeyDown(KeyCode.R))
+                {
+                    Reload(playerState);
+                }
+
+                if (Input.GetMouseButtonDown(OsFps.FireMouseButtonNumber) && playerState.CanShoot)
+                {
+                    Shoot(playerState);
+                }
             }
-
-            if (Input.GetMouseButtonDown(OsFps.FireMouseButtonNumber) && playerState.CanShoot)
+            else
             {
-                Shoot(playerState);
+                playerState.Input = new PlayerInput();
             }
         }
 
@@ -243,6 +334,25 @@ public class Client
         ClientPeer.SendMessageToServer(
             reliableChannelId, NetworkSerializationUtils.SerializeWithType(message)
         );
+    }
+
+    private void ConfirmChatMessage()
+    {
+        if (_chatMessageBeingTyped.Length > 0)
+        {
+            var message = new ChatMessage
+            {
+                PlayerId = PlayerId.Value,
+                Message = _chatMessageBeingTyped
+            };
+            ClientPeer.SendMessageToServer(
+                reliableChannelId, NetworkSerializationUtils.SerializeWithType(message)
+            );
+
+            _chatMessageBeingTyped = "";
+        }
+
+        _isShowingChatMessageInput = false;
     }
 
     private Vector3 CorrectedPosition(Vector3 serverPosition, Vector3 serverVelocity, float roundTripTime, Vector3 clientPosition)
@@ -539,6 +649,12 @@ public class Client
 
                 HandleSpawnPlayerMessage(spawnPlayerMessage);
                 break;
+            case NetworkMessageType.Chat:
+                var chatMessage = new ChatMessage();
+                chatMessage.Deserialize(reader);
+
+                HandleChatMessage(chatMessage);
+                break;
             default:
                 throw new System.NotImplementedException("Unknown message type: " + messageType);
         }
@@ -582,6 +698,10 @@ public class Client
         {
             AttachCameraToPlayer(playerState.Id);
         }
+    }
+    private void HandleChatMessage(ChatMessage message)
+    {
+        _chatMessages.Add(string.Format("{0}: {1}", message.PlayerId, message.Message));
     }
     #endregion
 

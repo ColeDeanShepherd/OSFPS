@@ -513,6 +513,12 @@ public class Server
 
                 HandleReloadPressedMessage(reloadPressedMessage);
                 break;
+            case NetworkMessageType.Chat:
+                var chatMessage = new ChatMessage();
+                chatMessage.Deserialize(reader);
+
+                HandleChatMessage(chatMessage);
+                break;
             default:
                 throw new System.NotImplementedException("Unknown message type: " + messageType);
         }
@@ -539,6 +545,12 @@ public class Server
         {
             PlayerStartReload(playerState);
         }
+
+        // TODO: Send to all other players???
+    }
+    private void HandleChatMessage(ChatMessage message)
+    {
+        SendMessageToAllClients(reliableSequencedChannelId, message);
     }
     #endregion
 }
