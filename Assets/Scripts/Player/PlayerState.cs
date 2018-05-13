@@ -1,4 +1,5 @@
 ﻿using System.IO;
+using System.Linq;
 using UnityEngine;
 
 public class PlayerState : INetworkSerializable
@@ -12,8 +13,8 @@ public class PlayerState : INetworkSerializable
     public float RespawnTimeLeft;
     public int Kills;
     public int Deaths;
-    public WeaponState Weapon0;
-    public WeaponState Weapon1;
+    public WeaponState[] Weapons = new WeaponState[OsFps.MaxWeaponCount];
+    public byte CurrentWeaponIndex;
     public float ReloadTimeLeft;
 
     public bool IsAlive
@@ -27,7 +28,7 @@ public class PlayerState : INetworkSerializable
     {
         get
         {
-            return Weapon0;
+            return Weapons[CurrentWeaponIndex];
         }
     }
     public bool CanShoot
@@ -59,6 +60,13 @@ public class PlayerState : INetworkSerializable
             return ReloadTimeLeft >= 0;
         }
     }
+    public bool HasEmptyWeapon
+    {
+        get
+        {
+            return Weapons.Any(w => w == null);
+        }
+    }
 
     public void Serialize(BinaryWriter writer)
     {
@@ -71,8 +79,13 @@ public class PlayerState : INetworkSerializable
         writer.Write(RespawnTimeLeft);
         writer.Write(Kills);
         writer.Write(Deaths);
-        NetworkSerializationUtils.SerializeNullable(writer, Weapon0);
-        NetworkSerializationUtils.SerializeNullable(writer, Weapon1);
+
+        for (var i = 0; i < OsFps.MaxWeaponCount; i++)
+        {
+            NetworkSerializationUtils.SerializeNullable(writer, Weapons[i]);
+        }
+
+        writer.Write(CurrentWeaponIndex);
         writer.Write(ReloadTimeLeft);
     }
     public void Deserialize(BinaryReader reader)
@@ -86,8 +99,13 @@ public class PlayerState : INetworkSerializable
         RespawnTimeLeft = reader.ReadSingle();
         Kills = reader.ReadInt32();
         Deaths = reader.ReadInt32();
-        Weapon0 = NetworkSerializationUtils.DeserializeNullable<WeaponState>(reader);
-        Weapon1 = NetworkSerializationUtils.DeserializeNullable<WeaponState>(reader);
+
+        for (var i = 0; i < OsFps.MaxWeaponCount; i++)
+        {
+            Weapons[i] = NetworkSerializationUtils.DeserializeNullable<WeaponState>(reader);
+        }
+
+        CurrentWeaponIndex = reader.ReadByte();
         ReloadTimeLeft = reader.ReadSingle();
     }
 }

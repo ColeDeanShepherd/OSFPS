@@ -1,4 +1,5 @@
 ﻿public enum WeaponType
 {
-    Pistol
+    Pistol,
+    Smg
 }

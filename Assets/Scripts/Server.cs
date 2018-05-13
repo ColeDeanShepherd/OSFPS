@@ -144,20 +144,9 @@ public class Server
         var weaponComponent = weaponObject.GetComponent<WeaponComponent>();
         var weaponObjectState = CurrentGameState.WeaponObjects.First(wos => wos.Id == weaponComponent.Id);
 
-        WeaponState playersMatchingWeapon;
-
-        if ((playerState.Weapon0 != null) && (playerState.Weapon0.Type == weaponComponent.Type))
-        {
-            playersMatchingWeapon = playerState.Weapon0;
-        }
-        else if ((playerState.Weapon1 != null) && (playerState.Weapon1.Type == weaponComponent.Type))
-        {
-            playersMatchingWeapon = playerState.Weapon1;
-        }
-        else
-        {
-            playersMatchingWeapon = null;
-        }
+        var playersMatchingWeapon = playerState.Weapons.FirstOrDefault(
+            w => (w != null) && (w.Type == weaponComponent.Type)
+        );
 
         if (playersMatchingWeapon != null)
         {
@@ -168,9 +157,22 @@ public class Server
             {
                 var weaponObjectId = weaponComponent.Id;
                 Object.Destroy(weaponObject);
-
                 CurrentGameState.WeaponObjects.RemoveAll(wos => wos.Id == weaponObjectId);
             }
+        }
+        else if (playerState.HasEmptyWeapon)
+        {
+            var emptyWeaponIndex = System.Array.FindIndex(playerState.Weapons, w => w == null);
+            playerState.Weapons[emptyWeaponIndex] = new WeaponState
+            {
+                Type = weaponObjectState.Type,
+                BulletsLeft = weaponObjectState.BulletsLeft,
+                BulletsLeftInMagazine = weaponObjectState.BulletsLeftInMagazine
+            };
+
+            var weaponObjectId = weaponComponent.Id;
+            Object.Destroy(weaponObject);
+            CurrentGameState.WeaponObjects.RemoveAll(wos => wos.Id == weaponObjectId);
         }
     }
 
@@ -191,8 +193,7 @@ public class Server
         playerState.Position = position;
         playerState.LookDirAngles = new Vector2(0, lookDirYAngle);
         playerState.Health = OsFps.MaxPlayerHealth;
-        playerState.Weapon0 = new WeaponState(WeaponType.Pistol, OsFps.PistolDefinition.MaxAmmo);
-        playerState.Weapon1 = null;
+        playerState.Weapons[0] = new WeaponState(WeaponType.Pistol, OsFps.PistolDefinition.MaxAmmo);
 
         var playerObject = OsFps.Instance.SpawnLocalPlayer(playerState);
 
@@ -519,6 +520,12 @@ public class Server
 
                 HandleChatMessage(chatMessage);
                 break;
+            case NetworkMessageType.ChangeWeapon:
+                var changeWeaponMessage = new ChangeWeaponMessage();
+                changeWeaponMessage.Deserialize(reader);
+
+                HandleChangeWeaponMessage(changeWeaponMessage);
+                break;
             default:
                 throw new System.NotImplementedException("Unknown message type: " + messageType);
         }
@@ -553,6 +560,16 @@ public class Server
     private void HandleChatMessage(ChatMessage message)
     {
         SendMessageToAllClients(reliableSequencedChannelId, message);
+    }
+    private void HandleChangeWeaponMessage(ChangeWeaponMessage message)
+    {
+        SendMessageToAllClients(reliableSequencedChannelId, message);
+
+        var playerState = CurrentGameState.Players.FirstOrDefault(ps => ps.Id == message.PlayerId);
+        if (playerState == null) return;
+
+        playerState.CurrentWeaponIndex = message.WeaponIndex;
+        playerState.ReloadTimeLeft = -1;
     }
     #endregion
 }

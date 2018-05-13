@@ -14,6 +14,7 @@ public class OsFps : MonoBehaviour
     public const int GunShotDamage = 10;
     public const float RespawnTime = 3;
     public const float MuzzleFlashDuration = 0.1f;
+    public const int MaxWeaponCount = 2;
 
     public const float KillPlaneY = -100;
 
@@ -25,12 +26,22 @@ public class OsFps : MonoBehaviour
         DamagePerBullet = 10,
         ReloadTime = 1
     };
+    public static WeaponDefinition SmgDefinition = new WeaponDefinition
+    {
+        Type = WeaponType.Smg,
+        MaxAmmo = 100,
+        BulletsPerMagazine = 10,
+        DamagePerBullet = 10,
+        ReloadTime = 1
+    };
     public static WeaponDefinition GetWeaponDefinitionByType(WeaponType type)
     {
         switch (type)
         {
             case WeaponType.Pistol:
                 return PistolDefinition;
+            case WeaponType.Smg:
+                return SmgDefinition;
             default:
                 throw new System.NotImplementedException();
         }
@@ -47,6 +58,7 @@ public class OsFps : MonoBehaviour
     public GameObject PlayerPrefab;
     public GameObject CameraPrefab;
     public GameObject PistolPrefab;
+    public GameObject SmgPrefab;
     public GameObject MuzzleFlashPrefab;
 
     public GameObject GUIContainerPrefab;
@@ -85,6 +97,8 @@ public class OsFps : MonoBehaviour
         {
             case WeaponType.Pistol:
                 return PistolPrefab;
+            case WeaponType.Smg:
+                return SmgPrefab;
             default:
                 throw new System.NotImplementedException();
         }

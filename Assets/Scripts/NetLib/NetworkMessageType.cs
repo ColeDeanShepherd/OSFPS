@@ -6,5 +6,6 @@
     PlayerInput,
     TriggerPulled,
     ReloadPressed,
-    Chat
+    Chat,
+    ChangeWeapon
 }

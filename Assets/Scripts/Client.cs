@@ -81,6 +81,18 @@ public class Client
             SendInputPeriodicFunction.TryToCall();
         }
 
+        if (Input.GetKeyDown(KeyCode.Alpha1))
+        {
+            var playerState = CurrentGameState.Players.FirstOrDefault(ps => ps.Id == PlayerId);
+            SwitchWeapons(playerState, 0);
+        }
+
+        if (Input.GetKeyDown(KeyCode.Alpha2))
+        {
+            var playerState = CurrentGameState.Players.FirstOrDefault(ps => ps.Id == PlayerId);
+            SwitchWeapons(playerState, 1);
+        }
+
         if (Input.GetKeyDown(KeyCode.Return))
         {
             if (!_isShowingChatMessageInput)
@@ -144,21 +156,7 @@ public class Client
     {
         if (!Input.GetKey(KeyCode.Tab))
         {
-            var playerState = CurrentGameState.Players.FirstOrDefault(ps => ps.Id == PlayerId);
-
-            if (playerState != null)
-            {
-                GUI.Label(new Rect(10, 10, 100, 30), "Health: " + playerState.Health);
-
-                if (playerState.CurrentWeapon != null)
-                {
-                    var weapon = playerState.CurrentWeapon;
-                    GUI.Label(
-                        new Rect(110, 10, 100, 30),
-                        "Ammo: " + weapon.BulletsLeftInMagazine + " / " + weapon.BulletsLeftOutOfMagazine
-                    );
-                }
-            }
+            DrawHud();
         }
         else
         {
@@ -171,6 +169,41 @@ public class Client
         }
 
         DrawChatWindow(new Vector2(100, Screen.height - 500));
+    }
+    private void DrawHud()
+    {
+        var playerState = CurrentGameState.Players.FirstOrDefault(ps => ps.Id == PlayerId);
+
+        if (playerState != null)
+        {
+            GUI.Label(new Rect(10, 10, 100, 30), "Health: " + playerState.Health);
+
+            var weaponHudX = 110;
+            var weaponHudY = 10;
+            var weaponHudHeight = 110;
+
+            if (playerState.CurrentWeapon != null)
+            {
+                DrawWeaponHud(playerState.CurrentWeapon, new Vector2(weaponHudX, weaponHudY));
+                weaponHudY += weaponHudHeight;
+            }
+
+            foreach (var weapon in playerState.Weapons)
+            {
+                if ((weapon != null) && (weapon != playerState.CurrentWeapon))
+                {
+                    DrawWeaponHud(weapon, new Vector2(weaponHudX, weaponHudY));
+                    weaponHudY += weaponHudHeight;
+                }
+            }
+        }
+    }
+    private void DrawWeaponHud(WeaponState weapon, Vector2 position)
+    {
+        GUI.Label(
+            new Rect(position.x, position.y, 200, 50),
+            weapon.Type.ToString() + " Ammo: " + weapon.BulletsLeftInMagazine + " / " + weapon.BulletsLeftOutOfMagazine
+        );
     }
     private void DrawScoreBoard(Vector2 position)
     {
@@ -317,11 +350,15 @@ public class Client
     }
     private void EquipWeapon(PlayerState playerState)
     {
-        // TODO: implement weapon changing
+        if (playerState.CurrentWeapon == null)
+        {
+            return;
+        }
+
         var playerComponent = OsFps.Instance.FindPlayerComponent(playerState.Id);
 
         var weaponPrefab = OsFps.Instance.GetWeaponPrefab(playerState.CurrentWeapon.Type);
-        GameObject weaponObject = Object.Instantiate(OsFps.Instance.PistolPrefab, Vector3.zero, Quaternion.identity);
+        GameObject weaponObject = Object.Instantiate(weaponPrefab, Vector3.zero, Quaternion.identity);
         weaponObject.transform.SetParent(playerComponent.HandsPointObject.transform, false);
 
         var weaponComponent = weaponObject.GetComponent<WeaponComponent>();
@@ -355,6 +392,35 @@ public class Client
         ClientPeer.SendMessageToServer(
             reliableChannelId, NetworkSerializationUtils.SerializeWithType(message)
         );
+    }
+
+    private void SwitchWeapons(PlayerState playerState, int weaponIndex)
+    {
+        if (weaponIndex == playerState.CurrentWeaponIndex) return;
+
+        // destroy weapon obj
+        if (playerState.CurrentWeapon != null)
+        {
+            var playerComponent = OsFps.Instance.FindPlayerComponent(playerState.Id);
+            var weaponComponent = playerComponent.HandsPointObject.GetComponentInChildren<WeaponComponent>();
+
+            if (weaponComponent != null)
+            {
+                Object.Destroy(weaponComponent.gameObject);
+            }
+        }
+
+        playerState.CurrentWeaponIndex = (byte)weaponIndex;
+
+        EquipWeapon(playerState);
+
+        // Send message to server.
+        var message = new ChangeWeaponMessage
+        {
+            PlayerId = playerState.Id,
+            WeaponIndex = (byte)weaponIndex
+        };
+        ClientPeer.SendMessageToServer(reliableSequencedChannelId, NetworkSerializationUtils.SerializeWithType(message));
     }
 
     private void ConfirmChatMessage()
@@ -469,6 +535,7 @@ public class Client
     {
         var currentPlayerStateIndex = CurrentGameState.Players
                 .FindIndex(curPs => curPs.Id == updatedPlayerState.Id);
+        var currentPlayerState = CurrentGameState.Players[currentPlayerStateIndex];
 
         var isPlayerMe = updatedPlayerState.Id == PlayerId;
         var roundTripTime = ClientPeer.RoundTripTime.Value;
@@ -495,6 +562,17 @@ public class Client
             {
                 AttachCameraToPlayer(updatedPlayerState.Id);
             }
+        }
+
+        // Handle weapon pickup.
+        if (
+            (playerObject != null) &&
+            (updatedPlayerState.CurrentWeaponIndex == currentPlayerState.CurrentWeaponIndex) &&
+            (updatedPlayerState.CurrentWeapon != null) &&
+            (currentPlayerState.CurrentWeapon == null)
+        )
+        {
+            EquipWeapon(updatedPlayerState);
         }
 
         // Update player object.
@@ -528,7 +606,7 @@ public class Client
             // Update weapon if reloading.
             var weaponComponent = playerComponent.GetComponentInChildren<WeaponComponent>();
             var weaponGameObject = (weaponComponent != null) ? weaponComponent.gameObject : null;
-            if (weaponGameObject != null)
+            if ((weaponGameObject != null) && updatedPlayerState.IsReloading)
             {
                 var percentDoneReloading = updatedPlayerState.ReloadTimeLeft / updatedPlayerState.CurrentWeapon.Definition.ReloadTime;
 
@@ -540,7 +618,6 @@ public class Client
         // Update state.
         if (isPlayerMe)
         {
-            var currentPlayerState = CurrentGameState.Players[currentPlayerStateIndex];
             updatedPlayerState.Input = currentPlayerState.Input;
         }
 
@@ -683,6 +760,12 @@ public class Client
 
                 HandleChatMessage(chatMessage);
                 break;
+            case NetworkMessageType.ChangeWeapon:
+                var changeWeaponMessage = new ChangeWeaponMessage();
+                changeWeaponMessage.Deserialize(reader);
+
+                HandleChangeWeaponMessage(changeWeaponMessage);
+                break;
             default:
                 throw new System.NotImplementedException("Unknown message type: " + messageType);
         }
@@ -741,6 +824,18 @@ public class Client
     private void HandleChatMessage(ChatMessage message)
     {
         _chatMessages.Add(string.Format("{0}: {1}", message.PlayerId, message.Message));
+    }
+    private void HandleChangeWeaponMessage(ChangeWeaponMessage message)
+    {
+        if (message.PlayerId == PlayerId)
+        {
+            return;
+        }
+
+        var playerState = CurrentGameState.Players.FirstOrDefault(ps => ps.Id == message.PlayerId);
+        if (playerState == null) return;
+
+        SwitchWeapons(playerState, message.WeaponIndex);
     }
     #endregion
 
