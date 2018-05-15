@@ -460,6 +460,12 @@ public class Server
         var bulletsToAddToMagazine = (ushort)Mathf.Min(bulletsUsedInMagazine, weapon.BulletsLeftOutOfMagazine);
         weapon.BulletsLeftInMagazine += bulletsToAddToMagazine;
     }
+    private string GetKillMessage(PlayerState killedPlayerState, PlayerState attackerPlayerState)
+    {
+        return (attackerPlayerState != null)
+            ? string.Format("{0} killed {1}.", attackerPlayerState.Id, killedPlayerState.Id)
+            : string.Format("{0} died.", killedPlayerState.Id);
+    }
     private void DamagePlayer(PlayerState playerState, int damage, PlayerState attackingPlayerState)
     {
         var playerComponent = OsFps.Instance.FindPlayerComponent(playerState.Id);
@@ -469,8 +475,11 @@ public class Server
 
         if (!playerState.IsAlive)
         {
+            // Destroy the player.
             Object.Destroy(playerComponent.gameObject);
+            playerState.RespawnTimeLeft = OsFps.RespawnTime;
 
+            // Update scores
             playerState.Deaths++;
 
             if (attackingPlayerState != null)
@@ -478,7 +487,14 @@ public class Server
                 attackingPlayerState.Kills++;
             }
 
-            playerState.RespawnTimeLeft = OsFps.RespawnTime;
+            // Send message.
+            var chatMessage = new ChatMessage
+            {
+                PlayerId = null,
+                Message = GetKillMessage(playerState, attackingPlayerState)
+            };
+
+            SendMessageToAllClients(reliableSequencedChannelId, chatMessage);
         }
     }
 

@@ -3,7 +3,7 @@
 // Server <-> Client
 public class ChatMessage : INetworkMessage
 {
-    public uint PlayerId;
+    public uint? PlayerId;
     public string Message;
 
     public NetworkMessageType GetMessageType()
@@ -13,12 +13,22 @@ public class ChatMessage : INetworkMessage
 
     public void Serialize(BinaryWriter writer)
     {
-        writer.Write(PlayerId);
+        writer.Write(PlayerId.HasValue);
+        if (PlayerId.HasValue)
+        {
+            writer.Write(PlayerId.Value);
+        }
+
         writer.Write(Message);
     }
     public void Deserialize(BinaryReader reader)
     {
-        PlayerId = reader.ReadUInt32();
+        var playerIdHasValue = reader.ReadBoolean();
+        if (playerIdHasValue)
+        {
+            PlayerId = reader.ReadUInt32();
+        }
+
         Message = reader.ReadString();
     }
 }

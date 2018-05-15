@@ -844,7 +844,14 @@ public class Client
     }
     private void HandleChatMessage(ChatMessage message)
     {
-        _chatMessages.Add(string.Format("{0}: {1}", message.PlayerId, message.Message));
+        if (message.PlayerId.HasValue)
+        {
+            _chatMessages.Add(string.Format("{0}: {1}", message.PlayerId, message.Message));
+        }
+        else
+        {
+            _chatMessages.Add(message.Message);
+        }
     }
     private void HandleChangeWeaponMessage(ChangeWeaponMessage message)
     {
