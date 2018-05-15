@@ -46,6 +46,7 @@ public class Server
     {
         ServerPeer.ReceiveAndHandleNetworkEvents();
 
+        UpdateWeaponSpawners();
         UpdatePlayers();
     }
     public void LateUpdate()
@@ -193,7 +194,13 @@ public class Server
         playerState.Position = position;
         playerState.LookDirAngles = new Vector2(0, lookDirYAngle);
         playerState.Health = OsFps.MaxPlayerHealth;
+        playerState.CurrentWeaponIndex = 0;
         playerState.Weapons[0] = new WeaponState(WeaponType.Pistol, OsFps.PistolDefinition.MaxAmmo);
+
+        for(var i = 1; i < playerState.Weapons.Length; i++)
+        {
+            playerState.Weapons[i] = null;
+        }
 
         var playerObject = OsFps.Instance.SpawnLocalPlayer(playerState);
 
@@ -213,9 +220,8 @@ public class Server
         SceneManager.sceneLoaded -= OnMapLoaded;
 
         CurrentGameState.WeaponObjects = GetWeaponObjectStatesFromGameObjects();
+        CurrentGameState.WeaponSpawners = GetWeaponSpawnerStatesFromGameObjects();
         SendGameStatePeriodicFunction = new ThrottledAction(SendGameState, 1.0f / 30);
-
-        SpawnWeapons();
 
         if (OnServerStarted != null)
         {
@@ -260,6 +266,33 @@ public class Server
         return weaponObjectStates;
     }
 
+    private WeaponSpawnerState ToWeaponSpawnerState(WeaponSpawnerComponent weaponSpawnerComponent)
+    {
+        var state = new WeaponSpawnerState
+        {
+            Id = GenerateNetworkId(),
+            Type = weaponSpawnerComponent.WeaponType,
+            TimeUntilNextSpawn = 0
+        };
+
+        return state;
+    }
+    private List<WeaponSpawnerState> GetWeaponSpawnerStatesFromGameObjects()
+    {
+        var weaponSpawnerStates = new List<WeaponSpawnerState>();
+
+        var weaponSpawnerComponents = Object.FindObjectsOfType<WeaponSpawnerComponent>();
+        foreach (var weaponSpawnerComponent in weaponSpawnerComponents)
+        {
+            var weaponSpawnerState = ToWeaponSpawnerState(weaponSpawnerComponent);
+            weaponSpawnerStates.Add(weaponSpawnerState);
+
+            weaponSpawnerComponent.Id = weaponSpawnerState.Id;
+        }
+
+        return weaponSpawnerStates;
+    }
+
     private void SendMessageToClientHandleErrors(int connectionId, int channelId, byte[] serializedMessage)
     {
         var networkError = ServerPeer.SendMessageToClient(connectionId, channelId, serializedMessage);
@@ -276,6 +309,24 @@ public class Server
         var netId = _nextNetworkId;
         _nextNetworkId++;
         return netId;
+    }
+
+    private void UpdateWeaponSpawners()
+    {
+        foreach (var weaponSpawner in CurrentGameState.WeaponSpawners)
+        {
+            // shot interval
+            if (weaponSpawner.TimeUntilNextSpawn > 0)
+            {
+                weaponSpawner.TimeUntilNextSpawn -= Time.deltaTime;
+            }
+
+            if (weaponSpawner.TimeUntilNextSpawn <= 0)
+            {
+                SpawnWeapon(weaponSpawner);
+                weaponSpawner.TimeUntilNextSpawn += OsFps.GetWeaponDefinitionByType(weaponSpawner.Type).SpawnInterval;
+            }
+        }
     }
 
     private PositionOrientation3d GetNextSpawnPoint(PlayerState playerState)
@@ -332,6 +383,12 @@ public class Server
                 }
             }
 
+            // shot interval
+            if ((playerState.CurrentWeapon != null) && (playerState.CurrentWeapon.TimeUntilCanShoot > 0))
+            {
+                playerState.CurrentWeapon.TimeUntilCanShoot -= Time.deltaTime;
+            }
+
             // update movement
             OsFps.Instance.UpdatePlayerMovement(playerState);
 
@@ -342,12 +399,14 @@ public class Server
             }
         }
     }
-    private void PlayerPullTrigger(PlayerState playerState)
+    private void Shoot(PlayerState shootingPlayerState)
     {
-        if (!playerState.CanShoot) return;
+        if (!shootingPlayerState.CanShoot) return;
 
-        var playerComponent = OsFps.Instance.FindPlayerComponent(playerState.Id);
+        var playerComponent = OsFps.Instance.FindPlayerComponent(shootingPlayerState.Id);
         if (playerComponent == null) return;
+
+        var weaponState = shootingPlayerState.CurrentWeapon;
 
         var shotRay = new Ray(
                 playerComponent.CameraPointObject.transform.position,
@@ -364,7 +423,7 @@ public class Server
                 var hitPlayerComponent = hitPlayerObject.GetComponent<PlayerComponent>();
                 var hitPlayerState = CurrentGameState.Players.Find(ps => ps.Id == hitPlayerComponent.Id);
 
-                DamagePlayer(hitPlayerState, playerState.CurrentWeapon.Definition.DamagePerBullet, playerState);
+                DamagePlayer(hitPlayerState, weaponState.Definition.DamagePerBullet, shootingPlayerState);
             }
 
             if (hit.rigidbody != null)
@@ -373,8 +432,14 @@ public class Server
             }
         }
 
-        playerState.CurrentWeapon.BulletsLeftInMagazine--;
-        playerState.CurrentWeapon.BulletsLeft--;
+        weaponState.BulletsLeftInMagazine--;
+        weaponState.BulletsLeft--;
+
+        weaponState.TimeUntilCanShoot = weaponState.Definition.ShotInterval;
+    }
+    private void PlayerPullTrigger(PlayerState playerState)
+    {
+        Shoot(playerState);
     }
     private void PlayerStartReload(PlayerState playerState)
     {
@@ -384,6 +449,7 @@ public class Server
         if (weapon == null) return;
 
         playerState.ReloadTimeLeft = weapon.Definition.ReloadTime;
+        weapon.TimeUntilCanShoot = 0;
     }
     private void PlayerFinishReload(PlayerState playerState)
     {
@@ -416,31 +482,33 @@ public class Server
         }
     }
 
-    private void SpawnWeapons()
+    private void SpawnWeapon(WeaponSpawnerState weaponSpawnerState)
     {
-        var weaponSpawnerComponents = Object.FindObjectsOfType<WeaponSpawnerComponent>();
+        if (weaponSpawnerState.TimeUntilNextSpawn > 0) return;
 
-        foreach (var weaponSpawnerComponent in weaponSpawnerComponents)
+        var weaponDefinition = OsFps.GetWeaponDefinitionByType(weaponSpawnerState.Type);
+        var bulletsLeft = weaponDefinition.MaxAmmo / 2;
+        var bulletsLeftInMagazine = Mathf.Min(weaponDefinition.BulletsPerMagazine, bulletsLeft);
+        var weaponSpawnerComponent = OsFps.Instance.FindWeaponSpawnerComponent(weaponSpawnerState.Id);
+
+        var weaponObjectState = new WeaponObjectState
         {
-            var weaponObjectState = new WeaponObjectState
+            Id = GenerateNetworkId(),
+            Type = weaponSpawnerState.Type,
+            BulletsLeftInMagazine = (ushort)bulletsLeftInMagazine,
+            BulletsLeftOutOfMagazine = (ushort)(bulletsLeft - bulletsLeftInMagazine),
+            RigidBodyState = new RigidBodyState
             {
-                Id = GenerateNetworkId(),
-                Type = weaponSpawnerComponent.WeaponType,
-                BulletsLeftInMagazine = 3,
-                BulletsLeftOutOfMagazine = 3,
-                RigidBodyState = new RigidBodyState
-                {
-                    Position = weaponSpawnerComponent.transform.position,
-                    EulerAngles = weaponSpawnerComponent.transform.eulerAngles,
-                    Velocity = Vector3.zero,
-                    AngularVelocity = Vector3.zero
-                }
-            };
-            var weaponObject = OsFps.Instance.SpawnLocalWeaponObject(weaponObjectState);
+                Position = weaponSpawnerComponent.transform.position,
+                EulerAngles = weaponSpawnerComponent.transform.eulerAngles,
+                Velocity = Vector3.zero,
+                AngularVelocity = Vector3.zero
+            }
+        };
+        var weaponObject = OsFps.Instance.SpawnLocalWeaponObject(weaponObjectState);
 
-            var weaponComponent = weaponObject.GetComponent<WeaponComponent>();
-            CurrentGameState.WeaponObjects.Add(weaponObjectState);
-        }
+        var weaponComponent = weaponObject.GetComponent<WeaponComponent>();
+        CurrentGameState.WeaponObjects.Add(weaponObjectState);
     }
 
     private void UpdateRigidBodyStateFromRigidBody(RigidBodyState rigidBodyState, Rigidbody rigidbody)

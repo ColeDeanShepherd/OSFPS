@@ -1,8 +1,19 @@
-﻿
-using System.Linq;
+﻿using System.Linq;
 using UnityEngine;
 using UnityEngine.Networking;
 using UnityEngine.SceneManagement;
+
+/*
+TODO
+====
+-Handle networked shot intervals better.
+-Improve server-side verification (use round trip time).
+-Send shot rays from client.
+-Set is fire pressed to false when switching weapons.
+-Fix other players reloading.
+-Improve player movement.
+-Add player head & body.
+*/
 
 public class OsFps : MonoBehaviour
 {
@@ -24,7 +35,10 @@ public class OsFps : MonoBehaviour
         MaxAmmo = 100,
         BulletsPerMagazine = 10,
         DamagePerBullet = 10,
-        ReloadTime = 1
+        ReloadTime = 1,
+        ShotInterval = 0.4f,
+        IsAutomatic = false,
+        SpawnInterval = 10
     };
     public static WeaponDefinition SmgDefinition = new WeaponDefinition
     {
@@ -32,7 +46,10 @@ public class OsFps : MonoBehaviour
         MaxAmmo = 100,
         BulletsPerMagazine = 10,
         DamagePerBullet = 10,
-        ReloadTime = 1
+        ReloadTime = 1,
+        ShotInterval = 0.1f,
+        IsAutomatic = true,
+        SpawnInterval = 20
     };
     public static WeaponDefinition GetWeaponDefinitionByType(WeaponType type)
     {
@@ -136,7 +153,12 @@ public class OsFps : MonoBehaviour
         var playerObject = FindPlayerObject(playerId);
         return (playerObject != null) ? playerObject.GetComponent<PlayerComponent>() : null;
     }
-    
+    public WeaponSpawnerComponent FindWeaponSpawnerComponent(uint id)
+    {
+        return FindObjectsOfType<WeaponSpawnerComponent>()
+            .FirstOrDefault(wsc => wsc.Id == id);
+    }
+
     public PlayerInput GetCurrentPlayersInput()
     {
         return new PlayerInput
@@ -182,9 +204,7 @@ public class OsFps : MonoBehaviour
         ApplyLookDirAnglesToPlayer(playerComponent, playerState.LookDirAngles);
 
         var relativeMoveDirection = GetRelativeMoveDirection(playerState.Input);
-        playerComponent.Rigidbody.AddRelativeForce(10 * relativeMoveDirection);
-
-        // TODO: Handle fire pressed?
+        playerComponent.Rigidbody.AddRelativeForce(1000 * relativeMoveDirection);
     }
 
     public Vector2 GetPlayerLookDirAngles(PlayerComponent playerComponent)

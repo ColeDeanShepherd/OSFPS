@@ -8,6 +8,7 @@ public class WeaponState : INetworkSerializable
     public WeaponType Type;
     public ushort BulletsLeft;
     public ushort BulletsLeftInMagazine;
+    public float TimeUntilCanShoot;
 
     public WeaponState()
     {

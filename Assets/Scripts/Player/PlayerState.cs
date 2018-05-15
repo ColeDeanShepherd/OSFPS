@@ -39,7 +39,8 @@ public class PlayerState : INetworkSerializable
                 IsAlive &&
                 (CurrentWeapon != null) &&
                 (CurrentWeapon.BulletsLeftInMagazine > 0) &&
-                !IsReloading;
+                !IsReloading &&
+                (CurrentWeapon.TimeUntilCanShoot <= 0);
         }
     }
     public bool CanReload

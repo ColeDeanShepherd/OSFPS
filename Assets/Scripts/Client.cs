@@ -316,9 +316,17 @@ public class Client
                     Reload(playerState);
                 }
 
-                if (Input.GetMouseButtonDown(OsFps.FireMouseButtonNumber) && playerState.CanShoot)
+                if (playerState.Input.IsFirePressed)
                 {
-                    Shoot(playerState);
+                    var wasTriggerJustPulled = Input.GetMouseButtonDown(OsFps.FireMouseButtonNumber);
+
+                    if (
+                        playerState.CanShoot &&
+                        (wasTriggerJustPulled || playerState.CurrentWeapon.Definition.IsAutomatic)
+                    )
+                    {
+                        Shoot(playerState);
+                    }
                 }
             }
             else
@@ -328,6 +336,12 @@ public class Client
         }
 
         OsFps.Instance.UpdatePlayerMovement(playerState);
+
+        // shot interval
+        if ((playerState.CurrentWeapon != null) && (playerState.CurrentWeapon.TimeUntilCanShoot > 0))
+        {
+            playerState.CurrentWeapon.TimeUntilCanShoot -= Time.deltaTime;
+        }
 
         if (playerState.IsReloading)
         {
@@ -392,6 +406,8 @@ public class Client
         ClientPeer.SendMessageToServer(
             reliableChannelId, NetworkSerializationUtils.SerializeWithType(message)
         );
+
+        playerState.CurrentWeapon.TimeUntilCanShoot = playerState.CurrentWeapon.Definition.ShotInterval;
     }
 
     private void SwitchWeapons(PlayerState playerState, int weaponIndex)
@@ -618,6 +634,11 @@ public class Client
         // Update state.
         if (isPlayerMe)
         {
+            if ((updatedPlayerState.CurrentWeapon != null) && (currentPlayerState.CurrentWeapon != null))
+            {
+                updatedPlayerState.CurrentWeapon.TimeUntilCanShoot = currentPlayerState.CurrentWeapon.TimeUntilCanShoot;
+            }
+
             updatedPlayerState.Input = currentPlayerState.Input;
         }
 
