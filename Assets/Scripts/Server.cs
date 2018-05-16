@@ -176,6 +176,10 @@ public class Server
             CurrentGameState.WeaponObjects.RemoveAll(wos => wos.Id == weaponObjectId);
         }
     }
+    public void OnPlayerCollidingWithGrenade(GameObject playerObject, GameObject weaponObject)
+    {
+        Debug.Log("TODO: Implement OnPlayerCollidingWithGrenade");
+    }
 
     private int reliableSequencedChannelId;
     private int reliableChannelId;
@@ -196,8 +200,10 @@ public class Server
         playerState.Health = OsFps.MaxPlayerHealth;
         playerState.CurrentWeaponIndex = 0;
         playerState.Weapons[0] = new WeaponState(WeaponType.Pistol, OsFps.PistolDefinition.MaxAmmo);
+        playerState.GrenadesLeftByType[GrenadeType.Fragmentation] = 2;
+        playerState.GrenadesLeftByType[GrenadeType.Sticky] = 2;
 
-        for(var i = 1; i < playerState.Weapons.Length; i++)
+        for (var i = 1; i < playerState.Weapons.Length; i++)
         {
             playerState.Weapons[i] = null;
         }
@@ -372,25 +378,14 @@ public class Server
                 }
             }
 
-            // reload
-            if (playerState.IsReloading)
+            var wasReloadingBeforeUpdate = playerState.IsReloading;
+
+            OsFps.Instance.UpdatePlayer(playerState);
+
+            if (wasReloadingBeforeUpdate && (playerState.ReloadTimeLeft <= 0))
             {
-                playerState.ReloadTimeLeft -= Time.deltaTime;
-
-                if (playerState.ReloadTimeLeft <= 0)
-                {
-                    PlayerFinishReload(playerState);
-                }
+                PlayerFinishReload(playerState);
             }
-
-            // shot interval
-            if ((playerState.CurrentWeapon != null) && (playerState.CurrentWeapon.TimeUntilCanShoot > 0))
-            {
-                playerState.CurrentWeapon.TimeUntilCanShoot -= Time.deltaTime;
-            }
-
-            // update movement
-            OsFps.Instance.UpdatePlayerMovement(playerState);
 
             // kill if too low in map
             if (playerState.Position.y <= OsFps.KillPlaneY)
@@ -399,6 +394,7 @@ public class Server
             }
         }
     }
+
     private void Shoot(PlayerState shootingPlayerState)
     {
         if (!shootingPlayerState.CanShoot) return;
@@ -460,6 +456,41 @@ public class Server
         var bulletsToAddToMagazine = (ushort)Mathf.Min(bulletsUsedInMagazine, weapon.BulletsLeftOutOfMagazine);
         weapon.BulletsLeftInMagazine += bulletsToAddToMagazine;
     }
+
+    private void PlayerThrowGrenade(PlayerState playerState)
+    {
+        if (!playerState.CanThrowGrenade) return;
+
+        var playerComponent = OsFps.Instance.FindPlayerComponent(playerState.Id);
+        if (playerComponent == null) return;
+
+        var throwRay = new Ray(
+            playerComponent.CameraPointObject.transform.position,
+            playerComponent.CameraPointObject.transform.forward
+        );
+        var grenadeState = new GrenadeState
+        {
+            Id = GenerateNetworkId(),
+            Type = playerState.CurrentGrenadeType,
+            IsFuseBurning = false,
+            TimeUntilDetonation = OsFps.GetGrenadeDefinitionByType(playerState.CurrentGrenadeType).TimeAfterHitUntilDetonation,
+            RigidBodyState = new RigidBodyState
+            {
+                Position = throwRay.origin,
+                EulerAngles = Quaternion.LookRotation(throwRay.direction, Vector3.up).eulerAngles,
+                Velocity = OsFps.GrenadeThrowSpeed * throwRay.direction,
+                AngularVelocity = Vector3.zero
+            }
+        };
+        var grenadeObject = OsFps.Instance.SpawnLocalGrenadeObject(grenadeState);
+
+        var grenadeComponent = grenadeObject.GetComponent<GrenadeComponent>();
+        CurrentGameState.Grenades.Add(grenadeState);
+
+        playerState.GrenadesLeftByType[playerState.CurrentGrenadeType]--;
+        playerState.TimeUntilCanThrowGrenade = OsFps.GrenadeThrowInterval;
+    }
+
     private string GetKillMessage(PlayerState killedPlayerState, PlayerState attackerPlayerState)
     {
         return (attackerPlayerState != null)
@@ -562,6 +593,21 @@ public class Server
                 // remove weapon object state???
             }
         }
+
+        foreach (var grenadeState in CurrentGameState.Grenades)
+        {
+            var grenadeObject = OsFps.Instance.FindGrenade(grenadeState.Id);
+
+            if (grenadeObject != null)
+            {
+                var grenadeComponent = grenadeObject.GetComponent<GrenadeComponent>();
+                UpdateRigidBodyStateFromRigidBody(grenadeState.RigidBodyState, grenadeComponent.Rigidbody);
+            }
+            else
+            {
+                // remove weapon object state???
+            }
+        }
     }
     private void SendGameState()
     {
@@ -597,6 +643,12 @@ public class Server
                 reloadPressedMessage.Deserialize(reader);
 
                 HandleReloadPressedMessage(reloadPressedMessage);
+                break;
+            case NetworkMessageType.ThrowGrenade:
+                var throwGrenadeMessage = new ThrowGrenadeMessage();
+                throwGrenadeMessage.Deserialize(reader);
+
+                HandleThrowGrenadeMessage(throwGrenadeMessage);
                 break;
             case NetworkMessageType.Chat:
                 var chatMessage = new ChatMessage();
@@ -640,6 +692,13 @@ public class Server
         }
 
         // TODO: Send to all other players???
+    }
+    private void HandleThrowGrenadeMessage(ThrowGrenadeMessage message)
+    {
+        // TODO: Make sure the player ID is correct.
+        var playerState = CurrentGameState.Players.First(ps => ps.Id == message.PlayerId);
+
+        PlayerThrowGrenade(playerState);
     }
     private void HandleChatMessage(ChatMessage message)
     {

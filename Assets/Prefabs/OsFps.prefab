@@ -61,6 +61,10 @@ MonoBehaviour:
   SmgPrefab: {fileID: 1585401937717724, guid: e02fc32f11ad4a049a208260ad83e80a, type: 2}
   MuzzleFlashPrefab: {fileID: 1354871173001656, guid: 1855e5917da52b84ab776dd490c388c5,
     type: 2}
+  FragmentationGrenadePrefab: {fileID: 1864906674804262, guid: 3832104089c964b41820ab8af630b631,
+    type: 2}
+  StickyGrenadePrefab: {fileID: 1422879523502568, guid: c8fee2f0538553643a559d7f91cd1b0f,
+    type: 2}
   GUIContainerPrefab: {fileID: 1410910292466234, guid: a291db3f081f57f4885188377b67d40d,
     type: 2}
   CrosshairPrefab: {fileID: 1079905431263802, guid: d696d05410e7ca643ba8c20978d1f17e,

@@ -6,6 +6,7 @@
     PlayerInput,
     TriggerPulled,
     ReloadPressed,
+    ThrowGrenade,
     Chat,
     ChangeWeapon
 }

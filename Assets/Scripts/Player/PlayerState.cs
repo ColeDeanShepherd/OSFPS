@@ -1,4 +1,6 @@
-﻿using System.IO;
+﻿using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using UnityEngine;
 
@@ -15,6 +17,9 @@ public class PlayerState : INetworkSerializable
     public int Deaths;
     public WeaponState[] Weapons = new WeaponState[OsFps.MaxWeaponCount];
     public byte CurrentWeaponIndex;
+    public float TimeUntilCanThrowGrenade;
+    public GrenadeType CurrentGrenadeType;
+    public Dictionary<GrenadeType, byte> GrenadesLeftByType;
     public float ReloadTimeLeft;
 
     public bool IsAlive
@@ -54,6 +59,16 @@ public class PlayerState : INetworkSerializable
                 (CurrentWeapon.BulletsLeftInMagazine < CurrentWeapon.Definition.BulletsPerMagazine);
         }
     }
+    public bool CanThrowGrenade
+    {
+        get
+        {
+            return
+                IsAlive &&
+                (TimeUntilCanThrowGrenade <= 0) &&
+                (GrenadesLeftByType[CurrentGrenadeType] > 0);
+        }
+    }
     public bool IsReloading
     {
         get
@@ -69,6 +84,11 @@ public class PlayerState : INetworkSerializable
         }
     }
 
+    public PlayerState()
+    {
+        GrenadesLeftByType = Enum.GetValues(typeof(GrenadeType)).Cast<GrenadeType>()
+            .ToDictionary(grenadeType => grenadeType, grenadeType => (byte)0);
+    }
     public void Serialize(BinaryWriter writer)
     {
         writer.Write(Id);
@@ -88,6 +108,13 @@ public class PlayerState : INetworkSerializable
 
         writer.Write(CurrentWeaponIndex);
         writer.Write(ReloadTimeLeft);
+        writer.Write(TimeUntilCanThrowGrenade);
+        writer.Write((byte)CurrentGrenadeType);
+
+        foreach (var grenadeType in Enum.GetValues(typeof(GrenadeType)).Cast<GrenadeType>())
+        {
+            writer.Write(GrenadesLeftByType[grenadeType]);
+        }
     }
     public void Deserialize(BinaryReader reader)
     {
@@ -108,5 +135,12 @@ public class PlayerState : INetworkSerializable
 
         CurrentWeaponIndex = reader.ReadByte();
         ReloadTimeLeft = reader.ReadSingle();
+        TimeUntilCanThrowGrenade = reader.ReadSingle();
+        CurrentGrenadeType = (GrenadeType)reader.ReadByte();
+
+        foreach (var grenadeType in Enum.GetValues(typeof(GrenadeType)).Cast<GrenadeType>())
+        {
+            GrenadesLeftByType[grenadeType] = reader.ReadByte();
+        }
     }
 }

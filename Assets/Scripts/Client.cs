@@ -93,7 +93,7 @@ public class Client
             SwitchWeapons(playerState, 1);
         }
 
-        if (Input.GetKeyDown(KeyCode.Return))
+        if (Input.GetKeyDown(OsFps.ChatKeyCode))
         {
             if (!_isShowingChatMessageInput)
             {
@@ -109,7 +109,7 @@ public class Client
             }
         }
 
-        if (Input.GetKeyDown(KeyCode.Escape))
+        if (Input.GetKeyDown(OsFps.ToggleMenuKeyCode))
         {
             if (!_isShowingMenu)
             {
@@ -154,7 +154,7 @@ public class Client
     }
     public void OnGui()
     {
-        if (!Input.GetKey(KeyCode.Tab))
+        if (!Input.GetKey(OsFps.ShowScoreboardKeyCode))
         {
             DrawHud();
         }
@@ -295,39 +295,48 @@ public class Client
 
     private bool _isShowingMenu;
 
+    private void UpdateThisPlayer(PlayerState playerState)
+    {
+        playerState.Input = OsFps.Instance.GetCurrentPlayersInput();
+
+        var mouseSensitivity = 3;
+        var deltaMouse = mouseSensitivity * new Vector2(Input.GetAxis("Mouse X"), Input.GetAxis("Mouse Y"));
+
+        playerState.LookDirAngles = new Vector2(
+            Mathf.Clamp(MathfExtensions.ToSignedAngleDegrees(playerState.LookDirAngles.x - deltaMouse.y), -90, 90),
+            Mathf.Repeat(playerState.LookDirAngles.y + deltaMouse.x, 360)
+        );
+
+        if (Input.GetKeyDown(OsFps.ReloadKeyCode))
+        {
+            Reload(playerState);
+        }
+
+        if (playerState.Input.IsFirePressed)
+        {
+            var wasTriggerJustPulled = Input.GetMouseButtonDown(OsFps.FireMouseButtonNumber);
+
+            if (
+                playerState.CanShoot &&
+                (wasTriggerJustPulled || playerState.CurrentWeapon.Definition.IsAutomatic)
+            )
+            {
+                Shoot(playerState);
+            }
+        }
+
+        if (Input.GetKeyDown(OsFps.ThrowGrenadeKeyCode) && playerState.CanThrowGrenade)
+        {
+            ThrowGrenade(playerState);
+        }
+    }
     private void UpdatePlayer(PlayerState playerState)
     {
         if (playerState.Id == PlayerId)
         {
             if (!_isShowingChatMessageInput && !_isShowingMenu)
             {
-                playerState.Input = OsFps.Instance.GetCurrentPlayersInput();
-
-                var mouseSensitivity = 3;
-                var deltaMouse = mouseSensitivity * new Vector2(Input.GetAxis("Mouse X"), Input.GetAxis("Mouse Y"));
-
-                playerState.LookDirAngles = new Vector2(
-                    Mathf.Clamp(MathfExtensions.ToSignedAngleDegrees(playerState.LookDirAngles.x - deltaMouse.y), -90, 90),
-                    Mathf.Repeat(playerState.LookDirAngles.y + deltaMouse.x, 360)
-                );
-
-                if (Input.GetKeyDown(KeyCode.R))
-                {
-                    Reload(playerState);
-                }
-
-                if (playerState.Input.IsFirePressed)
-                {
-                    var wasTriggerJustPulled = Input.GetMouseButtonDown(OsFps.FireMouseButtonNumber);
-
-                    if (
-                        playerState.CanShoot &&
-                        (wasTriggerJustPulled || playerState.CurrentWeapon.Definition.IsAutomatic)
-                    )
-                    {
-                        Shoot(playerState);
-                    }
-                }
+                UpdateThisPlayer(playerState);
             }
             else
             {
@@ -335,18 +344,7 @@ public class Client
             }
         }
 
-        OsFps.Instance.UpdatePlayerMovement(playerState);
-
-        // shot interval
-        if ((playerState.CurrentWeapon != null) && (playerState.CurrentWeapon.TimeUntilCanShoot > 0))
-        {
-            playerState.CurrentWeapon.TimeUntilCanShoot -= Time.deltaTime;
-        }
-
-        if (playerState.IsReloading)
-        {
-            playerState.ReloadTimeLeft -= Time.deltaTime;
-        }
+        OsFps.Instance.UpdatePlayer(playerState);
     }
     private void AttachCameraToPlayer(uint playerId)
     {
@@ -408,6 +406,16 @@ public class Client
         );
 
         playerState.CurrentWeapon.TimeUntilCanShoot = playerState.CurrentWeapon.Definition.ShotInterval;
+    }
+
+    private void ThrowGrenade(PlayerState playerState)
+    {
+        var message = new ThrowGrenadeMessage { PlayerId = playerState.Id };
+        ClientPeer.SendMessageToServer(
+            reliableChannelId, NetworkSerializationUtils.SerializeWithType(message)
+        );
+
+        playerState.TimeUntilCanThrowGrenade = OsFps.GrenadeThrowInterval;
     }
 
     private void SwitchWeapons(PlayerState playerState, int weaponIndex)
@@ -517,6 +525,7 @@ public class Client
 
         ApplyPlayerStates(newGameState);
         ApplyWeaponObjectStates(newGameState);
+        ApplyGrenadeStates(newGameState);
     }
 
     private void ApplyPlayerStates(GameState newGameState)
@@ -639,6 +648,8 @@ public class Client
                 updatedPlayerState.CurrentWeapon.TimeUntilCanShoot = currentPlayerState.CurrentWeapon.TimeUntilCanShoot;
             }
 
+            updatedPlayerState.TimeUntilCanThrowGrenade = currentPlayerState.TimeUntilCanThrowGrenade;
+
             updatedPlayerState.Input = currentPlayerState.Input;
         }
 
@@ -730,6 +741,59 @@ public class Client
 
         // Update state.
         CurrentGameState.WeaponObjects[currentWeaponObjectStateIndex] = updatedWeaponObjectState;
+    }
+
+    private void ApplyGrenadeStates(GameState newGameState)
+    {
+        List<GrenadeState> removedGrenadeStates, addedGrenadeStates, updatedGrenadeStates;
+        GetChanges(
+            CurrentGameState.Grenades, newGameState.Grenades, (g1, g2) => g1.Id == g2.Id,
+            out removedGrenadeStates, out addedGrenadeStates, out updatedGrenadeStates
+        );
+
+        // Despawn weapon objects.
+        foreach (var removedGrenadeState in removedGrenadeStates)
+        {
+            Object.Destroy(OsFps.Instance.FindGrenade(removedGrenadeState.Id));
+        }
+        var removedGrenadeIds = removedGrenadeStates
+            .Select(wos => wos.Id)
+            .ToList();
+        CurrentGameState.Grenades.RemoveAll(ps => removedGrenadeIds.Contains(ps.Id));
+
+        // Spawn weapon objects.
+        foreach (var addedGrenadeState in addedGrenadeStates)
+        {
+            CurrentGameState.Grenades.Add(addedGrenadeState);
+            OsFps.Instance.SpawnLocalGrenadeObject(addedGrenadeState);
+        }
+
+        // Update existing weapon objects.
+        foreach (var updatedGrenadeState in updatedGrenadeStates)
+        {
+            ApplyGrenadeState(updatedGrenadeState);
+        }
+    }
+    private void ApplyGrenadeState(GrenadeState updatedGrenadeState)
+    {
+        var currentGrenadeStateIndex = CurrentGameState.Grenades
+                .FindIndex(curGs => curGs.Id == updatedGrenadeState.Id);
+        var currentGrenadeState = CurrentGameState.Grenades[currentGrenadeStateIndex];
+        var grenadeObject = OsFps.Instance.FindGrenade(updatedGrenadeState.Id);
+
+        // Update weapon object.
+        if (grenadeObject != null)
+        {
+            var grenadeComponent = grenadeObject.GetComponent<GrenadeComponent>();
+            ApplyRigidbodyState(
+                updatedGrenadeState.RigidBodyState,
+                currentGrenadeState.RigidBodyState,
+                grenadeComponent.Rigidbody
+            );
+        }
+
+        // Update state.
+        CurrentGameState.Grenades[currentGrenadeStateIndex] = updatedGrenadeState;
     }
 
     private void SpawnPlayer(PlayerState playerState)

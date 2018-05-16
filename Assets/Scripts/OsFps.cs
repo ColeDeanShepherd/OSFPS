@@ -13,19 +13,36 @@ TODO
 -Fix other players reloading.
 -Improve player movement.
 -Add player head & body.
+-Add shields.
 */
 
 public class OsFps : MonoBehaviour
 {
     public const string LocalHostIpv4Address = "127.0.0.1";
-    public const int FireMouseButtonNumber = 0;
+
     public const string PlayerTag = "Player";
     public const string SpawnPointTag = "Respawn";
+
     public const int MaxPlayerHealth = 100;
-    public const int GunShotDamage = 10;
     public const float RespawnTime = 3;
+
     public const float MuzzleFlashDuration = 0.1f;
     public const int MaxWeaponCount = 2;
+
+    public const int MaxGrenadesPerType = 2;
+    public const float GrenadeThrowInterval = 1;
+    public const float GrenadeThrowSpeed = 10;
+
+    public const int FireMouseButtonNumber = 0;
+    public const KeyCode MoveForwardKeyCode = KeyCode.W;
+    public const KeyCode MoveBackwardKeyCode = KeyCode.S;
+    public const KeyCode MoveRightKeyCode = KeyCode.D;
+    public const KeyCode MoveLeftKeyCode = KeyCode.A;
+    public const KeyCode ReloadKeyCode = KeyCode.R;
+    public const KeyCode ThrowGrenadeKeyCode = KeyCode.G;
+    public const KeyCode ShowScoreboardKeyCode = KeyCode.Tab;
+    public const KeyCode ChatKeyCode = KeyCode.Return;
+    public const KeyCode ToggleMenuKeyCode = KeyCode.Escape;
 
     public const float KillPlaneY = -100;
 
@@ -64,6 +81,35 @@ public class OsFps : MonoBehaviour
         }
     }
 
+    public static GrenadeDefinition FragmentationGrenadeDefinition = new GrenadeDefinition
+    {
+        Type = GrenadeType.Fragmentation,
+        Damage = 90,
+        TimeAfterHitUntilDetonation = 1,
+        ExplosionRadius = 4,
+        SpawnInterval = 20
+    };
+    public static GrenadeDefinition StickyGrenadeDefinition = new GrenadeDefinition
+    {
+        Type = GrenadeType.Sticky,
+        Damage = 90,
+        TimeAfterHitUntilDetonation = 1,
+        ExplosionRadius = 4,
+        SpawnInterval = 20
+    };
+    public static GrenadeDefinition GetGrenadeDefinitionByType(GrenadeType type)
+    {
+        switch (type)
+        {
+            case GrenadeType.Fragmentation:
+                return FragmentationGrenadeDefinition;
+            case GrenadeType.Sticky:
+                return StickyGrenadeDefinition;
+            default:
+                throw new System.NotImplementedException();
+        }
+    }
+
     public static OsFps Instance;
     
     public Server Server;
@@ -74,9 +120,14 @@ public class OsFps : MonoBehaviour
     #region Inspector-set Variables
     public GameObject PlayerPrefab;
     public GameObject CameraPrefab;
+
     public GameObject PistolPrefab;
     public GameObject SmgPrefab;
+
     public GameObject MuzzleFlashPrefab;
+
+    public GameObject FragmentationGrenadePrefab;
+    public GameObject StickyGrenadePrefab;
 
     public GameObject GUIContainerPrefab;
     public GameObject CrosshairPrefab;
@@ -96,6 +147,31 @@ public class OsFps : MonoBehaviour
         return connectionConfig;
     }
 
+    public GameObject GetWeaponPrefab(WeaponType weaponType)
+    {
+        switch (weaponType)
+        {
+            case WeaponType.Pistol:
+                return PistolPrefab;
+            case WeaponType.Smg:
+                return SmgPrefab;
+            default:
+                throw new System.NotImplementedException("Unknown weapon type: " + weaponType);
+        }
+    }
+    public GameObject GetGrenadePrefab(GrenadeType grenadeType)
+    {
+        switch (grenadeType)
+        {
+            case GrenadeType.Fragmentation:
+                return FragmentationGrenadePrefab;
+            case GrenadeType.Sticky:
+                return StickyGrenadePrefab;
+            default:
+                throw new System.NotImplementedException("Unknown grenade type: " + grenadeType);
+        }
+    }
+
     public GameObject SpawnLocalPlayer(PlayerState playerState)
     {
         var playerObject = Instantiate(
@@ -107,18 +183,6 @@ public class OsFps : MonoBehaviour
         playerComponent.Rigidbody.velocity = playerState.Velocity;
 
         return playerObject;
-    }
-    public GameObject GetWeaponPrefab(WeaponType weaponType)
-    {
-        switch (weaponType)
-        {
-            case WeaponType.Pistol:
-                return PistolPrefab;
-            case WeaponType.Smg:
-                return SmgPrefab;
-            default:
-                throw new System.NotImplementedException();
-        }
     }
     public GameObject SpawnLocalWeaponObject(WeaponObjectState weaponObjectState)
     {
@@ -134,8 +198,31 @@ public class OsFps : MonoBehaviour
         weaponObjectComponent.BulletsLeftInMagazine = weaponObjectState.BulletsLeftInMagazine;
         weaponObjectComponent.BulletsLeftOutOfMagazine = weaponObjectState.BulletsLeftOutOfMagazine;
 
+        var rigidbody = weaponObjectComponent.Rigidbody;
+        rigidbody.velocity = weaponObjectState.RigidBodyState.Velocity;
+        rigidbody.angularVelocity = weaponObjectState.RigidBodyState.AngularVelocity;
+
         return weaponObject;
     }
+    public GameObject SpawnLocalGrenadeObject(GrenadeState grenadeState)
+    {
+        var grenadePrefab = GetGrenadePrefab(grenadeState.Type);
+        var grenadeObject = Instantiate(
+            grenadePrefab,
+            grenadeState.RigidBodyState.Position,
+            Quaternion.Euler(grenadeState.RigidBodyState.EulerAngles)
+        );
+
+        var grenadeComponent = grenadeObject.GetComponent<GrenadeComponent>();
+        grenadeComponent.Id = grenadeState.Id;
+
+        var rigidbody = grenadeComponent.Rigidbody;
+        rigidbody.velocity = grenadeState.RigidBodyState.Velocity;
+        rigidbody.angularVelocity = grenadeState.RigidBodyState.AngularVelocity;
+
+        return grenadeObject;
+    }
+
     public GameObject FindPlayerObject(uint playerId)
     {
         return GameObject.FindGameObjectsWithTag(PlayerTag)
@@ -147,6 +234,13 @@ public class OsFps : MonoBehaviour
             .FirstOrDefault(wc => wc.Id == id);
 
         return (weaponComponent != null) ? weaponComponent.gameObject : null;
+    }
+    public GameObject FindGrenade(uint id)
+    {
+        var grenadeComponent = FindObjectsOfType<GrenadeComponent>()
+            .FirstOrDefault(g => g.Id == id);
+
+        return (grenadeComponent != null) ? grenadeComponent.gameObject : null;
     }
     public PlayerComponent FindPlayerComponent(uint playerId)
     {
@@ -163,10 +257,10 @@ public class OsFps : MonoBehaviour
     {
         return new PlayerInput
         {
-            IsMoveFowardPressed = Input.GetKey(KeyCode.W),
-            IsMoveBackwardPressed = Input.GetKey(KeyCode.S),
-            IsMoveRightPressed = Input.GetKey(KeyCode.D),
-            IsMoveLeftPressed = Input.GetKey(KeyCode.A),
+            IsMoveFowardPressed = Input.GetKey(MoveForwardKeyCode),
+            IsMoveBackwardPressed = Input.GetKey(MoveBackwardKeyCode),
+            IsMoveRightPressed = Input.GetKey(MoveRightKeyCode),
+            IsMoveLeftPressed = Input.GetKey(MoveLeftKeyCode),
             IsFirePressed = Input.GetMouseButton(FireMouseButtonNumber)
         };
     }
@@ -196,6 +290,7 @@ public class OsFps : MonoBehaviour
 
         return moveDirection.normalized;
     }
+
     public void UpdatePlayerMovement(PlayerState playerState)
     {
         var playerComponent = FindPlayerComponent(playerState.Id);
@@ -205,6 +300,29 @@ public class OsFps : MonoBehaviour
 
         var relativeMoveDirection = GetRelativeMoveDirection(playerState.Input);
         playerComponent.Rigidbody.AddRelativeForce(1000 * relativeMoveDirection);
+    }
+    public void UpdatePlayer(PlayerState playerState)
+    {
+        // reload
+        if (playerState.IsReloading)
+        {
+            playerState.ReloadTimeLeft -= Time.deltaTime;
+        }
+
+        // shot interval
+        if ((playerState.CurrentWeapon != null) && (playerState.CurrentWeapon.TimeUntilCanShoot > 0))
+        {
+            playerState.CurrentWeapon.TimeUntilCanShoot -= Time.deltaTime;
+        }
+
+        // grenade throw interval
+        if (playerState.TimeUntilCanThrowGrenade > 0)
+        {
+            playerState.TimeUntilCanThrowGrenade -= Time.deltaTime;
+        }
+
+        // update movement
+        UpdatePlayerMovement(playerState);
     }
 
     public Vector2 GetPlayerLookDirAngles(PlayerComponent playerComponent)
@@ -225,6 +343,14 @@ public class OsFps : MonoBehaviour
         if (Server != null)
         {
             Server.OnPlayerCollidingWithWeapon(playerObject, weaponObject);
+        }
+    }
+
+    public void OnPlayerCollidingWithGrenade(GameObject playerObject, GameObject grenadeObject)
+    {
+        if (Server != null)
+        {
+            Server.OnPlayerCollidingWithGrenade(playerObject, grenadeObject);
         }
     }
 
