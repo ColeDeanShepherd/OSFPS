@@ -17,7 +17,6 @@ TODO
 -Attribute grenade kills to the correct player.
 -Improve grenade trajectories.
 -Don't add bullets to magazine when running over weapon.
--Make grenade explosions more reliable.
 -Implement delta game state sending.
 */
 

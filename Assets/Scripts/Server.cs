@@ -471,9 +471,11 @@ public class Server
         // send message
         var message = new DetonateGrenadeMessage
         {
-            Id = grenade.Id
+            Id = grenade.Id,
+            Position = grenadePosition,
+            Type = grenade.Type
         };
-        SendMessageToAllClients(unreliableStateUpdateChannelId, message);
+        SendMessageToAllClients(reliableChannelId, message);
     }
 
     private void Shoot(PlayerState shootingPlayerState)

@@ -396,12 +396,11 @@ public class Client
 
         Object.Destroy(muzzleFlashObject, OsFps.MuzzleFlashDuration);
     }
-    private void ShowGrenadeExplosion(GrenadeState grenade)
+    private void ShowGrenadeExplosion(Vector3 position, GrenadeType grenadeType)
     {
-        var grenadeObject = OsFps.Instance.FindGrenade(grenade.Id);
-        var explosionPrefab = OsFps.Instance.GetGrenadeExplosionPrefab(grenade.Type);
+        var explosionPrefab = OsFps.Instance.GetGrenadeExplosionPrefab(grenadeType);
         GameObject grenadeExplosionObject = Object.Instantiate(
-            explosionPrefab, grenadeObject.transform.position, Quaternion.identity
+            explosionPrefab, position, Quaternion.identity
         );
 
         Object.Destroy(grenadeExplosionObject, OsFps.GrenadeExplosionDuration);
@@ -924,8 +923,7 @@ public class Client
     }
     private void HandleDetonateGrenadeMessage(DetonateGrenadeMessage message)
     {
-        var grenadeState = CurrentGameState.Grenades.FirstOrDefault(g => g.Id == message.Id);
-        ShowGrenadeExplosion(grenadeState);
+        ShowGrenadeExplosion(message.Position, message.Type);
     }
     private void HandleChatMessage(ChatMessage message)
     {
