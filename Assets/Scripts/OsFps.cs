@@ -14,6 +14,11 @@ TODO
 -Improve player movement.
 -Add player head & body.
 -Add shields.
+-Attribute grenade kills to the correct player.
+-Improve grenade trajectories.
+-Don't add bullets to magazine when running over weapon.
+-Make grenade explosions more reliable.
+-Implement delta game state sending.
 */
 
 public class OsFps : MonoBehaviour
@@ -32,6 +37,8 @@ public class OsFps : MonoBehaviour
     public const int MaxGrenadesPerType = 2;
     public const float GrenadeThrowInterval = 1;
     public const float GrenadeThrowSpeed = 10;
+    public const float GrenadeExplosionForce = 500;
+    public const float GrenadeExplosionDuration = 0.5f;
 
     public const int FireMouseButtonNumber = 0;
     public const KeyCode MoveForwardKeyCode = KeyCode.W;
@@ -115,6 +122,7 @@ public class OsFps : MonoBehaviour
     public Server Server;
     public Client Client;
 
+    [HideInInspector]
     public GameObject CanvasObject;
 
     #region Inspector-set Variables
@@ -127,7 +135,10 @@ public class OsFps : MonoBehaviour
     public GameObject MuzzleFlashPrefab;
 
     public GameObject FragmentationGrenadePrefab;
+    public GameObject FragmentationGrenadeExplosionPrefab;
+
     public GameObject StickyGrenadePrefab;
+    public GameObject StickyGrenadeExplosionPrefab;
 
     public GameObject GUIContainerPrefab;
     public GameObject CrosshairPrefab;
@@ -167,6 +178,18 @@ public class OsFps : MonoBehaviour
                 return FragmentationGrenadePrefab;
             case GrenadeType.Sticky:
                 return StickyGrenadePrefab;
+            default:
+                throw new System.NotImplementedException("Unknown grenade type: " + grenadeType);
+        }
+    }
+    public GameObject GetGrenadeExplosionPrefab(GrenadeType grenadeType)
+    {
+        switch (grenadeType)
+        {
+            case GrenadeType.Fragmentation:
+                return FragmentationGrenadeExplosionPrefab;
+            case GrenadeType.Sticky:
+                return StickyGrenadeExplosionPrefab;
             default:
                 throw new System.NotImplementedException("Unknown grenade type: " + grenadeType);
         }
@@ -338,6 +361,7 @@ public class OsFps : MonoBehaviour
         playerComponent.CameraPointObject.transform.localEulerAngles = new Vector3(LookDirAngles.x, 0, 0);
     }
 
+    // probably too much boilerplate here
     public void OnPlayerCollidingWithWeapon(GameObject playerObject, GameObject weaponObject)
     {
         if (Server != null)
@@ -351,6 +375,14 @@ public class OsFps : MonoBehaviour
         if (Server != null)
         {
             Server.OnPlayerCollidingWithGrenade(playerObject, grenadeObject);
+        }
+    }
+
+    public void GrenadeOnCollisionEnter(GrenadeComponent grenadeComponent, Collision collision)
+    {
+        if (Server != null)
+        {
+            Server.GrenadeOnCollisionEnter(grenadeComponent, collision);
         }
     }
 

@@ -63,7 +63,11 @@ MonoBehaviour:
     type: 2}
   FragmentationGrenadePrefab: {fileID: 1864906674804262, guid: 3832104089c964b41820ab8af630b631,
     type: 2}
+  FragmentationGrenadeExplosionPrefab: {fileID: 1930225476758076, guid: b4dd5db17d4f7204d9708e752e0fe852,
+    type: 2}
   StickyGrenadePrefab: {fileID: 1422879523502568, guid: c8fee2f0538553643a559d7f91cd1b0f,
+    type: 2}
+  StickyGrenadeExplosionPrefab: {fileID: 1878559953589122, guid: 74b2126465b584d479f3bae9a23f7b93,
     type: 2}
   GUIContainerPrefab: {fileID: 1410910292466234, guid: a291db3f081f57f4885188377b67d40d,
     type: 2}

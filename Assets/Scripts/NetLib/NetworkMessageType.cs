@@ -7,6 +7,7 @@
     TriggerPulled,
     ReloadPressed,
     ThrowGrenade,
+    DetonateGrenade,
     Chat,
     ChangeWeapon
 }

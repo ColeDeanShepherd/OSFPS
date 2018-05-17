@@ -20,6 +20,10 @@ public class GrenadeComponent : MonoBehaviour
         Rigidbody = GetComponent<Rigidbody>();
         Collider = GetComponent<Collider>();
     }
+    private void OnCollisionEnter(Collision collision)
+    {
+        OsFps.Instance.GrenadeOnCollisionEnter(this, collision);
+    }
     private void OnCollisionStay(Collision collision)
     {
         var otherGameObject = collision.gameObject;
