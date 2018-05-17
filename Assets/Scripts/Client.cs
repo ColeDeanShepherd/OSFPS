@@ -15,6 +15,8 @@ public class Client
 
     public event ClientPeer.ServerConnectionChangeEventHandler OnDisconnectedFromServer;
 
+    public PlayerSystem playerSystem = new PlayerSystem();
+
     public void Start(bool isServerRemote)
     {
         CurrentGameState = new GameState();
@@ -73,10 +75,7 @@ public class Client
 
         if (ClientPeer.IsConnectedToServer)
         {
-            foreach (var playerState in CurrentGameState.Players)
-            {
-                UpdatePlayer(playerState);
-            }
+            playerSystem.OnUpdate();
 
             SendInputPeriodicFunction.TryToCall();
         }
@@ -288,64 +287,13 @@ public class Client
     private int unreliableStateUpdateChannelId;
     private ThrottledAction SendInputPeriodicFunction;
 
-    private bool _isShowingChatMessageInput;
-    private bool _justOpenedChatMessageInput;
+    public bool _isShowingChatMessageInput;
+    public bool _justOpenedChatMessageInput;
     private string _chatMessageBeingTyped;
     private List<string> _chatMessages = new List<string>();
 
-    private bool _isShowingMenu;
-
-    private void UpdateThisPlayer(PlayerState playerState)
-    {
-        playerState.Input = OsFps.Instance.GetCurrentPlayersInput();
-
-        var mouseSensitivity = 3;
-        var deltaMouse = mouseSensitivity * new Vector2(Input.GetAxis("Mouse X"), Input.GetAxis("Mouse Y"));
-
-        playerState.LookDirAngles = new Vector2(
-            Mathf.Clamp(MathfExtensions.ToSignedAngleDegrees(playerState.LookDirAngles.x - deltaMouse.y), -90, 90),
-            Mathf.Repeat(playerState.LookDirAngles.y + deltaMouse.x, 360)
-        );
-
-        if (Input.GetKeyDown(OsFps.ReloadKeyCode))
-        {
-            Reload(playerState);
-        }
-
-        if (playerState.Input.IsFirePressed)
-        {
-            var wasTriggerJustPulled = Input.GetMouseButtonDown(OsFps.FireMouseButtonNumber);
-
-            if (
-                playerState.CanShoot &&
-                (wasTriggerJustPulled || playerState.CurrentWeapon.Definition.IsAutomatic)
-            )
-            {
-                Shoot(playerState);
-            }
-        }
-
-        if (Input.GetKeyDown(OsFps.ThrowGrenadeKeyCode) && playerState.CanThrowGrenade)
-        {
-            ThrowGrenade(playerState);
-        }
-    }
-    private void UpdatePlayer(PlayerState playerState)
-    {
-        if (playerState.Id == PlayerId)
-        {
-            if (!_isShowingChatMessageInput && !_isShowingMenu)
-            {
-                UpdateThisPlayer(playerState);
-            }
-            else
-            {
-                playerState.Input = new PlayerInput();
-            }
-        }
-
-        OsFps.Instance.UpdatePlayer(playerState);
-    }
+    public bool _isShowingMenu;
+    
     private void AttachCameraToPlayer(uint playerId)
     {
         var playerObject = OsFps.Instance.FindPlayerObject(playerId);
@@ -377,7 +325,7 @@ public class Client
         Object.Destroy(weaponComponent.Rigidbody);
         Object.Destroy(weaponComponent.Collider);
     }
-    private void Reload(PlayerState playerState)
+    public void Reload(PlayerState playerState)
     {
         var message = new ReloadPressedMessage { PlayerId = playerState.Id };
         ClientPeer.SendMessageToServer(
@@ -385,7 +333,7 @@ public class Client
         );
     }
 
-    private void ShowMuzzleFlash(PlayerState playerState)
+    public void ShowMuzzleFlash(PlayerState playerState)
     {
         GameObject muzzleFlashObject = Object.Instantiate(
             OsFps.Instance.MuzzleFlashPrefab, Vector3.zero, Quaternion.identity
@@ -396,7 +344,7 @@ public class Client
 
         Object.Destroy(muzzleFlashObject, OsFps.MuzzleFlashDuration);
     }
-    private void ShowGrenadeExplosion(Vector3 position, GrenadeType grenadeType)
+    public void ShowGrenadeExplosion(Vector3 position, GrenadeType grenadeType)
     {
         var explosionPrefab = OsFps.Instance.GetGrenadeExplosionPrefab(grenadeType);
         GameObject grenadeExplosionObject = Object.Instantiate(
@@ -405,7 +353,7 @@ public class Client
 
         Object.Destroy(grenadeExplosionObject, OsFps.GrenadeExplosionDuration);
     }
-    private void Shoot(PlayerState playerState)
+    public void Shoot(PlayerState playerState)
     {
         ShowMuzzleFlash(playerState);
 
@@ -417,7 +365,7 @@ public class Client
         playerState.CurrentWeapon.TimeUntilCanShoot = playerState.CurrentWeapon.Definition.ShotInterval;
     }
 
-    private void ThrowGrenade(PlayerState playerState)
+    public void ThrowGrenade(PlayerState playerState)
     {
         var message = new ThrowGrenadeMessage { PlayerId = playerState.Id };
         ClientPeer.SendMessageToServer(

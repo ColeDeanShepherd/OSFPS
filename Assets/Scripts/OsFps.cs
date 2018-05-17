@@ -18,6 +18,7 @@ TODO
 -Improve grenade trajectories.
 -Don't add bullets to magazine when running over weapon.
 -Implement delta game state sending.
+-Make weapons spawn repeatedly.
 */
 
 public class OsFps : MonoBehaviour
