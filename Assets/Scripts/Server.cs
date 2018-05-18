@@ -17,9 +17,7 @@ public class Server
     public ServerPeer ServerPeer;
     public GameState CurrentGameState;
 
-    public PlayerSystem playerSystem = new PlayerSystem();
-    public GrenadeSystem grenadeSystem = new GrenadeSystem();
-    public WeaponSpawnerSystem weaponSpawnerSystem = new WeaponSpawnerSystem();
+    public GameStateScraperSystem gameStateScraperSystem = new GameStateScraperSystem();
 
     public void Start()
     {
@@ -49,14 +47,25 @@ public class Server
     public void Update()
     {
         ServerPeer.ReceiveAndHandleNetworkEvents();
+        
+        // respawn players
+        // TODO: move to system
+        foreach (var playerState in CurrentGameState.Players)
+        {
+            if (!playerState.IsAlive)
+            {
+                playerState.RespawnTimeLeft -= Time.deltaTime;
 
-        playerSystem.OnUpdate();
-        grenadeSystem.OnUpdate();
-        weaponSpawnerSystem.OnUpdate();
+                if (playerState.RespawnTimeLeft <= 0)
+                {
+                    PlayerSystem.Instance.ServerSpawnPlayer(this, playerState);
+                }
+            }
+        }
     }
     public void LateUpdate()
     {
-        UpdateGameStateFromObjects();
+        gameStateScraperSystem.OnLateUpdate();
 
         if (SendGameStatePeriodicFunction != null)
         {
@@ -87,7 +96,7 @@ public class Server
         SendMessageToClient(connectionId, reliableSequencedChannelId, setPlayerIdMessage);
 
         // Spawn the player.
-        playerSystem.ServerSpawnPlayer(this, playerState);
+        PlayerSystem.Instance.ServerSpawnPlayer(this, playerState);
     }
     public void OnClientDisconnected(int connectionId)
     {
@@ -115,86 +124,7 @@ public class Server
         var serializedMessage = NetworkSerializationUtils.SerializeWithType(message);
         SendMessageToClientHandleErrors(connectionId, channelId, serializedMessage);
     }
-
-    public int AddBullets(WeaponState weaponState, int numBulletsToTryToAdd)
-    {
-        var numBulletsCanAdd = weaponState.Definition.MaxAmmo - weaponState.BulletsLeft;
-        var bulletsToPickUp = Mathf.Min(numBulletsToTryToAdd, numBulletsCanAdd);
-
-        weaponState.BulletsLeft += (ushort)bulletsToPickUp;
-        weaponState.BulletsLeftInMagazine = (ushort)Mathf.Min(
-            weaponState.BulletsLeftInMagazine + bulletsToPickUp,
-            weaponState.Definition.BulletsPerMagazine
-        );
-
-        return bulletsToPickUp;
-    }
-    public void RemoveBullets(WeaponObjectState weaponObjectState, int numBulletsToRemove)
-    {
-        var bulletsToRemoveFromMagazine = Mathf.Min(weaponObjectState.BulletsLeftInMagazine, numBulletsToRemove);
-        weaponObjectState.BulletsLeftInMagazine -= (ushort)bulletsToRemoveFromMagazine;
-        numBulletsToRemove -= bulletsToRemoveFromMagazine;
-
-        if (numBulletsToRemove > 0)
-        {
-            weaponObjectState.BulletsLeftOutOfMagazine -= (ushort)Mathf.Min(
-                weaponObjectState.BulletsLeftOutOfMagazine,
-                numBulletsToRemove
-            );
-        }
-    }
-    public void OnPlayerCollidingWithWeapon(GameObject playerObject, GameObject weaponObject)
-    {
-        var playerComponent = playerObject.GetComponent<PlayerComponent>();
-        var playerState = CurrentGameState.Players.First(ps => ps.Id == playerComponent.Id);
-        var weaponComponent = weaponObject.GetComponent<WeaponComponent>();
-        var weaponObjectState = CurrentGameState.WeaponObjects.First(wos => wos.Id == weaponComponent.Id);
-
-        var playersMatchingWeapon = playerState.Weapons.FirstOrDefault(
-            w => (w != null) && (w.Type == weaponComponent.Type)
-        );
-
-        if (playersMatchingWeapon != null)
-        {
-            var numBulletsPickedUp = AddBullets(playersMatchingWeapon, weaponObjectState.BulletsLeft);
-            RemoveBullets(weaponObjectState, numBulletsPickedUp);
-
-            if(weaponObjectState.BulletsLeft == 0)
-            {
-                var weaponObjectId = weaponComponent.Id;
-                Object.Destroy(weaponObject);
-                CurrentGameState.WeaponObjects.RemoveAll(wos => wos.Id == weaponObjectId);
-            }
-        }
-        else if (playerState.HasEmptyWeapon)
-        {
-            var emptyWeaponIndex = System.Array.FindIndex(playerState.Weapons, w => w == null);
-            playerState.Weapons[emptyWeaponIndex] = new WeaponState
-            {
-                Type = weaponObjectState.Type,
-                BulletsLeft = weaponObjectState.BulletsLeft,
-                BulletsLeftInMagazine = weaponObjectState.BulletsLeftInMagazine
-            };
-
-            var weaponObjectId = weaponComponent.Id;
-            Object.Destroy(weaponObject);
-            CurrentGameState.WeaponObjects.RemoveAll(wos => wos.Id == weaponObjectId);
-        }
-    }
-    public void OnPlayerCollidingWithGrenade(GameObject playerObject, GameObject weaponObject)
-    {
-        Debug.Log("TODO: Implement OnPlayerCollidingWithGrenade");
-        // ONLY PICK UP IF NOT ACTIVE
-    }
-
-    public void GrenadeOnCollisionEnter(GrenadeComponent grenadeComponent, Collision collision)
-    {
-        Debug.Log("Grenade collided with " + collision.gameObject.name);
-
-        var grenadeState = CurrentGameState.Grenades.First(g => g.Id == grenadeComponent.Id);
-        grenadeState.IsFuseBurning = true;
-    }
-
+    
     public int reliableSequencedChannelId;
     public int reliableChannelId;
     public int unreliableStateUpdateChannelId;
@@ -205,8 +135,8 @@ public class Server
     {
         SceneManager.sceneLoaded -= OnMapLoaded;
 
-        CurrentGameState.WeaponObjects = GetWeaponObjectStatesFromGameObjects();
-        CurrentGameState.WeaponSpawners = GetWeaponSpawnerStatesFromGameObjects();
+        CurrentGameState.WeaponObjects = gameStateScraperSystem.ServerGetWeaponObjectStatesFromGameObjects(this);
+        CurrentGameState.WeaponSpawners = gameStateScraperSystem.ServerGetWeaponSpawnerStatesFromGameObjects(this);
         SendGameStatePeriodicFunction = new ThrottledAction(SendGameState, 1.0f / 30);
 
         if (OnServerStarted != null)
@@ -214,69 +144,14 @@ public class Server
             OnServerStarted();
         }
     }
-    private RigidBodyState ToRigidBodyState(Rigidbody rigidbody)
+    
+    private void SendGameState()
     {
-        return new RigidBodyState
+        var message = new GameStateMessage
         {
-            Position = rigidbody.transform.position,
-            EulerAngles = rigidbody.transform.eulerAngles,
-            Velocity = rigidbody.velocity,
-            AngularVelocity = rigidbody.angularVelocity
+            GameState = CurrentGameState
         };
-    }
-    private WeaponObjectState ToWeaponObjectState(WeaponComponent weaponComponent)
-    {
-        var state = new WeaponObjectState
-        {
-            Id = GenerateNetworkId(),
-            Type = weaponComponent.Type,
-            BulletsLeftInMagazine = weaponComponent.BulletsLeftInMagazine,
-            BulletsLeftOutOfMagazine = weaponComponent.BulletsLeftOutOfMagazine,
-            RigidBodyState = ToRigidBodyState(weaponComponent.Rigidbody)
-        };
-
-        weaponComponent.Id = state.Id;
-
-        return state;
-    }
-    private List<WeaponObjectState> GetWeaponObjectStatesFromGameObjects()
-    {
-        var weaponObjectStates = new List<WeaponObjectState>();
-
-        var weaponComponents = Object.FindObjectsOfType<WeaponComponent>();
-        foreach (var weaponComponent in weaponComponents)
-        {
-            weaponObjectStates.Add(ToWeaponObjectState(weaponComponent));
-        }
-
-        return weaponObjectStates;
-    }
-
-    private WeaponSpawnerState ToWeaponSpawnerState(WeaponSpawnerComponent weaponSpawnerComponent)
-    {
-        var state = new WeaponSpawnerState
-        {
-            Id = GenerateNetworkId(),
-            Type = weaponSpawnerComponent.WeaponType,
-            TimeUntilNextSpawn = 0
-        };
-
-        return state;
-    }
-    private List<WeaponSpawnerState> GetWeaponSpawnerStatesFromGameObjects()
-    {
-        var weaponSpawnerStates = new List<WeaponSpawnerState>();
-
-        var weaponSpawnerComponents = Object.FindObjectsOfType<WeaponSpawnerComponent>();
-        foreach (var weaponSpawnerComponent in weaponSpawnerComponents)
-        {
-            var weaponSpawnerState = ToWeaponSpawnerState(weaponSpawnerComponent);
-            weaponSpawnerStates.Add(weaponSpawnerState);
-
-            weaponSpawnerComponent.Id = weaponSpawnerState.Id;
-        }
-
-        return weaponSpawnerStates;
+        SendMessageToAllClients(unreliableStateUpdateChannelId, message);
     }
 
     private void SendMessageToClientHandleErrors(int connectionId, int channelId, byte[] serializedMessage)
@@ -319,169 +194,8 @@ public class Server
                 Orientation = Quaternion.identity
             };
         }
-        return new PositionOrientation3d
-        {
-            Position = new Vector3(0, 25, 0),
-            Orientation = Quaternion.identity
-        };
     }
-
-    public void Shoot(PlayerState shootingPlayerState)
-    {
-        if (!shootingPlayerState.CanShoot) return;
-
-        var playerComponent = OsFps.Instance.FindPlayerComponent(shootingPlayerState.Id);
-        if (playerComponent == null) return;
-
-        var weaponState = shootingPlayerState.CurrentWeapon;
-
-        var shotRay = new Ray(
-                playerComponent.CameraPointObject.transform.position,
-                playerComponent.CameraPointObject.transform.forward
-            );
-        var raycastHits = Physics.RaycastAll(shotRay);
-
-        foreach (var hit in raycastHits)
-        {
-            var hitPlayerObject = hit.collider.gameObject.FindObjectOrAncestorWithTag(OsFps.PlayerTag);
-
-            if ((hitPlayerObject != null) && (hitPlayerObject != playerComponent.gameObject))
-            {
-                var hitPlayerComponent = hitPlayerObject.GetComponent<PlayerComponent>();
-                var hitPlayerState = CurrentGameState.Players.Find(ps => ps.Id == hitPlayerComponent.Id);
-
-                playerSystem.ServerDamagePlayer(this, hitPlayerState, weaponState.Definition.DamagePerBullet, shootingPlayerState);
-            }
-
-            if (hit.rigidbody != null)
-            {
-                hit.rigidbody.AddForceAtPosition(5 * shotRay.direction, hit.point, ForceMode.Impulse);
-            }
-        }
-
-        weaponState.BulletsLeftInMagazine--;
-        weaponState.BulletsLeft--;
-
-        weaponState.TimeUntilCanShoot = weaponState.Definition.ShotInterval;
-    }
-    public void PlayerPullTrigger(PlayerState playerState)
-    {
-        Shoot(playerState);
-    }
-    public void PlayerStartReload(PlayerState playerState)
-    {
-        if (!playerState.IsAlive) return;
-
-        var weapon = playerState.CurrentWeapon;
-        if (weapon == null) return;
-
-        playerState.ReloadTimeLeft = weapon.Definition.ReloadTime;
-        weapon.TimeUntilCanShoot = 0;
-    }
-    public void PlayerFinishReload(PlayerState playerState)
-    {
-        var weapon = playerState.CurrentWeapon;
-        if (weapon == null) return;
-
-        var bulletsUsedInMagazine = weapon.Definition.BulletsPerMagazine - weapon.BulletsLeftInMagazine;
-        var bulletsToAddToMagazine = (ushort)Mathf.Min(bulletsUsedInMagazine, weapon.BulletsLeftOutOfMagazine);
-        weapon.BulletsLeftInMagazine += bulletsToAddToMagazine;
-    }
-
-    private void PlayerThrowGrenade(PlayerState playerState)
-    {
-        if (!playerState.CanThrowGrenade) return;
-
-        var playerComponent = OsFps.Instance.FindPlayerComponent(playerState.Id);
-        if (playerComponent == null) return;
-
-        var throwRay = new Ray(
-            playerComponent.CameraPointObject.transform.position,
-            playerComponent.CameraPointObject.transform.forward
-        );
-        var grenadeState = new GrenadeState
-        {
-            Id = GenerateNetworkId(),
-            Type = playerState.CurrentGrenadeType,
-            IsFuseBurning = false,
-            TimeUntilDetonation = OsFps.GetGrenadeDefinitionByType(playerState.CurrentGrenadeType).TimeAfterHitUntilDetonation,
-            RigidBodyState = new RigidBodyState
-            {
-                Position = throwRay.origin,
-                EulerAngles = Quaternion.LookRotation(throwRay.direction, Vector3.up).eulerAngles,
-                Velocity = OsFps.GrenadeThrowSpeed * throwRay.direction,
-                AngularVelocity = Vector3.zero
-            }
-        };
-        var grenadeObject = OsFps.Instance.SpawnLocalGrenadeObject(grenadeState);
-
-        var grenadeComponent = grenadeObject.GetComponent<GrenadeComponent>();
-        CurrentGameState.Grenades.Add(grenadeState);
-
-        playerState.GrenadesLeftByType[playerState.CurrentGrenadeType]--;
-        playerState.TimeUntilCanThrowGrenade = OsFps.GrenadeThrowInterval;
-    }
-
-    private void UpdateRigidBodyStateFromRigidBody(RigidBodyState rigidBodyState, Rigidbody rigidbody)
-    {
-        rigidBodyState.Position = rigidbody.transform.position;
-        rigidBodyState.EulerAngles = rigidbody.transform.eulerAngles;
-        rigidBodyState.Velocity = rigidbody.velocity;
-        rigidBodyState.AngularVelocity = rigidbody.angularVelocity;
-    }
-    private void UpdateGameStateFromObjects()
-    {
-        foreach(var playerState in CurrentGameState.Players)
-        {
-            var playerComponent = OsFps.Instance.FindPlayerComponent(playerState.Id);
-
-            if (playerComponent != null)
-            {
-                playerState.Position = playerComponent.transform.position;
-                playerState.Velocity = playerComponent.Rigidbody.velocity;
-                playerState.LookDirAngles = OsFps.Instance.GetPlayerLookDirAngles(playerComponent);
-            }
-        }
-
-        foreach(var weaponObjectState in CurrentGameState.WeaponObjects)
-        {
-            var weaponObject = OsFps.Instance.FindWeaponObject(weaponObjectState.Id);
-
-            if (weaponObject != null)
-            {
-                var weaponComponent = weaponObject.GetComponent<WeaponComponent>();
-                UpdateRigidBodyStateFromRigidBody(weaponObjectState.RigidBodyState, weaponComponent.Rigidbody);
-            }
-            else
-            {
-                // remove weapon object state???
-            }
-        }
-
-        foreach (var grenadeState in CurrentGameState.Grenades)
-        {
-            var grenadeObject = OsFps.Instance.FindGrenade(grenadeState.Id);
-
-            if (grenadeObject != null)
-            {
-                var grenadeComponent = grenadeObject.GetComponent<GrenadeComponent>();
-                UpdateRigidBodyStateFromRigidBody(grenadeState.RigidBodyState, grenadeComponent.Rigidbody);
-            }
-            else
-            {
-                // remove weapon object state???
-            }
-        }
-    }
-    private void SendGameState()
-    {
-        var message = new GameStateMessage
-        {
-            GameState = CurrentGameState
-        };
-        SendMessageToAllClients(unreliableStateUpdateChannelId, message);
-    }
-
+    
     #region Message Handlers
     private void OnReceiveDataFromClient(int connectionId, int channelId, byte[] bytesReceived)
     {
@@ -541,7 +255,7 @@ public class Server
     {
         // TODO: Make sure the player ID is correct.
         var playerState = CurrentGameState.Players.First(ps => ps.Id == message.PlayerId);
-        PlayerPullTrigger(playerState);
+        PlayerSystem.Instance.ServerPlayerPullTrigger(this, playerState);
 
         SendMessageToAllClients(reliableSequencedChannelId, message);
     }
@@ -552,7 +266,7 @@ public class Server
 
         if (playerState.CanReload)
         {
-            PlayerStartReload(playerState);
+            PlayerSystem.Instance.ServerPlayerStartReload(playerState);
         }
 
         // TODO: Send to all other players???
@@ -562,7 +276,7 @@ public class Server
         // TODO: Make sure the player ID is correct.
         var playerState = CurrentGameState.Players.First(ps => ps.Id == message.PlayerId);
 
-        PlayerThrowGrenade(playerState);
+        GrenadeSystem.Instance.ServerPlayerThrowGrenade(this, playerState);
     }
     private void HandleChatMessage(ChatMessage message)
     {

@@ -20,6 +20,7 @@ GameObject:
   m_Component:
   - component: {fileID: 4178031452286196}
   - component: {fileID: 114163527370344864}
+  - component: {fileID: 114755533519013310}
   m_Layer: 0
   m_Name: Weapon Spawner
   m_TagString: Untagged
@@ -51,4 +52,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5df069e0e41025943b6c3ef1835c636a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  Id: 0
   WeaponType: 0
+--- !u!114 &114755533519013310
+MonoBehaviour:
+  m_ObjectHideFlags: 1
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 100100000}
+  m_GameObject: {fileID: 1075180494737956}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5bf10cdea1344482e91a4f2b58506b77, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 

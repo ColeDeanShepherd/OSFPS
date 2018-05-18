@@ -19,6 +19,7 @@ TODO
 -Don't add bullets to magazine when running over weapon.
 -Implement delta game state sending.
 -Make weapons spawn repeatedly.
+-Remove system instances.
 */
 
 public class OsFps : MonoBehaviour
@@ -366,7 +367,7 @@ public class OsFps : MonoBehaviour
     {
         if (Server != null)
         {
-            Server.OnPlayerCollidingWithWeapon(playerObject, weaponObject);
+            PlayerSystem.Instance.ServerOnPlayerCollidingWithWeapon(Server, playerObject, weaponObject);
         }
     }
 
@@ -374,7 +375,7 @@ public class OsFps : MonoBehaviour
     {
         if (Server != null)
         {
-            Server.OnPlayerCollidingWithGrenade(playerObject, grenadeObject);
+            PlayerSystem.Instance.ServerOnPlayerCollidingWithGrenade(playerObject, grenadeObject);
         }
     }
 
@@ -382,7 +383,7 @@ public class OsFps : MonoBehaviour
     {
         if (Server != null)
         {
-            Server.GrenadeOnCollisionEnter(grenadeComponent, collision);
+            GrenadeSystem.Instance.ServerGrenadeOnCollisionEnter(Server, grenadeComponent, collision);
         }
     }
 

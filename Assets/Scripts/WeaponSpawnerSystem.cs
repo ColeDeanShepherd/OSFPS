@@ -1,8 +1,15 @@
 ﻿using UnityEngine;
+using Unity.Entities;
+using System.Linq;
 
-public class WeaponSpawnerSystem
+public class WeaponSpawnerSystem : ComponentSystem
 {
-    public void OnUpdate()
+    public struct Group
+    {
+        public WeaponSpawnerComponent WeaponSpawnerComponent;
+    }
+
+    protected override void OnUpdate()
     {
         var server = OsFps.Instance.Server;
         if (server != null)
@@ -13,9 +20,12 @@ public class WeaponSpawnerSystem
 
     private void ServerOnUpdate(Server server)
     {
-        foreach (var weaponSpawner in server.CurrentGameState.WeaponSpawners)
+        foreach (var entity in GetEntities<Group>())
         {
-            // shot interval
+            var weaponSpawner = server.CurrentGameState.WeaponSpawners
+                .FirstOrDefault(ws => ws.Id == entity.WeaponSpawnerComponent.Id);
+
+            // spawn interval
             if (weaponSpawner.TimeUntilNextSpawn > 0)
             {
                 weaponSpawner.TimeUntilNextSpawn -= Time.deltaTime;

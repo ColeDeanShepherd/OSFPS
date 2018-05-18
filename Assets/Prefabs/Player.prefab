@@ -52,6 +52,7 @@ GameObject:
   - component: {fileID: 136153865187386508}
   - component: {fileID: 54660452636926776}
   - component: {fileID: 114331535982597270}
+  - component: {fileID: 114412742838762590}
   m_Layer: 0
   m_Name: Player
   m_TagString: Player
@@ -140,9 +141,11 @@ MeshRenderer:
   m_Enabled: 1
   m_CastShadows: 1
   m_ReceiveShadows: 1
+  m_DynamicOccludee: 1
   m_MotionVectors: 1
   m_LightProbeUsage: 1
   m_ReflectionProbeUsage: 1
+  m_RenderingLayerMask: 4294967295
   m_Materials:
   - {fileID: 10303, guid: 0000000000000000f000000000000000, type: 0}
   m_StaticBatchInfo:
@@ -155,6 +158,7 @@ MeshRenderer:
   m_PreserveUVs: 1
   m_IgnoreNormalsForChartDetection: 0
   m_ImportantGI: 0
+  m_StitchLightmapSeams: 0
   m_SelectedEditorRenderState: 3
   m_MinimumChartSize: 4
   m_AutoUVMaxDistance: 0.5
@@ -200,6 +204,17 @@ MonoBehaviour:
   Rigidbody: {fileID: 0}
   CameraPointObject: {fileID: 0}
   HandsPointObject: {fileID: 0}
+--- !u!114 &114412742838762590
+MonoBehaviour:
+  m_ObjectHideFlags: 1
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 100100000}
+  m_GameObject: {fileID: 1884725033880392}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5bf10cdea1344482e91a4f2b58506b77, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!136 &136153865187386508
 CapsuleCollider:
   m_ObjectHideFlags: 1

@@ -1,9 +1,22 @@
 ﻿using System.Linq;
 using UnityEngine;
+using Unity.Entities;
 
-public class PlayerSystem
+public class PlayerSystem : ComponentSystem
 {
-    public void OnUpdate()
+    public struct Group
+    {
+        public PlayerComponent PlayerComponent;
+    }
+
+    public static PlayerSystem Instance;
+
+    public PlayerSystem()
+    {
+        Instance = this;
+    }
+
+    protected override void OnUpdate()
     {
         var server = OsFps.Instance.Server;
         if (server != null)
@@ -20,18 +33,10 @@ public class PlayerSystem
 
     private void ServerOnUpdate(Server server)
     {
-        foreach (var playerState in server.CurrentGameState.Players)
+        foreach (var entity in GetEntities<Group>())
         {
-            // respawn
-            if (!playerState.IsAlive)
-            {
-                playerState.RespawnTimeLeft -= Time.deltaTime;
-
-                if (playerState.RespawnTimeLeft <= 0)
-                {
-                    ServerSpawnPlayer(server, playerState);
-                }
-            }
+            var playerState = server.CurrentGameState.Players
+                .FirstOrDefault(g => g.Id == entity.PlayerComponent.Id);
 
             var wasReloadingBeforeUpdate = playerState.IsReloading;
 
@@ -39,7 +44,7 @@ public class PlayerSystem
 
             if (wasReloadingBeforeUpdate && (playerState.ReloadTimeLeft <= 0))
             {
-                server.PlayerFinishReload(playerState);
+                ServerPlayerFinishReload(playerState);
             }
 
             // kill if too low in map
@@ -49,6 +54,7 @@ public class PlayerSystem
             }
         }
     }
+
     public void ServerDamagePlayer(Server server, PlayerState playerState, int damage, PlayerState attackingPlayerState)
     {
         var playerComponent = OsFps.Instance.FindPlayerComponent(playerState.Id);
@@ -80,6 +86,7 @@ public class PlayerSystem
             server.SendMessageToAllClients(server.reliableSequencedChannelId, chatMessage);
         }
     }
+
     public GameObject ServerSpawnPlayer(Server server, PlayerState playerState)
     {
         var spawnPoint = server.GetNextSpawnPoint(playerState);
@@ -113,6 +120,113 @@ public class PlayerSystem
 
         return playerObject;
     }
+
+    public void ServerShoot(Server server, PlayerState shootingPlayerState)
+    {
+        if (!shootingPlayerState.CanShoot) return;
+
+        var playerComponent = OsFps.Instance.FindPlayerComponent(shootingPlayerState.Id);
+        if (playerComponent == null) return;
+
+        var weaponState = shootingPlayerState.CurrentWeapon;
+
+        var shotRay = new Ray(
+                playerComponent.CameraPointObject.transform.position,
+                playerComponent.CameraPointObject.transform.forward
+            );
+        var raycastHits = Physics.RaycastAll(shotRay);
+
+        foreach (var hit in raycastHits)
+        {
+            var hitPlayerObject = hit.collider.gameObject.FindObjectOrAncestorWithTag(OsFps.PlayerTag);
+
+            if ((hitPlayerObject != null) && (hitPlayerObject != playerComponent.gameObject))
+            {
+                var hitPlayerComponent = hitPlayerObject.GetComponent<PlayerComponent>();
+                var hitPlayerState = server.CurrentGameState.Players.Find(ps => ps.Id == hitPlayerComponent.Id);
+
+                ServerDamagePlayer(server, hitPlayerState, weaponState.Definition.DamagePerBullet, shootingPlayerState);
+            }
+
+            if (hit.rigidbody != null)
+            {
+                hit.rigidbody.AddForceAtPosition(5 * shotRay.direction, hit.point, ForceMode.Impulse);
+            }
+        }
+
+        weaponState.BulletsLeftInMagazine--;
+        weaponState.BulletsLeft--;
+
+        weaponState.TimeUntilCanShoot = weaponState.Definition.ShotInterval;
+    }
+    public void ServerPlayerPullTrigger(Server server, PlayerState playerState)
+    {
+        ServerShoot(server, playerState);
+    }
+    public void ServerPlayerStartReload(PlayerState playerState)
+    {
+        if (!playerState.IsAlive) return;
+
+        var weapon = playerState.CurrentWeapon;
+        if (weapon == null) return;
+
+        playerState.ReloadTimeLeft = weapon.Definition.ReloadTime;
+        weapon.TimeUntilCanShoot = 0;
+    }
+    public void ServerPlayerFinishReload(PlayerState playerState)
+    {
+        var weapon = playerState.CurrentWeapon;
+        if (weapon == null) return;
+
+        var bulletsUsedInMagazine = weapon.Definition.BulletsPerMagazine - weapon.BulletsLeftInMagazine;
+        var bulletsToAddToMagazine = (ushort)Mathf.Min(bulletsUsedInMagazine, weapon.BulletsLeftOutOfMagazine);
+        weapon.BulletsLeftInMagazine += bulletsToAddToMagazine;
+    }
+
+    public void ServerOnPlayerCollidingWithWeapon(Server server, GameObject playerObject, GameObject weaponObject)
+    {
+        var playerComponent = playerObject.GetComponent<PlayerComponent>();
+        var playerState = server.CurrentGameState.Players.First(ps => ps.Id == playerComponent.Id);
+        var weaponComponent = weaponObject.GetComponent<WeaponComponent>();
+        var weaponObjectState = server.CurrentGameState.WeaponObjects.First(wos => wos.Id == weaponComponent.Id);
+
+        var playersMatchingWeapon = playerState.Weapons.FirstOrDefault(
+            w => (w != null) && (w.Type == weaponComponent.Type)
+        );
+
+        if (playersMatchingWeapon != null)
+        {
+            var numBulletsPickedUp = WeaponSystem.Instance.ServerAddBullets(playersMatchingWeapon, weaponObjectState.BulletsLeft);
+            WeaponSystem.Instance.ServerRemoveBullets(weaponObjectState, numBulletsPickedUp);
+
+            if (weaponObjectState.BulletsLeft == 0)
+            {
+                var weaponObjectId = weaponComponent.Id;
+                Object.Destroy(weaponObject);
+                server.CurrentGameState.WeaponObjects.RemoveAll(wos => wos.Id == weaponObjectId);
+            }
+        }
+        else if (playerState.HasEmptyWeapon)
+        {
+            var emptyWeaponIndex = System.Array.FindIndex(playerState.Weapons, w => w == null);
+            playerState.Weapons[emptyWeaponIndex] = new WeaponState
+            {
+                Type = weaponObjectState.Type,
+                BulletsLeft = weaponObjectState.BulletsLeft,
+                BulletsLeftInMagazine = weaponObjectState.BulletsLeftInMagazine
+            };
+
+            var weaponObjectId = weaponComponent.Id;
+            Object.Destroy(weaponObject);
+            server.CurrentGameState.WeaponObjects.RemoveAll(wos => wos.Id == weaponObjectId);
+        }
+    }
+    public void ServerOnPlayerCollidingWithGrenade(GameObject playerObject, GameObject weaponObject)
+    {
+        Debug.Log("TODO: Implement OnPlayerCollidingWithGrenade");
+        // ONLY PICK UP IF NOT ACTIVE
+    }
+
     private string GetKillMessage(PlayerState killedPlayerState, PlayerState attackerPlayerState)
     {
         return (attackerPlayerState != null)

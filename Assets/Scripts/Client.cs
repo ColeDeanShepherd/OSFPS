@@ -15,8 +15,6 @@ public class Client
 
     public event ClientPeer.ServerConnectionChangeEventHandler OnDisconnectedFromServer;
 
-    public PlayerSystem playerSystem = new PlayerSystem();
-
     public void Start(bool isServerRemote)
     {
         CurrentGameState = new GameState();
@@ -75,8 +73,6 @@ public class Client
 
         if (ClientPeer.IsConnectedToServer)
         {
-            playerSystem.OnUpdate();
-
             SendInputPeriodicFunction.TryToCall();
         }
 
