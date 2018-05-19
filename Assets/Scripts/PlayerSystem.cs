@@ -46,12 +46,6 @@ public class PlayerSystem : ComponentSystem
             {
                 ServerPlayerFinishReload(playerState);
             }
-
-            // kill if too low in map
-            if (playerState.Position.y <= OsFps.KillPlaneY)
-            {
-                ServerDamagePlayer(server, playerState, 9999, null);
-            }
         }
     }
 
