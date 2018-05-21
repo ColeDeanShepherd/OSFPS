@@ -8,4 +8,12 @@
     public float ShotInterval;
     public bool IsAutomatic;
     public float SpawnInterval;
+
+    public ushort MaxAmmoOutOfMagazine
+    {
+        get
+        {
+            return (ushort)(MaxAmmo - BulletsPerMagazine);
+        }
+    }
 }

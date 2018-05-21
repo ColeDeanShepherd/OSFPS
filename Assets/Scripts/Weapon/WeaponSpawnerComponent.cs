@@ -2,6 +2,6 @@
 
 public class WeaponSpawnerComponent : MonoBehaviour
 {
-    public uint Id;
     public WeaponType WeaponType;
+    public WeaponSpawnerState State;
 }

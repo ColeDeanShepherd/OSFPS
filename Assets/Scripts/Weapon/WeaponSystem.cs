@@ -35,16 +35,14 @@ public class WeaponSystem : ComponentSystem
     }
 
 
-    public int ServerAddBullets(WeaponState weaponState, int numBulletsToTryToAdd)
+    public int ServerAddBullets(WeaponObjectState weaponState, int numBulletsToTryToAdd)
     {
         var numBulletsCanAdd = weaponState.Definition.MaxAmmo - weaponState.BulletsLeft;
         var bulletsToPickUp = Mathf.Min(numBulletsToTryToAdd, numBulletsCanAdd);
-
-        weaponState.BulletsLeft += (ushort)bulletsToPickUp;
-        weaponState.BulletsLeftInMagazine = (ushort)Mathf.Min(
-            weaponState.BulletsLeftInMagazine + bulletsToPickUp,
-            weaponState.Definition.BulletsPerMagazine
-        );
+        var bulletsToAddInMagazine = Mathf.Min(bulletsToPickUp, weaponState.BulletsLeftInMagazine);
+        
+        weaponState.BulletsLeftInMagazine += (ushort)bulletsToAddInMagazine;
+        weaponState.BulletsLeftOutOfMagazine += (ushort)(bulletsToPickUp - bulletsToAddInMagazine);
 
         return bulletsToPickUp;
     }

@@ -2,7 +2,7 @@
 
 public class WeaponComponent : MonoBehaviour
 {
-    public uint Id;
+    public WeaponObjectState State;
     public WeaponType Type;
     public ushort BulletsLeftInMagazine;
     public ushort BulletsLeftOutOfMagazine;
