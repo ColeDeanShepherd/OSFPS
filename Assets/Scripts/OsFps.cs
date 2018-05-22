@@ -512,42 +512,37 @@ public class OsFps : MonoBehaviour
         }
     }
 
-    public void CallRpcOnServer(string name, int channelId, params object[] arguments)
+    public void CallRpcOnServer(string name, int channelId, object argumentsObj)
     {
         var rpcId = rpcIdByName[name];
         var rpcInfo = rpcInfoById[rpcId];
 
         Debug.Assert(rpcInfo.ExecuteOn == NetworkPeerType.Server);
-        Debug.Assert(arguments.Length == rpcInfo.ParameterTypes.Length);
 
-        var messageBytes = NetworkSerializationUtils.SerializeRpcCall(rpcInfo, arguments);
-
+        var messageBytes = NetworkSerializationUtils.SerializeRpcCall(rpcInfo, argumentsObj);
         Client.ClientPeer.SendMessageToServer(channelId, messageBytes);
     }
-    public void CallRpcOnAllClients(string name, int channelId, params object[] arguments)
+    public void CallRpcOnAllClients(string name, int channelId, object argumentsObj)
     {
         var rpcId = rpcIdByName[name];
         var rpcInfo = rpcInfoById[rpcId];
 
         Debug.Assert(rpcInfo.ExecuteOn == NetworkPeerType.Server);
-        Debug.Assert(arguments.Length == rpcInfo.ParameterTypes.Length);
 
-        var messageBytes = NetworkSerializationUtils.SerializeRpcCall(rpcInfo, arguments);
-
+        var messageBytes = NetworkSerializationUtils.SerializeRpcCall(rpcInfo, argumentsObj);
         Server.SendMessageToAllClients(channelId, messageBytes);
     }
-    public void CallRpcOnClient(string name, int clientConnectionId, int channelId, params object[] arguments)
+    public void CallRpcOnClient(string name, int clientConnectionId, int channelId, object argumentsObj)
     {
         var rpcId = rpcIdByName[name];
         var rpcInfo = rpcInfoById[rpcId];
 
         Debug.Assert(rpcInfo.ExecuteOn == NetworkPeerType.Server);
-        Debug.Assert(arguments.Length == rpcInfo.ParameterTypes.Length);
 
-        var messageBytes = NetworkSerializationUtils.SerializeRpcCall(rpcInfo, arguments);
-
+        var messageBytes = NetworkSerializationUtils.SerializeRpcCall(rpcInfo, argumentsObj);
         Server.SendMessageToClient(clientConnectionId, channelId, messageBytes);
     }
+
     public void ExecuteRpc(byte id, params object[] arguments)
     {
         var rpcInfo = rpcInfoById[id];
@@ -570,6 +565,7 @@ public class OsFps : MonoBehaviour
             {
                 var rpcAttribute = (RpcAttribute)methodInfo.GetCustomAttributes(typeof(RpcAttribute), inherit: false)
                     .FirstOrDefault();
+                var parameterInfos = methodInfo.GetParameters();
 
                 if (rpcAttribute != null)
                 {
@@ -579,7 +575,10 @@ public class OsFps : MonoBehaviour
                         Name = methodInfo.Name,
                         ExecuteOn = rpcAttribute.ExecuteOn,
                         MethodInfo = methodInfo,
-                        ParameterTypes = methodInfo.GetParameters()
+                        ParameterNames = parameterInfos
+                            .Select(parameterInfo => parameterInfo.Name)
+                            .ToArray(),
+                        ParameterTypes = parameterInfos
                             .Select(parameterInfo => parameterInfo.ParameterType)
                             .ToArray()
                     };

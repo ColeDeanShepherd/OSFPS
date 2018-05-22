@@ -332,7 +332,10 @@ public class Client
     }
     public void Reload(PlayerObjectState playerState)
     {
-        OsFps.Instance.CallRpcOnServer("ServerOnPlayerReloadPressed", reliableChannelId, playerState.Id);
+        OsFps.Instance.CallRpcOnServer("ServerOnPlayerReloadPressed", reliableChannelId, new
+        {
+            playerId = playerState.Id
+        });
     }
 
     public void ShowMuzzleFlash(PlayerObjectComponent playerObjectComponent)

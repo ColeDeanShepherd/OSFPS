@@ -17,6 +17,25 @@ public static class NetworkSerializationUtils
         return memoryStream.ToArray();
     }
 
+    public static byte[] SerializeRpcCall(RpcInfo rpcInfo, object argumentsObj)
+    {
+        var argumentsType = argumentsObj.GetType();
+        var argumentProperties = argumentsType.GetProperties();
+
+        Debug.Assert(argumentProperties.Length == rpcInfo.ParameterTypes.Length);
+
+        var arguments = rpcInfo.ParameterTypes
+            .Select((parameterType, parameterIndex) =>
+            {
+                var argumentProperty = argumentProperties.First(argField =>
+                    argField.Name == rpcInfo.ParameterNames[parameterIndex]
+                );
+                return argumentProperty.GetValue(argumentsObj);
+            })
+            .ToArray();
+
+        return SerializeRpcCall(rpcInfo, arguments);
+    }
     public static byte[] SerializeRpcCall(RpcInfo rpcInfo, params object[] rpcArguments)
     {
         Debug.Assert(rpcArguments.Length == rpcInfo.ParameterTypes.Length);
