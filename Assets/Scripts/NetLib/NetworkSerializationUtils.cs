@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using UnityEngine;
 
 public static class NetworkSerializationUtils
@@ -14,6 +15,164 @@ public static class NetworkSerializationUtils
         networkMessage.Serialize(binaryWriter);
 
         return memoryStream.ToArray();
+    }
+
+    public static byte[] SerializeRpcCall(RpcInfo rpcInfo, params object[] rpcArguments)
+    {
+        Debug.Assert(rpcArguments.Length == rpcInfo.ParameterTypes.Length);
+
+        var memoryStream = new MemoryStream();
+        var binaryWriter = new BinaryWriter(memoryStream);
+
+        binaryWriter.Write(rpcInfo.Id);
+
+        for (var i = 0; i < rpcArguments.Length; i++)
+        {
+            var argument = rpcArguments[i];
+            var argumentType = argument.GetType();
+            var parameterType = rpcInfo.ParameterTypes[i];
+
+            Debug.Assert(argumentType.IsEquivalentTo(parameterType));
+
+            Serialize(binaryWriter, argument);
+        }
+
+        return memoryStream.ToArray();
+    }
+    public static object[] DeserializeRpcCallArguments(RpcInfo rpcInfo, BinaryReader reader)
+    {
+        return rpcInfo.ParameterTypes
+            .Select(parameterType => Deserialize(reader, parameterType))
+            .ToArray();
+    }
+
+    public static void Serialize(BinaryWriter writer, object obj)
+    {
+        if (obj is bool)
+        {
+            writer.Write((bool)obj);
+        }
+        else if (obj is sbyte)
+        {
+            writer.Write((sbyte)obj);
+        }
+        else if (obj is byte)
+        {
+            writer.Write((byte)obj);
+        }
+        else if (obj is ushort)
+        {
+            writer.Write((ushort)obj);
+        }
+        else if (obj is short)
+        {
+            writer.Write((short)obj);
+        }
+        else if (obj is uint)
+        {
+            writer.Write((uint)obj);
+        }
+        else if (obj is int)
+        {
+            writer.Write((int)obj);
+        }
+        else if (obj is ulong)
+        {
+            writer.Write((ulong)obj);
+        }
+        else if (obj is long)
+        {
+            writer.Write((long)obj);
+        }
+        else if (obj is float)
+        {
+            writer.Write((float)obj);
+        }
+        else if (obj is double)
+        {
+            writer.Write((double)obj);
+        }
+        else if (obj is decimal)
+        {
+            writer.Write((decimal)obj);
+        }
+        else if (obj is char)
+        {
+            writer.Write((char)obj);
+        }
+        else if (obj is string)
+        {
+            writer.Write((string)obj);
+        }
+        else
+        {
+            var objType = obj.GetType();
+
+            throw new NotImplementedException($"Cannot serialize type: {objType.AssemblyQualifiedName}");
+        }
+    }
+    public static object Deserialize(BinaryReader reader, Type type)
+    {
+        if (type == typeof(bool))
+        {
+            return reader.ReadBoolean();
+        }
+        else if (type == typeof(sbyte))
+        {
+            return reader.ReadSByte();
+        }
+        else if (type == typeof(byte))
+        {
+            return reader.ReadByte();
+        }
+        else if (type == typeof(ushort))
+        {
+            return reader.ReadUInt16();
+        }
+        else if (type == typeof(short))
+        {
+            return reader.ReadInt16();
+        }
+        else if (type == typeof(uint))
+        {
+            return reader.ReadUInt32();
+        }
+        else if (type == typeof(int))
+        {
+            return reader.ReadInt32();
+        }
+        else if (type == typeof(ulong))
+        {
+            return reader.ReadUInt64();
+        }
+        else if (type == typeof(long))
+        {
+            return reader.ReadInt64();
+        }
+        else if (type == typeof(float))
+        {
+            return reader.ReadSingle();
+        }
+        else if (type == typeof(double))
+        {
+            return reader.ReadDouble();
+        }
+        else if (type == typeof(decimal))
+        {
+            return reader.ReadDecimal();
+        }
+        else if (type == typeof(char))
+        {
+            return reader.ReadChar();
+        }
+        else if (type == typeof(string))
+        {
+            return reader.ReadString();
+        }
+        else
+        {
+            throw new NotImplementedException($"Cannot deserialize type: {type.AssemblyQualifiedName}");
+        }
     }
 
     public static void Serialize(BinaryWriter writer, Vector2 v)

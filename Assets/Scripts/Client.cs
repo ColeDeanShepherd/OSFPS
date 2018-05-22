@@ -287,9 +287,9 @@ public class Client
     }
     #endregion
 
-    private int reliableSequencedChannelId;
-    private int reliableChannelId;
-    private int unreliableStateUpdateChannelId;
+    public int reliableSequencedChannelId;
+    public int reliableChannelId;
+    public int unreliableStateUpdateChannelId;
     private ThrottledAction SendInputPeriodicFunction;
 
     public bool _isShowingChatMessageInput;
@@ -332,10 +332,7 @@ public class Client
     }
     public void Reload(PlayerObjectState playerState)
     {
-        var message = new ReloadPressedMessage { PlayerId = playerState.Id };
-        ClientPeer.SendMessageToServer(
-            reliableChannelId, NetworkSerializationUtils.SerializeWithType(message)
-        );
+        OsFps.Instance.CallRpcOnServer("ServerOnPlayerReloadPressed", reliableChannelId, playerState.Id);
     }
 
     public void ShowMuzzleFlash(PlayerObjectComponent playerObjectComponent)

@@ -97,10 +97,13 @@ public class Server
 
     public void SendMessageToAllClients(int channelId, INetworkMessage message)
     {
-        var serializedMessage = NetworkSerializationUtils.SerializeWithType(message);
+        SendMessageToAllClients(channelId, NetworkSerializationUtils.SerializeWithType(message));
+    }
+    public void SendMessageToAllClients(int channelId, byte[] serializedMessage)
+    {
         var connectionIds = playerIdsByConnectionId.Keys.Select(x => x).ToList();
 
-        foreach(var connectionId in connectionIds)
+        foreach (var connectionId in connectionIds)
         {
             SendMessageToClientHandleErrors(connectionId, channelId, serializedMessage);
         }
@@ -108,6 +111,10 @@ public class Server
     public void SendMessageToClient(int connectionId, int channelId, INetworkMessage message)
     {
         var serializedMessage = NetworkSerializationUtils.SerializeWithType(message);
+        SendMessageToClient(connectionId, channelId, serializedMessage);
+    }
+    public void SendMessageToClient(int connectionId, int channelId, byte[] serializedMessage)
+    {
         SendMessageToClientHandleErrors(connectionId, channelId, serializedMessage);
     }
     
@@ -186,48 +193,54 @@ public class Server
     private void OnReceiveDataFromClient(int connectionId, int channelId, byte[] bytesReceived)
     {
         var reader = new BinaryReader(new MemoryStream(bytesReceived));
-        var messageType = (NetworkMessageType)reader.ReadByte();
+        var messageTypeAsByte = reader.ReadByte();
 
-        switch (messageType)
+        RpcInfo rpcInfo;
+        
+        if (OsFps.Instance.rpcInfoById.TryGetValue(messageTypeAsByte, out rpcInfo))
         {
-            case NetworkMessageType.PlayerInput:
-                var playerInputMessage = new PlayerInputMessage();
-                playerInputMessage.Deserialize(reader);
+            var rpcArguments = NetworkSerializationUtils.DeserializeRpcCallArguments(rpcInfo, reader);
+            OsFps.Instance.ExecuteRpc(rpcInfo.Id, rpcArguments);
+        }
+        else
+        {
+            var messageType = (NetworkMessageType)messageTypeAsByte;
 
-                HandlePlayerInputMessage(playerInputMessage);
-                break;
-            case NetworkMessageType.TriggerPulled:
-                var triggerPulledMessage = new TriggerPulledMessage();
-                triggerPulledMessage.Deserialize(reader);
+            switch (messageType)
+            {
+                case NetworkMessageType.PlayerInput:
+                    var playerInputMessage = new PlayerInputMessage();
+                    playerInputMessage.Deserialize(reader);
 
-                HandleTriggerPulledMessage(triggerPulledMessage);
-                break;
-            case NetworkMessageType.ReloadPressed:
-                var reloadPressedMessage = new ReloadPressedMessage();
-                reloadPressedMessage.Deserialize(reader);
+                    HandlePlayerInputMessage(playerInputMessage);
+                    break;
+                case NetworkMessageType.TriggerPulled:
+                    var triggerPulledMessage = new TriggerPulledMessage();
+                    triggerPulledMessage.Deserialize(reader);
 
-                HandleReloadPressedMessage(reloadPressedMessage);
-                break;
-            case NetworkMessageType.ThrowGrenade:
-                var throwGrenadeMessage = new ThrowGrenadeMessage();
-                throwGrenadeMessage.Deserialize(reader);
+                    HandleTriggerPulledMessage(triggerPulledMessage);
+                    break;
+                case NetworkMessageType.ThrowGrenade:
+                    var throwGrenadeMessage = new ThrowGrenadeMessage();
+                    throwGrenadeMessage.Deserialize(reader);
 
-                HandleThrowGrenadeMessage(throwGrenadeMessage);
-                break;
-            case NetworkMessageType.Chat:
-                var chatMessage = new ChatMessage();
-                chatMessage.Deserialize(reader);
+                    HandleThrowGrenadeMessage(throwGrenadeMessage);
+                    break;
+                case NetworkMessageType.Chat:
+                    var chatMessage = new ChatMessage();
+                    chatMessage.Deserialize(reader);
 
-                HandleChatMessage(chatMessage);
-                break;
-            case NetworkMessageType.ChangeWeapon:
-                var changeWeaponMessage = new ChangeWeaponMessage();
-                changeWeaponMessage.Deserialize(reader);
+                    HandleChatMessage(chatMessage);
+                    break;
+                case NetworkMessageType.ChangeWeapon:
+                    var changeWeaponMessage = new ChangeWeaponMessage();
+                    changeWeaponMessage.Deserialize(reader);
 
-                HandleChangeWeaponMessage(changeWeaponMessage);
-                break;
-            default:
-                throw new System.NotImplementedException("Unknown message type: " + messageType);
+                    HandleChangeWeaponMessage(changeWeaponMessage);
+                    break;
+                default:
+                    throw new System.NotImplementedException("Unknown message type: " + messageType);
+            }
         }
     }
     private void HandlePlayerInputMessage(PlayerInputMessage message)
@@ -248,18 +261,7 @@ public class Server
 
         SendMessageToAllClients(reliableSequencedChannelId, message);
     }
-    private void HandleReloadPressedMessage(ReloadPressedMessage message)
-    {
-        // TODO: Make sure the player ID is correct.
-        var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(message.PlayerId);
-
-        if (playerObjectComponent.State.CanReload)
-        {
-            PlayerSystem.Instance.ServerPlayerStartReload(playerObjectComponent);
-        }
-
-        // TODO: Send to all other players???
-    }
+    
     private void HandleThrowGrenadeMessage(ThrowGrenadeMessage message)
     {
         // TODO: Make sure the player ID is correct.

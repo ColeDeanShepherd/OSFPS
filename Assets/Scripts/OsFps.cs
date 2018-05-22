@@ -1,4 +1,5 @@
-﻿using System.Linq;
+﻿using System.Collections.Generic;
+using System.Linq;
 using Unity.Entities;
 using UnityEngine;
 using UnityEngine.Networking;
@@ -386,6 +387,20 @@ public class OsFps : MonoBehaviour
         playerComponent.CameraPointObject.transform.localEulerAngles = new Vector3(LookDirAngles.x, 0, 0);
     }
 
+    [Rpc(ExecuteOn = NetworkPeerType.Server)]
+    public void ServerOnPlayerReloadPressed(uint playerId)
+    {
+        // TODO: Make sure the player ID is correct.
+        var playerObjectComponent = FindPlayerObjectComponent(playerId);
+
+        if (playerObjectComponent.State.CanReload)
+        {
+            PlayerSystem.Instance.ServerPlayerStartReload(playerObjectComponent);
+        }
+
+        // TODO: Send to all other players???
+    }
+
     // probably too much boilerplate here
     public void OnPlayerCollidingWithWeapon(GameObject playerObject, GameObject weaponObject)
     {
@@ -429,6 +444,8 @@ public class OsFps : MonoBehaviour
         DontDestroyOnLoad(guiContainer);
 
         CanvasObject = guiContainer.FindDescendant("Canvas");
+
+        SetupRpcs();
     }
     private void Start()
     {
@@ -495,6 +512,84 @@ public class OsFps : MonoBehaviour
         }
     }
 
+    public void CallRpcOnServer(string name, int channelId, params object[] arguments)
+    {
+        var rpcId = rpcIdByName[name];
+        var rpcInfo = rpcInfoById[rpcId];
+
+        Debug.Assert(rpcInfo.ExecuteOn == NetworkPeerType.Server);
+        Debug.Assert(arguments.Length == rpcInfo.ParameterTypes.Length);
+
+        var messageBytes = NetworkSerializationUtils.SerializeRpcCall(rpcInfo, arguments);
+
+        Client.ClientPeer.SendMessageToServer(channelId, messageBytes);
+    }
+    public void CallRpcOnAllClients(string name, int channelId, params object[] arguments)
+    {
+        var rpcId = rpcIdByName[name];
+        var rpcInfo = rpcInfoById[rpcId];
+
+        Debug.Assert(rpcInfo.ExecuteOn == NetworkPeerType.Server);
+        Debug.Assert(arguments.Length == rpcInfo.ParameterTypes.Length);
+
+        var messageBytes = NetworkSerializationUtils.SerializeRpcCall(rpcInfo, arguments);
+
+        Server.SendMessageToAllClients(channelId, messageBytes);
+    }
+    public void CallRpcOnClient(string name, int clientConnectionId, int channelId, params object[] arguments)
+    {
+        var rpcId = rpcIdByName[name];
+        var rpcInfo = rpcInfoById[rpcId];
+
+        Debug.Assert(rpcInfo.ExecuteOn == NetworkPeerType.Server);
+        Debug.Assert(arguments.Length == rpcInfo.ParameterTypes.Length);
+
+        var messageBytes = NetworkSerializationUtils.SerializeRpcCall(rpcInfo, arguments);
+
+        Server.SendMessageToClient(clientConnectionId, channelId, messageBytes);
+    }
+    public void ExecuteRpc(byte id, params object[] arguments)
+    {
+        var rpcInfo = rpcInfoById[id];
+        rpcInfo.MethodInfo.Invoke(this, arguments);
+        Debug.Log("Executed an RPC!!!");
+    }
+
+    public Dictionary<string, byte> rpcIdByName;
+    public Dictionary<byte, RpcInfo> rpcInfoById;
+    private void SetupRpcs()
+    {
+        rpcIdByName = new Dictionary<string, byte>();
+        rpcInfoById = new Dictionary<byte, RpcInfo>();
+
+        var assembly = System.Reflection.Assembly.GetExecutingAssembly();
+
+        foreach (var type in assembly.GetTypes())
+        {
+            foreach (var methodInfo in type.GetMethods())
+            {
+                var rpcAttribute = (RpcAttribute)methodInfo.GetCustomAttributes(typeof(RpcAttribute), inherit: false)
+                    .FirstOrDefault();
+
+                if (rpcAttribute != null)
+                {
+                    var rpcInfo = new RpcInfo
+                    {
+                        Id = (byte)(1 + rpcInfoById.Count),
+                        Name = methodInfo.Name,
+                        ExecuteOn = rpcAttribute.ExecuteOn,
+                        MethodInfo = methodInfo,
+                        ParameterTypes = methodInfo.GetParameters()
+                            .Select(parameterInfo => parameterInfo.ParameterType)
+                            .ToArray()
+                    };
+
+                    rpcIdByName.Add(rpcInfo.Name, rpcInfo.Id);
+                    rpcInfoById.Add(rpcInfo.Id, rpcInfo);
+                }
+            }
+        }
+    }
     private void ShutdownNetworkPeers()
     {
         if (Client != null)

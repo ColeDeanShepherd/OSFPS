@@ -1,11 +1,10 @@
 ﻿public enum NetworkMessageType : byte
 {
-    SetPlayerId,
+    SetPlayerId = 100,
     GameState,
     SpawnPlayer,
     PlayerInput,
     TriggerPulled,
-    ReloadPressed,
     ThrowGrenade,
     DetonateGrenade,
     Chat,
