@@ -92,7 +92,7 @@ public class PlayerObjectState : INetworkSerializable
         NetworkSerializationUtils.Serialize(writer, Position);
         NetworkSerializationUtils.Serialize(writer, Velocity);
         NetworkSerializationUtils.Serialize(writer, LookDirAngles);
-        Input.Serialize(writer);
+        NetworkSerializationUtils.Serialize(writer, Input);
         writer.Write(Health);
 
         for (var i = 0; i < OsFps.MaxWeaponCount; i++)
@@ -116,7 +116,7 @@ public class PlayerObjectState : INetworkSerializable
         NetworkSerializationUtils.Deserialize(reader, ref Position);
         NetworkSerializationUtils.Deserialize(reader, ref Velocity);
         NetworkSerializationUtils.Deserialize(reader, ref LookDirAngles);
-        Input.Deserialize(reader);
+        Input = (PlayerInput)NetworkSerializationUtils.Deserialize(reader, typeof(PlayerInput));
         Health = reader.ReadInt32();
 
         for (var i = 0; i < OsFps.MaxWeaponCount; i++)

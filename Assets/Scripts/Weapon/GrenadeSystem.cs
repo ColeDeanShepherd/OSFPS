@@ -102,13 +102,12 @@ public class GrenadeSystem : ComponentSystem
         Object.Destroy(grenadeComponent.gameObject);
 
         // send message
-        var message = new DetonateGrenadeMessage
+        OsFps.Instance.CallRpcOnAllClients("ClientOnDetonateGrenade", server.reliableChannelId, new
         {
-            Id = grenade.Id,
-            Position = grenadePosition,
-            Type = grenade.Type
-        };
-        server.SendMessageToAllClients(server.reliableChannelId, message);
+            id = grenade.Id,
+            position = grenadePosition,
+            type = grenade.Type
+        });
     }
 
     public void ServerPlayerThrowGrenade(Server server, PlayerObjectComponent playerObjectComponent)

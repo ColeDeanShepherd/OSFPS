@@ -295,7 +295,7 @@ public class Client
     public bool _isShowingChatMessageInput;
     public bool _justOpenedChatMessageInput;
     private string _chatMessageBeingTyped;
-    private List<string> _chatMessages = new List<string>();
+    public List<string> _chatMessages = new List<string>();
 
     public bool _isShowingMenu;
     
@@ -380,7 +380,7 @@ public class Client
         playerState.TimeUntilCanThrowGrenade = OsFps.GrenadeThrowInterval;
     }
 
-    private void SwitchWeapons(PlayerObjectComponent playerObjectComponent, int weaponIndex)
+    public void SwitchWeapons(PlayerObjectComponent playerObjectComponent, int weaponIndex)
     {
         var playerObjectState = playerObjectComponent.State;
 
@@ -547,7 +547,7 @@ public class Client
         newRigidBodyState.AngularVelocity = correctedAngularVelocity;
     }
 
-    private void ApplyGameState(GameState newGameState)
+    public void ApplyGameState(GameState newGameState)
     {
         if (!PlayerId.HasValue) return; // Wait until the player ID has been set.
 
@@ -792,112 +792,19 @@ public class Client
     private void OnReceiveDataFromServer(int channelId, byte[] bytesReceived)
     {
         var reader = new BinaryReader(new MemoryStream(bytesReceived));
-        var messageType = (NetworkMessageType)reader.ReadByte();
+        var messageTypeAsByte = reader.ReadByte();
 
-        switch(messageType)
+        RpcInfo rpcInfo;
+
+        if (OsFps.Instance.rpcInfoById.TryGetValue(messageTypeAsByte, out rpcInfo))
         {
-            case NetworkMessageType.SetPlayerId:
-                var setPlayerIdMessage = new SetPlayerIdMessage();
-                setPlayerIdMessage.Deserialize(reader);
-
-                HandleSetPlayerIdMessage(setPlayerIdMessage);
-                break;
-            case NetworkMessageType.GameState:
-                var gameStateMessage = new GameStateMessage();
-                gameStateMessage.Deserialize(reader);
-
-                HandleGameStateMessage(gameStateMessage);
-                return;
-            case NetworkMessageType.TriggerPulled:
-                var triggerPulledMessage = new TriggerPulledMessage();
-                triggerPulledMessage.Deserialize(reader);
-
-                HandleTriggerPulledMessage(triggerPulledMessage);
-                break;
-            case NetworkMessageType.DetonateGrenade:
-                var detonateGrenadeMessage = new DetonateGrenadeMessage();
-                detonateGrenadeMessage.Deserialize(reader);
-
-                HandleDetonateGrenadeMessage(detonateGrenadeMessage);
-                break;
-            case NetworkMessageType.Chat:
-                var chatMessage = new ChatMessage();
-                chatMessage.Deserialize(reader);
-
-                HandleChatMessage(chatMessage);
-                break;
-            case NetworkMessageType.ChangeWeapon:
-                var changeWeaponMessage = new ChangeWeaponMessage();
-                changeWeaponMessage.Deserialize(reader);
-
-                HandleChangeWeaponMessage(changeWeaponMessage);
-                break;
-            default:
-                throw new System.NotImplementedException("Unknown message type: " + messageType);
-        }
-    }
-    private void HandleSetPlayerIdMessage(SetPlayerIdMessage message)
-    {
-        Debug.Log($"Received {message.GetType().Name}.");
-
-        PlayerId = message.PlayerId;
-
-        /*CurrentGameState.Players.Add(new PlayerState
-        {
-            Id = message.PlayerId
-        });*/
-    }
-    private void HandleGameStateMessage(GameStateMessage message)
-    {
-        Debug.Log($"Received {message.GetType().Name}.");
-
-        ApplyGameState(message.GameState);
-    }
-    private void HandleTriggerPulledMessage(TriggerPulledMessage message)
-    {
-        Debug.Log($"Received {message.GetType().Name}.");
-
-        // Don't anything if we pulled the trigger.
-        if (message.PlayerId == PlayerId)
-        {
-            return;
-        }
-
-        var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(message.PlayerId);
-        ShowMuzzleFlash(playerObjectComponent);
-    }
-    private void HandleDetonateGrenadeMessage(DetonateGrenadeMessage message)
-    {
-        Debug.Log($"Received {message.GetType().Name}.");
-
-        ShowGrenadeExplosion(message.Position, message.Type);
-    }
-    private void HandleChatMessage(ChatMessage message)
-    {
-        Debug.Log($"Received {message.GetType().Name}.");
-
-        if (message.PlayerId.HasValue)
-        {
-            _chatMessages.Add(string.Format("{0}: {1}", message.PlayerId, message.Message));
+            var rpcArguments = NetworkSerializationUtils.DeserializeRpcCallArguments(rpcInfo, reader);
+            OsFps.Instance.ExecuteRpc(rpcInfo.Id, rpcArguments);
         }
         else
         {
-            _chatMessages.Add(message.Message);
+            throw new System.NotImplementedException("Unknown message type: " + messageTypeAsByte);
         }
-    }
-    private void HandleChangeWeaponMessage(ChangeWeaponMessage message)
-    {
-        Debug.Log($"Received {message.GetType().Name}.");
-
-        if (message.PlayerId == PlayerId)
-        {
-            return;
-        }
-
-        var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(message.PlayerId);
-        if (playerObjectComponent == null) return;
-
-        SwitchWeapons(playerObjectComponent, message.WeaponIndex);
     }
     #endregion
 

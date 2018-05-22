@@ -6,17 +6,6 @@ using UnityEngine;
 
 public static class NetworkSerializationUtils
 {
-    public static byte[] SerializeWithType(INetworkMessage networkMessage)
-    {
-        var memoryStream = new MemoryStream();
-        var binaryWriter = new BinaryWriter(memoryStream);
-
-        binaryWriter.Write((byte)networkMessage.GetMessageType());
-        networkMessage.Serialize(binaryWriter);
-
-        return memoryStream.ToArray();
-    }
-
     public static byte[] SerializeRpcCall(RpcInfo rpcInfo, object argumentsObj)
     {
         var argumentsType = argumentsObj.GetType();
@@ -65,6 +54,25 @@ public static class NetworkSerializationUtils
             .ToArray();
     }
 
+    public static Type GetSmallestIntTypeToHoldEnumValues(Type enumType)
+    {
+        Debug.Assert(enumType.IsEnum);
+
+        var numEnumValues = enumType.GetEnumValues().Length;
+
+        if (numEnumValues <= byte.MaxValue)
+        {
+            return typeof(byte);
+        }
+        else if (numEnumValues <= ushort.MaxValue)
+        {
+            return typeof(ushort);
+        }
+        else
+        {
+            return typeof(uint);
+        }
+    }
     public static void Serialize(BinaryWriter writer, object obj)
     {
         if (obj is bool)
@@ -131,20 +139,38 @@ public static class NetworkSerializationUtils
         {
             Serialize(writer, (Vector3)obj);
         }
+        else if (typeof(INetworkSerializable).IsAssignableFrom(obj.GetType()))
+        {
+            ((INetworkSerializable)obj).Serialize(writer);
+        }
         else
         {
             var objType = obj.GetType();
 
-            var objFields = objType.GetFields();
-            foreach (var objField in objFields)
+            if (objType.IsEnum)
             {
-                Serialize(writer, objField.GetValue(obj));
+                var smallestTypeToHoldEnumValues = GetSmallestIntTypeToHoldEnumValues(objType);
+                Serialize(writer, Convert.ChangeType(obj, smallestTypeToHoldEnumValues));
             }
-
-            var objProperties = objType.GetProperties();
-            foreach (var objProperty in objProperties)
+            else if (objType.IsClass || objType.IsValueType)
             {
-                Serialize(writer, objProperty.GetValue(obj));
+                Debug.Log($"Serializing type: {objType.AssemblyQualifiedName}");
+
+                var objFields = objType.GetFields();
+                foreach (var objField in objFields)
+                {
+                    Serialize(writer, objField.GetValue(obj));
+                }
+
+                var objProperties = objType.GetProperties();
+                foreach (var objProperty in objProperties)
+                {
+                    Serialize(writer, objProperty.GetValue(obj));
+                }
+            }
+            else
+            {
+                throw new NotImplementedException($"Cannot serialize type: {objType.AssemblyQualifiedName}");
             }
         }
     }
@@ -220,24 +246,46 @@ public static class NetworkSerializationUtils
 
             return result;
         }
-        else
+        else if (typeof(INetworkSerializable).IsAssignableFrom(type))
         {
             var result = Activator.CreateInstance(type);
-
-            var objFields = type.GetFields();
-            foreach (var field in objFields)
-            {
-                field.SetValue(result, Deserialize(reader, field.FieldType));
-            }
-
-            var objProperties = type.GetProperties();
-            foreach (var property in objProperties)
-            {
-                property.SetValue(result, Deserialize(reader, property.PropertyType));
-            }
-
+            ((INetworkSerializable)result).Deserialize(reader);
 
             return result;
+        }
+        else
+        {
+            if (type.IsClass || type.IsValueType)
+            {
+                Debug.Log($"Deserializing type: {type.AssemblyQualifiedName}");
+
+                var result = Activator.CreateInstance(type);
+
+                var objFields = type.GetFields();
+                foreach (var field in objFields)
+                {
+                    field.SetValue(result, Deserialize(reader, field.FieldType));
+                }
+
+                var objProperties = type.GetProperties();
+                foreach (var property in objProperties)
+                {
+                    property.SetValue(result, Deserialize(reader, property.PropertyType));
+                }
+
+                return result;
+            }
+            else if (type.IsEnum)
+            {
+                var smallestTypeToHoldEnumValues = GetSmallestIntTypeToHoldEnumValues(type);
+                var enumValueAsInt = Deserialize(reader, smallestTypeToHoldEnumValues);
+
+                return Convert.ChangeType(enumValueAsInt, type);
+            }
+            else
+            {
+                throw new NotImplementedException($"Cannot deserialize type: {type.AssemblyQualifiedName}");
+            }
         }
     }
 

@@ -407,12 +407,11 @@ public class OsFps : MonoBehaviour
         // TODO: Make sure the player ID is correct.
         var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(playerId);
         PlayerSystem.Instance.ServerPlayerPullTrigger(Server, playerObjectComponent);
-
-        var message = new TriggerPulledMessage
+        
+        OsFps.Instance.CallRpcOnAllClients("ClientOnTriggerPulled", Server.reliableSequencedChannelId, new
         {
-            PlayerId = playerId
-        };
-        Server.SendMessageToAllClients(Server.reliableSequencedChannelId, message);
+            playerId
+        });
     }
 
     [Rpc(ExecuteOn = NetworkPeerType.Server)]
@@ -426,24 +425,21 @@ public class OsFps : MonoBehaviour
     [Rpc(ExecuteOn = NetworkPeerType.Server)]
     public void ServerOnChatMessage(uint playerId, string message)
     {
-        var chatMessage = new ChatMessage
+        OsFps.Instance.CallRpcOnAllClients("ClientOnReceiveChatMessage", Server.reliableSequencedChannelId, new
         {
-            PlayerId = playerId,
-            Message = message
-        };
-
-        Server.SendMessageToAllClients(Server.reliableSequencedChannelId, chatMessage);
+            playerId,
+            message
+        });
     }
 
     [Rpc(ExecuteOn = NetworkPeerType.Server)]
     public void ServerOnChangeWeapon(uint playerId, byte weaponIndex)
     {
-        var message = new ChangeWeaponMessage
+        OsFps.Instance.CallRpcOnAllClients("ClientOnChangeWeapon", Server.reliableSequencedChannelId, new
         {
-            PlayerId = playerId,
-            WeaponIndex = weaponIndex
-        };
-        Server.SendMessageToAllClients(Server.reliableSequencedChannelId, message);
+            playerId = playerId,
+            weaponIndex = weaponIndex
+        });
 
         var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(playerId);
 
@@ -463,6 +459,64 @@ public class OsFps : MonoBehaviour
         var playerObjectState = playerObjectComponent.State;
         playerObjectState.Input = playerInput;
         playerObjectState.LookDirAngles = lookDirAngles;
+    }
+
+    [Rpc(ExecuteOn = NetworkPeerType.Client)]
+    public void ClientOnSetPlayerId(uint playerId)
+    {
+        Client.PlayerId = playerId;
+    }
+
+    [Rpc(ExecuteOn = NetworkPeerType.Client)]
+    public void ClientOnReceiveGameState(GameState gameState)
+    {
+        Client.ApplyGameState(gameState);
+    }
+
+    [Rpc(ExecuteOn = NetworkPeerType.Client)]
+    public void ClientOnTriggerPulled(uint playerId)
+    {
+        // Don't do anything if we pulled the trigger.
+        if (playerId == Client.PlayerId)
+        {
+            return;
+        }
+
+        var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(playerId);
+        Client.ShowMuzzleFlash(playerObjectComponent);
+    }
+
+    [Rpc(ExecuteOn = NetworkPeerType.Client)]
+    public void ClientOnDetonateGrenade(uint id, Vector3 position, GrenadeType type)
+    {
+        Client.ShowGrenadeExplosion(position, type);
+    }
+
+    [Rpc(ExecuteOn = NetworkPeerType.Client)]
+    public void ClientOnReceiveChatMessage(uint? playerId, string message)
+    {
+        if (playerId.HasValue)
+        {
+            Client._chatMessages.Add(string.Format("{0}: {1}", playerId, message));
+        }
+        else
+        {
+            Client._chatMessages.Add(message);
+        }
+    }
+
+    [Rpc(ExecuteOn = NetworkPeerType.Client)]
+    public void ClientOnChangeWeapon(uint playerId, byte weaponIndex)
+    {
+        if (playerId == Client.PlayerId)
+        {
+            return;
+        }
+
+        var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(playerId);
+        if (playerObjectComponent == null) return;
+
+        Client.SwitchWeapons(playerObjectComponent, weaponIndex);
     }
 
     // probably too much boilerplate here
@@ -591,7 +645,7 @@ public class OsFps : MonoBehaviour
         var rpcId = rpcIdByName[name];
         var rpcInfo = rpcInfoById[rpcId];
 
-        Debug.Assert(rpcInfo.ExecuteOn == NetworkPeerType.Server);
+        Debug.Assert(rpcInfo.ExecuteOn == NetworkPeerType.Client);
 
         var messageBytes = NetworkSerializationUtils.SerializeRpcCall(rpcInfo, argumentsObj);
         Server.SendMessageToAllClients(channelId, messageBytes);
@@ -601,7 +655,7 @@ public class OsFps : MonoBehaviour
         var rpcId = rpcIdByName[name];
         var rpcInfo = rpcInfoById[rpcId];
 
-        Debug.Assert(rpcInfo.ExecuteOn == NetworkPeerType.Server);
+        Debug.Assert(rpcInfo.ExecuteOn == NetworkPeerType.Client);
 
         var messageBytes = NetworkSerializationUtils.SerializeRpcCall(rpcInfo, argumentsObj);
         Server.SendMessageToClient(clientConnectionId, channelId, messageBytes);
@@ -625,7 +679,12 @@ public class OsFps : MonoBehaviour
 
         foreach (var type in assembly.GetTypes())
         {
-            foreach (var methodInfo in type.GetMethods())
+            var methodBindingFlags =
+                System.Reflection.BindingFlags.Public |
+                System.Reflection.BindingFlags.NonPublic |
+                System.Reflection.BindingFlags.Instance;
+
+            foreach (var methodInfo in type.GetMethods(methodBindingFlags))
             {
                 var rpcAttribute = (RpcAttribute)methodInfo.GetCustomAttributes(typeof(RpcAttribute), inherit: false)
                     .FirstOrDefault();

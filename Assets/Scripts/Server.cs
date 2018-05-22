@@ -71,11 +71,10 @@ public class Server
         OsFps.Instance.CreateLocalPlayerDataObject(playerState);
 
         // Let the client know its player ID.
-        var setPlayerIdMessage = new SetPlayerIdMessage
+        OsFps.Instance.CallRpcOnClient("ClientOnSetPlayerId", connectionId, reliableSequencedChannelId, new
         {
-            PlayerId = playerId
-        };
-        SendMessageToClient(connectionId, reliableSequencedChannelId, setPlayerIdMessage);
+            playerId = playerId
+        });
 
         // Spawn the player.
         PlayerSystem.Instance.ServerSpawnPlayer(this, playerId);
@@ -95,10 +94,6 @@ public class Server
         Object.Destroy(playerComponent.gameObject);
     }
 
-    public void SendMessageToAllClients(int channelId, INetworkMessage message)
-    {
-        SendMessageToAllClients(channelId, NetworkSerializationUtils.SerializeWithType(message));
-    }
     public void SendMessageToAllClients(int channelId, byte[] serializedMessage)
     {
         var connectionIds = playerIdsByConnectionId.Keys.Select(x => x).ToList();
@@ -107,11 +102,6 @@ public class Server
         {
             SendMessageToClientHandleErrors(connectionId, channelId, serializedMessage);
         }
-    }
-    public void SendMessageToClient(int connectionId, int channelId, INetworkMessage message)
-    {
-        var serializedMessage = NetworkSerializationUtils.SerializeWithType(message);
-        SendMessageToClient(connectionId, channelId, serializedMessage);
     }
     public void SendMessageToClient(int connectionId, int channelId, byte[] serializedMessage)
     {
@@ -140,11 +130,10 @@ public class Server
     {
         Debug.Log("Sending game state...");
 
-        var message = new GameStateMessage
+        OsFps.Instance.CallRpcOnAllClients("ClientOnReceiveGameState", unreliableStateUpdateChannelId, new
         {
-            GameState = gameStateScraperSystem.GetGameState()
-        };
-        SendMessageToAllClients(unreliableStateUpdateChannelId, message);
+            gameState = gameStateScraperSystem.GetGameState()
+        });
     }
 
     private void SendMessageToClientHandleErrors(int connectionId, int channelId, byte[] serializedMessage)

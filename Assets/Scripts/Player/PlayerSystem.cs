@@ -73,13 +73,11 @@ public class PlayerSystem : ComponentSystem
             }
 
             // Send message.
-            var chatMessage = new ChatMessage
+            OsFps.Instance.CallRpcOnAllClients("ClientOnReceiveChatMessage", server.reliableSequencedChannelId, new
             {
-                PlayerId = null,
-                Message = GetKillMessage(playerObjectComponent, attackingPlayerObjectComponent)
-            };
-
-            server.SendMessageToAllClients(server.reliableSequencedChannelId, chatMessage);
+                playerId = (uint?)null,
+                message = GetKillMessage(playerObjectComponent, attackingPlayerObjectComponent)
+            });
         }
     }
 
