@@ -204,84 +204,8 @@ public class Server
         }
         else
         {
-            var messageType = (NetworkMessageType)messageTypeAsByte;
-
-            switch (messageType)
-            {
-                case NetworkMessageType.PlayerInput:
-                    var playerInputMessage = new PlayerInputMessage();
-                    playerInputMessage.Deserialize(reader);
-
-                    HandlePlayerInputMessage(playerInputMessage);
-                    break;
-                case NetworkMessageType.TriggerPulled:
-                    var triggerPulledMessage = new TriggerPulledMessage();
-                    triggerPulledMessage.Deserialize(reader);
-
-                    HandleTriggerPulledMessage(triggerPulledMessage);
-                    break;
-                case NetworkMessageType.ThrowGrenade:
-                    var throwGrenadeMessage = new ThrowGrenadeMessage();
-                    throwGrenadeMessage.Deserialize(reader);
-
-                    HandleThrowGrenadeMessage(throwGrenadeMessage);
-                    break;
-                case NetworkMessageType.Chat:
-                    var chatMessage = new ChatMessage();
-                    chatMessage.Deserialize(reader);
-
-                    HandleChatMessage(chatMessage);
-                    break;
-                case NetworkMessageType.ChangeWeapon:
-                    var changeWeaponMessage = new ChangeWeaponMessage();
-                    changeWeaponMessage.Deserialize(reader);
-
-                    HandleChangeWeaponMessage(changeWeaponMessage);
-                    break;
-                default:
-                    throw new System.NotImplementedException("Unknown message type: " + messageType);
-            }
+            throw new System.NotImplementedException("Unknown message type: " + messageTypeAsByte);
         }
-    }
-    private void HandlePlayerInputMessage(PlayerInputMessage message)
-    {
-        // TODO: Make sure the player ID is correct.
-        var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(message.PlayerId);
-        if (playerObjectComponent == null) return;
-
-        var playerObjectState = playerObjectComponent.State;
-        playerObjectState.Input = message.PlayerInput;
-        playerObjectState.LookDirAngles = message.LookDirAngles;
-    }
-    private void HandleTriggerPulledMessage(TriggerPulledMessage message)
-    {
-        // TODO: Make sure the player ID is correct.
-        var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(message.PlayerId);
-        PlayerSystem.Instance.ServerPlayerPullTrigger(this, playerObjectComponent);
-
-        SendMessageToAllClients(reliableSequencedChannelId, message);
-    }
-    
-    private void HandleThrowGrenadeMessage(ThrowGrenadeMessage message)
-    {
-        // TODO: Make sure the player ID is correct.
-        var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(message.PlayerId);
-        GrenadeSystem.Instance.ServerPlayerThrowGrenade(this, playerObjectComponent);
-    }
-    private void HandleChatMessage(ChatMessage message)
-    {
-        SendMessageToAllClients(reliableSequencedChannelId, message);
-    }
-    private void HandleChangeWeaponMessage(ChangeWeaponMessage message)
-    {
-        SendMessageToAllClients(reliableSequencedChannelId, message);
-
-        var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(message.PlayerId);
-
-        if (playerObjectComponent == null) return;
-
-        playerObjectComponent.State.CurrentWeaponIndex = message.WeaponIndex;
-        playerObjectComponent.State.ReloadTimeLeft = -1;
     }
     #endregion
 }

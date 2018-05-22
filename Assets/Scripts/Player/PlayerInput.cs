@@ -1,6 +1,6 @@
 ﻿using System.IO;
 
-public struct PlayerInput
+public struct PlayerInput : INetworkSerializable
 {
     public bool IsMoveFowardPressed;
     public bool IsMoveBackwardPressed;

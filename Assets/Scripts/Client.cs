@@ -361,10 +361,10 @@ public class Client
     {
         ShowMuzzleFlash(playerObjectComponent);
 
-        var message = new TriggerPulledMessage { PlayerId = playerObjectComponent.State.Id };
-        ClientPeer.SendMessageToServer(
-            reliableChannelId, NetworkSerializationUtils.SerializeWithType(message)
-        );
+        OsFps.Instance.CallRpcOnServer("ServerOnPlayerTriggerPulled", reliableChannelId, new
+        {
+            playerId = playerObjectComponent.State.Id
+        });
 
         playerObjectComponent.State.CurrentWeapon.TimeUntilCanShoot =
             playerObjectComponent.State.CurrentWeapon.Definition.ShotInterval;
@@ -372,10 +372,10 @@ public class Client
 
     public void ThrowGrenade(PlayerObjectState playerState)
     {
-        var message = new ThrowGrenadeMessage { PlayerId = playerState.Id };
-        ClientPeer.SendMessageToServer(
-            reliableChannelId, NetworkSerializationUtils.SerializeWithType(message)
-        );
+        OsFps.Instance.CallRpcOnServer("ServerOnPlayerThrowGrenade", reliableChannelId, new
+        {
+            playerId = playerState.Id
+        });
 
         playerState.TimeUntilCanThrowGrenade = OsFps.GrenadeThrowInterval;
     }
@@ -402,26 +402,22 @@ public class Client
         EquipWeapon(playerObjectState);
 
         // Send message to server.
-        var message = new ChangeWeaponMessage
+        OsFps.Instance.CallRpcOnServer("ServerOnChangeWeapon", reliableSequencedChannelId, new
         {
-            PlayerId = playerObjectState.Id,
-            WeaponIndex = (byte)weaponIndex
-        };
-        ClientPeer.SendMessageToServer(reliableSequencedChannelId, NetworkSerializationUtils.SerializeWithType(message));
+            playerId = playerObjectState.Id,
+            weaponIndex = (byte)weaponIndex
+        });
     }
 
     private void ConfirmChatMessage()
     {
         if (_chatMessageBeingTyped.Length > 0)
         {
-            var message = new ChatMessage
+            OsFps.Instance.CallRpcOnServer("ServerOnChatMessage", reliableChannelId, new
             {
-                PlayerId = PlayerId.Value,
-                Message = _chatMessageBeingTyped
-            };
-            ClientPeer.SendMessageToServer(
-                reliableChannelId, NetworkSerializationUtils.SerializeWithType(message)
-            );
+                playerId = PlayerId.Value,
+                message = _chatMessageBeingTyped
+            });
 
             _chatMessageBeingTyped = "";
         }
@@ -917,14 +913,11 @@ public class Client
         var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(PlayerId.Value);
         if (playerObjectComponent == null) return;
 
-        var message = new PlayerInputMessage
+        OsFps.Instance.CallRpcOnServer("ServerOnReceivePlayerInput", unreliableStateUpdateChannelId, new
         {
-            PlayerId = PlayerId.Value,
-            PlayerInput = playerObjectComponent.State.Input,
-            LookDirAngles = playerObjectComponent.State.LookDirAngles
-        };
-
-        var serializedMessage = NetworkSerializationUtils.SerializeWithType(message);
-        ClientPeer.SendMessageToServer(unreliableStateUpdateChannelId, serializedMessage);
+            playerId = PlayerId.Value,
+            playerInput = playerObjectComponent.State.Input,
+            lookDirAngles = playerObjectComponent.State.LookDirAngles
+        });
     }
 }

@@ -391,7 +391,7 @@ public class OsFps : MonoBehaviour
     public void ServerOnPlayerReloadPressed(uint playerId)
     {
         // TODO: Make sure the player ID is correct.
-        var playerObjectComponent = FindPlayerObjectComponent(playerId);
+        var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(playerId);
 
         if (playerObjectComponent.State.CanReload)
         {
@@ -399,6 +399,70 @@ public class OsFps : MonoBehaviour
         }
 
         // TODO: Send to all other players???
+    }
+
+    [Rpc(ExecuteOn = NetworkPeerType.Server)]
+    public void ServerOnPlayerTriggerPulled(uint playerId)
+    {
+        // TODO: Make sure the player ID is correct.
+        var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(playerId);
+        PlayerSystem.Instance.ServerPlayerPullTrigger(Server, playerObjectComponent);
+
+        var message = new TriggerPulledMessage
+        {
+            PlayerId = playerId
+        };
+        Server.SendMessageToAllClients(Server.reliableSequencedChannelId, message);
+    }
+
+    [Rpc(ExecuteOn = NetworkPeerType.Server)]
+    public void ServerOnPlayerThrowGrenade(uint playerId)
+    {
+        // TODO: Make sure the player ID is correct.
+        var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(playerId);
+        GrenadeSystem.Instance.ServerPlayerThrowGrenade(Server, playerObjectComponent);
+    }
+
+    [Rpc(ExecuteOn = NetworkPeerType.Server)]
+    public void ServerOnChatMessage(uint playerId, string message)
+    {
+        var chatMessage = new ChatMessage
+        {
+            PlayerId = playerId,
+            Message = message
+        };
+
+        Server.SendMessageToAllClients(Server.reliableSequencedChannelId, chatMessage);
+    }
+
+    [Rpc(ExecuteOn = NetworkPeerType.Server)]
+    public void ServerOnChangeWeapon(uint playerId, byte weaponIndex)
+    {
+        var message = new ChangeWeaponMessage
+        {
+            PlayerId = playerId,
+            WeaponIndex = weaponIndex
+        };
+        Server.SendMessageToAllClients(Server.reliableSequencedChannelId, message);
+
+        var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(playerId);
+
+        if (playerObjectComponent == null) return;
+
+        playerObjectComponent.State.CurrentWeaponIndex = weaponIndex;
+        playerObjectComponent.State.ReloadTimeLeft = -1;
+    }
+
+    [Rpc(ExecuteOn = NetworkPeerType.Server)]
+    public void ServerOnReceivePlayerInput(uint playerId, PlayerInput playerInput, Vector2 lookDirAngles)
+    {
+        // TODO: Make sure the player ID is correct.
+        var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(playerId);
+        if (playerObjectComponent == null) return;
+
+        var playerObjectState = playerObjectComponent.State;
+        playerObjectState.Input = playerInput;
+        playerObjectState.LookDirAngles = lookDirAngles;
     }
 
     // probably too much boilerplate here

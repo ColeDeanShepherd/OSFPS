@@ -123,11 +123,29 @@ public static class NetworkSerializationUtils
         {
             writer.Write((string)obj);
         }
+        else if (obj is Vector2)
+        {
+            Serialize(writer, (Vector2)obj);
+        }
+        else if (obj is Vector3)
+        {
+            Serialize(writer, (Vector3)obj);
+        }
         else
         {
             var objType = obj.GetType();
 
-            throw new NotImplementedException($"Cannot serialize type: {objType.AssemblyQualifiedName}");
+            var objFields = objType.GetFields();
+            foreach (var objField in objFields)
+            {
+                Serialize(writer, objField.GetValue(obj));
+            }
+
+            var objProperties = objType.GetProperties();
+            foreach (var objProperty in objProperties)
+            {
+                Serialize(writer, objProperty.GetValue(obj));
+            }
         }
     }
     public static object Deserialize(BinaryReader reader, Type type)
@@ -188,9 +206,38 @@ public static class NetworkSerializationUtils
         {
             return reader.ReadString();
         }
+        else if (type == typeof(Vector2))
+        {
+            var result = new Vector2();
+            Deserialize(reader, ref result);
+
+            return result;
+        }
+        else if (type == typeof(Vector3))
+        {
+            var result = new Vector3();
+            Deserialize(reader, ref result);
+
+            return result;
+        }
         else
         {
-            throw new NotImplementedException($"Cannot deserialize type: {type.AssemblyQualifiedName}");
+            var result = Activator.CreateInstance(type);
+
+            var objFields = type.GetFields();
+            foreach (var field in objFields)
+            {
+                field.SetValue(result, Deserialize(reader, field.FieldType));
+            }
+
+            var objProperties = type.GetProperties();
+            foreach (var property in objProperties)
+            {
+                property.SetValue(result, Deserialize(reader, property.PropertyType));
+            }
+
+
+            return result;
         }
     }
 
