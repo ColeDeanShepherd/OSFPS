@@ -2,6 +2,7 @@
 using System.Linq;
 using Unity.Entities;
 using UnityEngine;
+using UnityEngine.Assertions;
 using UnityEngine.Networking;
 using UnityEngine.SceneManagement;
 
@@ -423,7 +424,7 @@ public class OsFps : MonoBehaviour
     }
 
     [Rpc(ExecuteOn = NetworkPeerType.Server)]
-    public void ServerOnChatMessage(uint playerId, string message)
+    public void ServerOnChatMessage(uint? playerId, string message)
     {
         OsFps.Instance.CallRpcOnAllClients("ClientOnReceiveChatMessage", Server.reliableSequencedChannelId, new
         {
@@ -546,6 +547,8 @@ public class OsFps : MonoBehaviour
 
     private void Awake()
     {
+        Assert.raiseExceptions = true;
+
         // Destroy the game object if there is already an OsFps instance.
         if(Instance != null)
         {
@@ -635,7 +638,7 @@ public class OsFps : MonoBehaviour
         var rpcId = rpcIdByName[name];
         var rpcInfo = rpcInfoById[rpcId];
 
-        Debug.Assert(rpcInfo.ExecuteOn == NetworkPeerType.Server);
+        Assert.IsTrue(rpcInfo.ExecuteOn == NetworkPeerType.Server);
 
         var messageBytes = NetworkSerializationUtils.SerializeRpcCall(rpcInfo, argumentsObj);
         Client.ClientPeer.SendMessageToServer(channelId, messageBytes);
@@ -645,7 +648,7 @@ public class OsFps : MonoBehaviour
         var rpcId = rpcIdByName[name];
         var rpcInfo = rpcInfoById[rpcId];
 
-        Debug.Assert(rpcInfo.ExecuteOn == NetworkPeerType.Client);
+        Assert.IsTrue(rpcInfo.ExecuteOn == NetworkPeerType.Client);
 
         var messageBytes = NetworkSerializationUtils.SerializeRpcCall(rpcInfo, argumentsObj);
         Server.SendMessageToAllClients(channelId, messageBytes);
@@ -655,7 +658,7 @@ public class OsFps : MonoBehaviour
         var rpcId = rpcIdByName[name];
         var rpcInfo = rpcInfoById[rpcId];
 
-        Debug.Assert(rpcInfo.ExecuteOn == NetworkPeerType.Client);
+        Assert.IsTrue(rpcInfo.ExecuteOn == NetworkPeerType.Client);
 
         var messageBytes = NetworkSerializationUtils.SerializeRpcCall(rpcInfo, argumentsObj);
         Server.SendMessageToClient(clientConnectionId, channelId, messageBytes);
@@ -665,7 +668,6 @@ public class OsFps : MonoBehaviour
     {
         var rpcInfo = rpcInfoById[id];
         rpcInfo.MethodInfo.Invoke(this, arguments);
-        Debug.Log("Executed an RPC!!!");
     }
 
     public Dictionary<string, byte> rpcIdByName;

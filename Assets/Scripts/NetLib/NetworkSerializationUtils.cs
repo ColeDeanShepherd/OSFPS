@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using UnityEngine;
+using UnityEngine.Assertions;
 
 public static class NetworkSerializationUtils
 {
@@ -11,41 +12,36 @@ public static class NetworkSerializationUtils
         var argumentsType = argumentsObj.GetType();
         var argumentProperties = argumentsType.GetProperties();
 
-        Debug.Assert(argumentProperties.Length == rpcInfo.ParameterTypes.Length);
+        Assert.IsTrue(argumentProperties.Length == rpcInfo.ParameterTypes.Length);
 
-        var arguments = rpcInfo.ParameterTypes
-            .Select((parameterType, parameterIndex) =>
-            {
-                var argumentProperty = argumentProperties.First(argField =>
-                    argField.Name == rpcInfo.ParameterNames[parameterIndex]
-                );
-                return argumentProperty.GetValue(argumentsObj);
-            })
-            .ToArray();
-
-        return SerializeRpcCall(rpcInfo, arguments);
-    }
-    public static byte[] SerializeRpcCall(RpcInfo rpcInfo, params object[] rpcArguments)
-    {
-        Debug.Assert(rpcArguments.Length == rpcInfo.ParameterTypes.Length);
-
-        var memoryStream = new MemoryStream();
-        var binaryWriter = new BinaryWriter(memoryStream);
-
-        binaryWriter.Write(rpcInfo.Id);
-
-        for (var i = 0; i < rpcArguments.Length; i++)
+        using (var memoryStream = new MemoryStream())
         {
-            var argument = rpcArguments[i];
-            var argumentType = argument.GetType();
-            var parameterType = rpcInfo.ParameterTypes[i];
+            using (var binaryWriter = new BinaryWriter(memoryStream))
+            {
+                binaryWriter.Write(rpcInfo.Id);
 
-            Debug.Assert(argumentType.IsEquivalentTo(parameterType));
+                for (var i = 0; i < rpcInfo.ParameterTypes.Length; i++)
+                {
+                    var parameterName = rpcInfo.ParameterNames[i];
+                    var parameterType = rpcInfo.ParameterTypes[i];
 
-            Serialize(binaryWriter, argument);
+                    var argumentProperty = argumentProperties.First(argField =>
+                        argField.Name == parameterName
+                    );
+                    var argumentType = argumentProperty.PropertyType;
+                    var argument = argumentProperty.GetValue(argumentsObj);
+
+                    Assert.IsTrue(
+                        argumentType.IsEquivalentTo(parameterType),
+                        $"RPC parameter {parameterName} has type {parameterType.AssemblyQualifiedName} but was passed {argumentType.AssemblyQualifiedName}."
+                    );
+
+                    Serialize(binaryWriter, argument, argumentType);
+                }
+            }
+
+            return memoryStream.ToArray();
         }
-
-        return memoryStream.ToArray();
     }
     public static object[] DeserializeRpcCallArguments(RpcInfo rpcInfo, BinaryReader reader)
     {
@@ -56,7 +52,7 @@ public static class NetworkSerializationUtils
 
     public static Type GetSmallestIntTypeToHoldEnumValues(Type enumType)
     {
-        Debug.Assert(enumType.IsEnum);
+        Assert.IsTrue(enumType.IsEnum);
 
         var numEnumValues = enumType.GetEnumValues().Length;
 
@@ -73,69 +69,86 @@ public static class NetworkSerializationUtils
             return typeof(uint);
         }
     }
-    public static void Serialize(BinaryWriter writer, object obj)
+    public static void Serialize(BinaryWriter writer, object obj, Type overrideType = null)
     {
-        if (obj is bool)
+        var objType = overrideType ?? obj.GetType();
+
+        var nullableUnderlyingType = Nullable.GetUnderlyingType(objType);
+        if (nullableUnderlyingType != null)
+        {
+            writer.Write(obj != null);
+
+            if (obj != null)
+            {
+                objType = nullableUnderlyingType;
+            }
+            else
+            {
+                return;
+            }
+        }
+
+        if (objType == typeof(bool))
         {
             writer.Write((bool)obj);
         }
-        else if (obj is sbyte)
+        else if (objType == typeof(sbyte))
         {
             writer.Write((sbyte)obj);
         }
-        else if (obj is byte)
+        else if (objType == typeof(byte))
         {
             writer.Write((byte)obj);
         }
-        else if (obj is ushort)
+        else if (objType == typeof(ushort))
         {
             writer.Write((ushort)obj);
         }
-        else if (obj is short)
+        else if (objType == typeof(short))
         {
             writer.Write((short)obj);
         }
-        else if (obj is uint)
+        else if (objType == typeof(uint))
         {
             writer.Write((uint)obj);
         }
-        else if (obj is int)
+        else if (objType == typeof(int))
         {
             writer.Write((int)obj);
         }
-        else if (obj is ulong)
+        else if (objType == typeof(ulong))
         {
             writer.Write((ulong)obj);
         }
-        else if (obj is long)
+        else if (objType == typeof(long))
         {
             writer.Write((long)obj);
         }
-        else if (obj is float)
+        else if (objType == typeof(float))
         {
             writer.Write((float)obj);
         }
-        else if (obj is double)
+        else if (objType == typeof(double))
         {
             writer.Write((double)obj);
         }
-        else if (obj is decimal)
+        else if (objType == typeof(decimal))
         {
             writer.Write((decimal)obj);
         }
-        else if (obj is char)
+        else if (objType == typeof(char))
         {
             writer.Write((char)obj);
         }
-        else if (obj is string)
+        else if (objType == typeof(string))
         {
             writer.Write((string)obj);
         }
-        else if (obj is Vector2)
+        else if (objType == typeof(Vector2))
         {
             Serialize(writer, (Vector2)obj);
         }
-        else if (obj is Vector3)
+        else if (objType == typeof(Vector3))
         {
             Serialize(writer, (Vector3)obj);
         }
@@ -145,8 +158,6 @@ public static class NetworkSerializationUtils
         }
         else
         {
-            var objType = obj.GetType();
-
             if (objType.IsEnum)
             {
                 var smallestTypeToHoldEnumValues = GetSmallestIntTypeToHoldEnumValues(objType);
@@ -154,7 +165,7 @@ public static class NetworkSerializationUtils
             }
             else if (objType.IsClass || objType.IsValueType)
             {
-                Debug.Log($"Serializing type: {objType.AssemblyQualifiedName}");
+                //Debug.Log($"Serializing type: {objType.AssemblyQualifiedName}");
 
                 var objFields = objType.GetFields();
                 foreach (var objField in objFields)
@@ -176,7 +187,14 @@ public static class NetworkSerializationUtils
     }
     public static object Deserialize(BinaryReader reader, Type type)
     {
-        if (type == typeof(bool))
+        var nullableUnderlyingType = Nullable.GetUnderlyingType(type);
+
+        if (nullableUnderlyingType != null)
+        {
+            var objHasValue = reader.ReadBoolean();
+            return objHasValue ? Deserialize(reader, nullableUnderlyingType) : null;
+        }
+        else if (type == typeof(bool))
         {
             return reader.ReadBoolean();
         }
@@ -255,9 +273,16 @@ public static class NetworkSerializationUtils
         }
         else
         {
-            if (type.IsClass || type.IsValueType)
+            if (type.IsEnum)
             {
-                Debug.Log($"Deserializing type: {type.AssemblyQualifiedName}");
+                var smallestTypeToHoldEnumValues = GetSmallestIntTypeToHoldEnumValues(type);
+                var enumValueAsInt = Deserialize(reader, smallestTypeToHoldEnumValues);
+
+                return Enum.ToObject(type, enumValueAsInt);
+            }
+            else if (type.IsClass || type.IsValueType)
+            {
+                //Debug.Log($"Deserializing type: {type.AssemblyQualifiedName}");
 
                 var result = Activator.CreateInstance(type);
 
@@ -274,13 +299,6 @@ public static class NetworkSerializationUtils
                 }
 
                 return result;
-            }
-            else if (type.IsEnum)
-            {
-                var smallestTypeToHoldEnumValues = GetSmallestIntTypeToHoldEnumValues(type);
-                var enumValueAsInt = Deserialize(reader, smallestTypeToHoldEnumValues);
-
-                return Convert.ChangeType(enumValueAsInt, type);
             }
             else
             {

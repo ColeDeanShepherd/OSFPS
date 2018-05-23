@@ -415,7 +415,7 @@ public class Client
         {
             OsFps.Instance.CallRpcOnServer("ServerOnChatMessage", reliableChannelId, new
             {
-                playerId = PlayerId.Value,
+                playerId = PlayerId,
                 message = _chatMessageBeingTyped
             });
 

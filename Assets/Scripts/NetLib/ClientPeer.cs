@@ -1,5 +1,6 @@
 ﻿using System;
 using UnityEngine;
+using UnityEngine.Assertions;
 using UnityEngine.Networking;
 
 namespace NetLib
@@ -38,7 +39,7 @@ namespace NetLib
 
         public void Start(ConnectionConfig connectionConfig)
         {
-            Debug.Assert(!IsStarted);
+            Assert.IsTrue(!IsStarted);
 
             var maxConnectionCount = 1; // The client only connects to the server.
             var hostTopology = new HostTopology(
@@ -62,7 +63,7 @@ namespace NetLib
 
         public NetworkError StartConnectingToServer(string serverIpv4Address, ushort serverPortNumber)
         {
-            Debug.Assert(!IsConnectedToServer);
+            Assert.IsTrue(!IsConnectedToServer);
 
             var exceptionConnectionId = 0;
             byte networkErrorAsByte;
