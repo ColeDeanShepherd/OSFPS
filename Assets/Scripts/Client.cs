@@ -806,6 +806,64 @@ public class Client
             throw new System.NotImplementedException("Unknown message type: " + messageTypeAsByte);
         }
     }
+
+    [Rpc(ExecuteOn = NetworkPeerType.Client)]
+    public void ClientOnSetPlayerId(uint playerId)
+    {
+        PlayerId = playerId;
+    }
+
+    [Rpc(ExecuteOn = NetworkPeerType.Client)]
+    public void ClientOnReceiveGameState(GameState gameState)
+    {
+        ApplyGameState(gameState);
+    }
+
+    [Rpc(ExecuteOn = NetworkPeerType.Client)]
+    public void ClientOnTriggerPulled(uint playerId)
+    {
+        // Don't do anything if we pulled the trigger.
+        if (playerId == PlayerId)
+        {
+            return;
+        }
+
+        var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(playerId);
+        ShowMuzzleFlash(playerObjectComponent);
+    }
+
+    [Rpc(ExecuteOn = NetworkPeerType.Client)]
+    public void ClientOnDetonateGrenade(uint id, Vector3 position, GrenadeType type)
+    {
+        ShowGrenadeExplosion(position, type);
+    }
+
+    [Rpc(ExecuteOn = NetworkPeerType.Client)]
+    public void ClientOnReceiveChatMessage(uint? playerId, string message)
+    {
+        if (playerId.HasValue)
+        {
+            _chatMessages.Add(string.Format("{0}: {1}", playerId, message));
+        }
+        else
+        {
+            _chatMessages.Add(message);
+        }
+    }
+
+    [Rpc(ExecuteOn = NetworkPeerType.Client)]
+    public void ClientOnChangeWeapon(uint playerId, byte weaponIndex)
+    {
+        if (playerId == PlayerId)
+        {
+            return;
+        }
+
+        var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(playerId);
+        if (playerObjectComponent == null) return;
+
+        SwitchWeapons(playerObjectComponent, weaponIndex);
+    }
     #endregion
 
     private void InternalOnDisconnectedFromServer()

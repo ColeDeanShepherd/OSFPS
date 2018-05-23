@@ -196,5 +196,79 @@ public class Server
             throw new System.NotImplementedException("Unknown message type: " + messageTypeAsByte);
         }
     }
+
+    [Rpc(ExecuteOn = NetworkPeerType.Server)]
+    public void ServerOnPlayerReloadPressed(uint playerId)
+    {
+        // TODO: Make sure the player ID is correct.
+        var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(playerId);
+
+        if (playerObjectComponent.State.CanReload)
+        {
+            PlayerSystem.Instance.ServerPlayerStartReload(playerObjectComponent);
+        }
+
+        // TODO: Send to all other players???
+    }
+
+    [Rpc(ExecuteOn = NetworkPeerType.Server)]
+    public void ServerOnPlayerTriggerPulled(uint playerId)
+    {
+        // TODO: Make sure the player ID is correct.
+        var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(playerId);
+        PlayerSystem.Instance.ServerPlayerPullTrigger(this, playerObjectComponent);
+
+        OsFps.Instance.CallRpcOnAllClients("ClientOnTriggerPulled", reliableSequencedChannelId, new
+        {
+            playerId
+        });
+    }
+
+    [Rpc(ExecuteOn = NetworkPeerType.Server)]
+    public void ServerOnPlayerThrowGrenade(uint playerId)
+    {
+        // TODO: Make sure the player ID is correct.
+        var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(playerId);
+        GrenadeSystem.Instance.ServerPlayerThrowGrenade(this, playerObjectComponent);
+    }
+
+    [Rpc(ExecuteOn = NetworkPeerType.Server)]
+    public void ServerOnChatMessage(uint? playerId, string message)
+    {
+        OsFps.Instance.CallRpcOnAllClients("ClientOnReceiveChatMessage", reliableSequencedChannelId, new
+        {
+            playerId,
+            message
+        });
+    }
+
+    [Rpc(ExecuteOn = NetworkPeerType.Server)]
+    public void ServerOnChangeWeapon(uint playerId, byte weaponIndex)
+    {
+        OsFps.Instance.CallRpcOnAllClients("ClientOnChangeWeapon", reliableSequencedChannelId, new
+        {
+            playerId = playerId,
+            weaponIndex = weaponIndex
+        });
+
+        var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(playerId);
+
+        if (playerObjectComponent == null) return;
+
+        playerObjectComponent.State.CurrentWeaponIndex = weaponIndex;
+        playerObjectComponent.State.ReloadTimeLeft = -1;
+    }
+
+    [Rpc(ExecuteOn = NetworkPeerType.Server)]
+    public void ServerOnReceivePlayerInput(uint playerId, PlayerInput playerInput, Vector2 lookDirAngles)
+    {
+        // TODO: Make sure the player ID is correct.
+        var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(playerId);
+        if (playerObjectComponent == null) return;
+
+        var playerObjectState = playerObjectComponent.State;
+        playerObjectState.Input = playerInput;
+        playerObjectState.LookDirAngles = lookDirAngles;
+    }
     #endregion
 }

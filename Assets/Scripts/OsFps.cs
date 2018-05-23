@@ -23,7 +23,7 @@ TODO
 -Implement delta game state sending.
 -Make weapons spawn repeatedly.
 -Remove system instances.
--Init network IDs for objects placed in scene.
+-Send joined & left messages.
 */
 
 public class OsFps : MonoBehaviour
@@ -388,138 +388,6 @@ public class OsFps : MonoBehaviour
         playerComponent.CameraPointObject.transform.localEulerAngles = new Vector3(LookDirAngles.x, 0, 0);
     }
 
-    [Rpc(ExecuteOn = NetworkPeerType.Server)]
-    public void ServerOnPlayerReloadPressed(uint playerId)
-    {
-        // TODO: Make sure the player ID is correct.
-        var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(playerId);
-
-        if (playerObjectComponent.State.CanReload)
-        {
-            PlayerSystem.Instance.ServerPlayerStartReload(playerObjectComponent);
-        }
-
-        // TODO: Send to all other players???
-    }
-
-    [Rpc(ExecuteOn = NetworkPeerType.Server)]
-    public void ServerOnPlayerTriggerPulled(uint playerId)
-    {
-        // TODO: Make sure the player ID is correct.
-        var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(playerId);
-        PlayerSystem.Instance.ServerPlayerPullTrigger(Server, playerObjectComponent);
-        
-        OsFps.Instance.CallRpcOnAllClients("ClientOnTriggerPulled", Server.reliableSequencedChannelId, new
-        {
-            playerId
-        });
-    }
-
-    [Rpc(ExecuteOn = NetworkPeerType.Server)]
-    public void ServerOnPlayerThrowGrenade(uint playerId)
-    {
-        // TODO: Make sure the player ID is correct.
-        var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(playerId);
-        GrenadeSystem.Instance.ServerPlayerThrowGrenade(Server, playerObjectComponent);
-    }
-
-    [Rpc(ExecuteOn = NetworkPeerType.Server)]
-    public void ServerOnChatMessage(uint? playerId, string message)
-    {
-        OsFps.Instance.CallRpcOnAllClients("ClientOnReceiveChatMessage", Server.reliableSequencedChannelId, new
-        {
-            playerId,
-            message
-        });
-    }
-
-    [Rpc(ExecuteOn = NetworkPeerType.Server)]
-    public void ServerOnChangeWeapon(uint playerId, byte weaponIndex)
-    {
-        OsFps.Instance.CallRpcOnAllClients("ClientOnChangeWeapon", Server.reliableSequencedChannelId, new
-        {
-            playerId = playerId,
-            weaponIndex = weaponIndex
-        });
-
-        var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(playerId);
-
-        if (playerObjectComponent == null) return;
-
-        playerObjectComponent.State.CurrentWeaponIndex = weaponIndex;
-        playerObjectComponent.State.ReloadTimeLeft = -1;
-    }
-
-    [Rpc(ExecuteOn = NetworkPeerType.Server)]
-    public void ServerOnReceivePlayerInput(uint playerId, PlayerInput playerInput, Vector2 lookDirAngles)
-    {
-        // TODO: Make sure the player ID is correct.
-        var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(playerId);
-        if (playerObjectComponent == null) return;
-
-        var playerObjectState = playerObjectComponent.State;
-        playerObjectState.Input = playerInput;
-        playerObjectState.LookDirAngles = lookDirAngles;
-    }
-
-    [Rpc(ExecuteOn = NetworkPeerType.Client)]
-    public void ClientOnSetPlayerId(uint playerId)
-    {
-        Client.PlayerId = playerId;
-    }
-
-    [Rpc(ExecuteOn = NetworkPeerType.Client)]
-    public void ClientOnReceiveGameState(GameState gameState)
-    {
-        Client.ApplyGameState(gameState);
-    }
-
-    [Rpc(ExecuteOn = NetworkPeerType.Client)]
-    public void ClientOnTriggerPulled(uint playerId)
-    {
-        // Don't do anything if we pulled the trigger.
-        if (playerId == Client.PlayerId)
-        {
-            return;
-        }
-
-        var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(playerId);
-        Client.ShowMuzzleFlash(playerObjectComponent);
-    }
-
-    [Rpc(ExecuteOn = NetworkPeerType.Client)]
-    public void ClientOnDetonateGrenade(uint id, Vector3 position, GrenadeType type)
-    {
-        Client.ShowGrenadeExplosion(position, type);
-    }
-
-    [Rpc(ExecuteOn = NetworkPeerType.Client)]
-    public void ClientOnReceiveChatMessage(uint? playerId, string message)
-    {
-        if (playerId.HasValue)
-        {
-            Client._chatMessages.Add(string.Format("{0}: {1}", playerId, message));
-        }
-        else
-        {
-            Client._chatMessages.Add(message);
-        }
-    }
-
-    [Rpc(ExecuteOn = NetworkPeerType.Client)]
-    public void ClientOnChangeWeapon(uint playerId, byte weaponIndex)
-    {
-        if (playerId == Client.PlayerId)
-        {
-            return;
-        }
-
-        var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(playerId);
-        if (playerObjectComponent == null) return;
-
-        Client.SwitchWeapons(playerObjectComponent, weaponIndex);
-    }
-
     // probably too much boilerplate here
     public void OnPlayerCollidingWithWeapon(GameObject playerObject, GameObject weaponObject)
     {
@@ -667,7 +535,10 @@ public class OsFps : MonoBehaviour
     public void ExecuteRpc(byte id, params object[] arguments)
     {
         var rpcInfo = rpcInfoById[id];
-        rpcInfo.MethodInfo.Invoke(this, arguments);
+        var objContainingRpc = (rpcInfo.ExecuteOn == NetworkPeerType.Server)
+            ? (object)Server
+            : (object)Client;
+        rpcInfo.MethodInfo.Invoke(objContainingRpc, arguments);
     }
 
     public Dictionary<string, byte> rpcIdByName;
