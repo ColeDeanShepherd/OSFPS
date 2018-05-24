@@ -33,6 +33,7 @@ public class OsFps : MonoBehaviour
     public const KeyCode MoveBackwardKeyCode = KeyCode.S;
     public const KeyCode MoveRightKeyCode = KeyCode.D;
     public const KeyCode MoveLeftKeyCode = KeyCode.A;
+    public const KeyCode JumpKeyCode = KeyCode.Space;
     public const KeyCode ReloadKeyCode = KeyCode.R;
     public const KeyCode ThrowGrenadeKeyCode = KeyCode.G;
     public const KeyCode ShowScoreboardKeyCode = KeyCode.Tab;
@@ -332,7 +333,7 @@ public class OsFps : MonoBehaviour
         var intersectingColliders = Physics.OverlapSphere(spherePosition, sphereRadius);
         return intersectingColliders.Any(collider =>
         {
-            var otherPlayerObjectComponent = collider.gameObject.GetComponent<PlayerObjectComponent>();
+            var otherPlayerObjectComponent = collider.gameObject.FindComponentInObjectOrAncestor<PlayerObjectComponent>();
             return (
                 (otherPlayerObjectComponent == null) ||
                 (otherPlayerObjectComponent.State.Id != playerObjectComponent.State.Id)
@@ -471,17 +472,7 @@ public class OsFps : MonoBehaviour
     {
         if((Server == null) && (Client == null))
         {
-            if(GUI.Button(new Rect(10, 10, 200, 30), "Connect To Server"))
-            {
-                SceneManager.sceneLoaded += OnMapLoadedAsClient;
-                SceneManager.LoadScene("Test Map");
-            }
-
-            if (GUI.Button(new Rect(10, 50, 200, 30), "Start Server"))
-            {
-                Server = new Server();
-                Server.Start();
-            }
+            RenderMainMenu();
         }
         else
         {
@@ -489,6 +480,35 @@ public class OsFps : MonoBehaviour
             {
                 Client.OnGui();
             }
+        }
+    }
+
+    private void RenderMainMenu()
+    {
+        const float buttonWidth = 200;
+        const float buttonHeight = 30;
+        const float buttonSpacing = 10;
+        const int buttonCount = 2;
+        const float menuWidth = buttonWidth;
+        const float menuHeight = (buttonCount * buttonHeight) + ((buttonCount - 1) * buttonSpacing);
+
+        var position = new Vector2(
+            (Screen.width / 2) - (menuWidth / 2),
+            (Screen.height / 2) - (menuHeight / 2)
+        );
+
+        if (GUI.Button(new Rect(position.x, position.y, buttonWidth, buttonHeight), "Connect To Server"))
+        {
+            SceneManager.sceneLoaded += OnMapLoadedAsClient;
+            SceneManager.LoadScene("Test Map");
+        }
+
+        position.y += buttonHeight + buttonSpacing;
+
+        if (GUI.Button(new Rect(position.x, position.y, buttonWidth, buttonHeight), "Start Server"))
+        {
+            Server = new Server();
+            Server.Start();
         }
     }
 

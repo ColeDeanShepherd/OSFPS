@@ -8,10 +8,9 @@
 * Improve networked shot intervals better.
 * Fix showing other players reloading.
 * Add shields.
-* Polish UI.
 * Don't add bullets to magazine when running over weapon.
-* Send joined & left messages.
 * Attribute grenade kills to the correct player.
+* Handle message too long.
 
 #### Low-Priority
 
@@ -20,3 +19,4 @@
 * Improve throwing grenade straight down.
 * Implement delta game state sending.
 * Remove system instances.
+* Improve chat UI.

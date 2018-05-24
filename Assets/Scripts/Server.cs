@@ -78,6 +78,13 @@ public class Server
 
         // Spawn the player.
         PlayerSystem.Instance.ServerSpawnPlayer(this, playerId);
+
+        // Send out a chat message.
+        OsFps.Instance.CallRpcOnAllClients("ClientOnReceiveChatMessage", reliableSequencedChannelId, new
+        {
+            playerId = (uint?)null,
+            message = $"{playerId} joined."
+        });
     }
     public void OnClientDisconnected(int connectionId)
     {
@@ -92,6 +99,13 @@ public class Server
 
         var playerComponent = OsFps.Instance.FindPlayerComponent(playerId);
         Object.Destroy(playerComponent.gameObject);
+
+        // Send out a chat message.
+        OsFps.Instance.CallRpcOnAllClients("ClientOnReceiveChatMessage", reliableSequencedChannelId, new
+        {
+            playerId = (uint?)null,
+            message = $"{playerId} left."
+        });
     }
 
     public void SendMessageToAllClients(int channelId, byte[] serializedMessage)

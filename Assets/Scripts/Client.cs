@@ -95,7 +95,7 @@ public class Client
                     }
                 }
 
-                if (Input.GetKeyDown(KeyCode.Space))
+                if (Input.GetKeyDown(OsFps.JumpKeyCode))
                 {
                     var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(PlayerId.Value);
 
@@ -175,13 +175,11 @@ public class Client
     }
     public void OnGui()
     {
-        if (!Input.GetKey(OsFps.ShowScoreboardKeyCode))
+        DrawHud();
+
+        if (Input.GetKey(OsFps.ShowScoreboardKeyCode))
         {
-            DrawHud();
-        }
-        else
-        {
-            DrawScoreBoard(new Vector2(100, 100));
+            DrawScoreBoard();
         }
 
         if (_isShowingMenu)
@@ -189,37 +187,37 @@ public class Client
             DrawMenu();
         }
 
-        DrawChatWindow(new Vector2(100, Screen.height - 500));
+        DrawChatWindow();
     }
     private void DrawHud()
     {
+        const float hudMargin = 10;
+        const float lineHeight = 20;
+        const float weaponHudHeight = 5 + lineHeight;
+
         var playerObjectComponent = PlayerId.HasValue
             ? OsFps.Instance.FindPlayerObjectComponent(PlayerId.Value)
             : null;
+        if (playerObjectComponent == null) return;
 
-        if (playerObjectComponent != null)
+        var playerObjectState = playerObjectComponent.State;
+
+        GUI.Label(new Rect(hudMargin, hudMargin, 200, lineHeight), "Health: " + playerObjectState.Health);
+
+        var weaponHudPosition = new Vector2(hudMargin + 110, hudMargin);
+
+        if (playerObjectState.CurrentWeapon != null)
         {
-            var playerObjectState = playerObjectComponent.State;
+            DrawWeaponHud(playerObjectState.CurrentWeapon, weaponHudPosition);
+            weaponHudPosition.y += weaponHudHeight;
+        }
 
-            GUI.Label(new Rect(10, 10, 100, 30), "Health: " + playerObjectState.Health);
-
-            var weaponHudX = 110;
-            var weaponHudY = 10;
-            var weaponHudHeight = 110;
-
-            if (playerObjectState.CurrentWeapon != null)
+        foreach (var weapon in playerObjectState.Weapons)
+        {
+            if ((weapon != null) && (weapon != playerObjectState.CurrentWeapon))
             {
-                DrawWeaponHud(playerObjectState.CurrentWeapon, new Vector2(weaponHudX, weaponHudY));
-                weaponHudY += weaponHudHeight;
-            }
-
-            foreach (var weapon in playerObjectState.Weapons)
-            {
-                if ((weapon != null) && (weapon != playerObjectState.CurrentWeapon))
-                {
-                    DrawWeaponHud(weapon, new Vector2(weaponHudX, weaponHudY));
-                    weaponHudY += weaponHudHeight;
-                }
+                DrawWeaponHud(weapon, weaponHudPosition);
+                weaponHudPosition.y += weaponHudHeight;
             }
         }
     }
@@ -230,13 +228,35 @@ public class Client
             weapon.Type.ToString() + " Ammo: " + weapon.BulletsLeftInMagazine + " / " + weapon.BulletsLeftOutOfMagazine
         );
     }
-    private void DrawScoreBoard(Vector2 position)
+    private void DrawScoreBoard()
     {
         const float playerIdColumnWidth = 50;
         const float killsColumnWidth = 100;
         const float deathsColumnWidth = 100;
-        const float rowHeight = 50;
+        const float scoreBoardWidth = playerIdColumnWidth + killsColumnWidth + deathsColumnWidth;
+        const float scoreBoardPadding = 10;
+        const float rowHeight = 30;
 
+        var playerComponents = Object.FindObjectsOfType<PlayerComponent>();
+
+        var scoreBoardHeight = rowHeight * (1 + playerComponents.Length);
+        
+        var boxWidth = scoreBoardWidth + scoreBoardPadding;
+        var boxHeight = scoreBoardHeight + scoreBoardPadding;
+        GUI.Box(
+            new Rect(
+                (Screen.width / 2) - (boxWidth / 2),
+                (Screen.height / 2) - (boxHeight / 2),
+                boxWidth,
+                boxHeight
+            ),
+            ""
+        );
+
+        var position = new Vector2(
+            (Screen.width / 2) - (scoreBoardWidth / 2),
+            (Screen.height / 2) - (scoreBoardHeight / 2)
+        );
         var idColumnX = position.x;
         var killsColumnX = idColumnX + playerIdColumnWidth;
         var deathsColumnX = killsColumnX + killsColumnWidth;
@@ -248,7 +268,6 @@ public class Client
         position.y += rowHeight;
 
         // Draw player rows.
-        var playerComponents = Object.FindObjectsOfType<PlayerComponent>();
         foreach (var playerComponent in playerComponents)
         {
             var playerState = playerComponent.State;
@@ -258,20 +277,38 @@ public class Client
             position.y += rowHeight;
         }
     }
-    private void DrawChatWindow(Vector2 position)
+    private void DrawChatWindow()
     {
-        var width = 300;
-        var lineHeight = 50;
+        const float margin = 10;
+        const float chatMessagesWidth = 300;
+        const float chatMessagesHeight = 100;
+        const float chatMessageInputWidth = chatMessagesWidth;
+        const float chatMessageInputHeight = 30;
+        const float totalWidth = chatMessagesWidth;
+        const float totalHeight = chatMessagesHeight + chatMessageInputHeight;
 
-        var chatMessagesRect = new Rect(position, new Vector2(width, 300));
+        var chatMessagesRect = new Rect(
+            new Vector2(margin, Screen.height - totalHeight - margin),
+            new Vector2(chatMessagesWidth, chatMessagesHeight)
+        );
 
-        for (var i = 0; i < _chatMessages.Count; i++)
+        if (_isShowingChatMessageInput)
         {
-            var chatMessageIndex = (_chatMessages.Count - 1) - i;
-            var y = chatMessagesRect.yMax - ((i + 1) * lineHeight);
-            GUI.Label(new Rect(new Vector2(position.x, y), new Vector2(width, lineHeight)), _chatMessages[chatMessageIndex]);
-        }
+            chatMessageScrollPosition = GUI.BeginScrollView(
+                chatMessagesRect,
+                chatMessageScrollPosition,
+                new Rect(0, 0, chatMessagesWidth, 400)
+            );
 
+            GUI.Label(new Rect(0, 0, chatMessagesWidth, chatMessagesHeight), string.Join("\n", _chatMessages));
+
+            GUI.EndScrollView();
+        }
+        else
+        {
+            GUI.Label(chatMessagesRect, string.Join("\n", _chatMessages));
+        }
+        
         if (_isShowingChatMessageInput)
         {
             if ((Event.current.type == EventType.KeyDown) && (Event.current.keyCode == KeyCode.Return))
@@ -280,7 +317,10 @@ public class Client
             }
 
             GUI.SetNextControlName("chatMessageInput");
-            var chatMessageTextFieldRect = new Rect(new Vector3(position.x, chatMessagesRect.yMax), new Vector2(width, lineHeight));
+            var chatMessageTextFieldRect = new Rect(
+                new Vector3(margin, Screen.height - chatMessageInputHeight - margin),
+                new Vector2(chatMessageInputWidth, chatMessageInputHeight)
+            );
             _chatMessageBeingTyped = GUI.TextField(chatMessageTextFieldRect, _chatMessageBeingTyped);
         }
 
@@ -292,18 +332,27 @@ public class Client
     }
     private void DrawMenu()
     {
-        var buttonSize = new Vector2(100, 50);
-        var buttonVerticalSpacing = 10;
-        var curPosition = new Vector2(300, 100);
+        const float buttonWidth = 200;
+        const float buttonHeight = 30;
+        const float buttonSpacing = 10;
+        const int buttonCount = 2;
+        const float menuWidth = buttonWidth;
+        const float menuHeight = (buttonCount * buttonHeight) + ((buttonCount - 1) * buttonSpacing);
 
-        if (GUI.Button(new Rect(curPosition, buttonSize), "Exit Menu"))
+        var buttonSize = new Vector2(buttonWidth, buttonHeight);
+        var position = new Vector2(
+            (Screen.width / 2) - (menuWidth / 2),
+            (Screen.height / 2) - (menuHeight / 2)
+        );
+
+        if (GUI.Button(new Rect(position, buttonSize), "Exit Menu"))
         {
             _isShowingMenu = false;
         }
 
-        curPosition.y += buttonSize.y + buttonVerticalSpacing;
+        position.y += buttonSize.y + buttonSpacing;
 
-        if (GUI.Button(new Rect(curPosition, buttonSize), "Quit"))
+        if (GUI.Button(new Rect(position, buttonSize), "Quit"))
         {
             DisconnectFromServer();
         }
@@ -319,6 +368,7 @@ public class Client
     public bool _justOpenedChatMessageInput;
     private string _chatMessageBeingTyped;
     public List<string> _chatMessages = new List<string>();
+    private Vector2 chatMessageScrollPosition = new Vector2();
 
     public bool _isShowingMenu;
     
