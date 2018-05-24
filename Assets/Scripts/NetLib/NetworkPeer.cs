@@ -1,4 +1,5 @@
 ﻿using UnityEngine;
+using UnityEngine.Assertions;
 using UnityEngine.Networking;
 
 namespace NetLib
@@ -19,7 +20,7 @@ namespace NetLib
 
         public virtual void Start(ushort? portNumber, HostTopology hostTopology)
         {
-            Debug.Assert(!IsStarted);
+            Assert.IsTrue(!IsStarted);
 
             if (portNumber.HasValue)
             {
@@ -32,7 +33,7 @@ namespace NetLib
         }
         public virtual bool Stop()
         {
-            Debug.Assert(IsStarted);
+            Assert.IsTrue(IsStarted);
 
             var succeeded = NetworkTransport.RemoveHost(socketId.Value);
 

@@ -2,13 +2,13 @@
 
 public class GrenadeComponent : MonoBehaviour
 {
-    public uint Id;
-    public GrenadeType Type;
+    public GrenadeState State;
+
     public GrenadeDefinition Definition
     {
         get
         {
-            return OsFps.GetGrenadeDefinitionByType(Type);
+            return OsFps.GetGrenadeDefinitionByType(State.Type);
         }
     }
 

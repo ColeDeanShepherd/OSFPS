@@ -15,14 +15,12 @@ public class Server
     public event ServerStartedHandler OnServerStarted;
 
     public ServerPeer ServerPeer;
-    public GameState CurrentGameState;
 
     public GameStateScraperSystem gameStateScraperSystem = new GameStateScraperSystem();
 
     public void Start()
     {
         playerIdsByConnectionId = new Dictionary<int, uint>();
-        CurrentGameState = new GameState();
 
         ServerPeer = new ServerPeer();
         ServerPeer.OnClientConnected += OnClientConnected;
@@ -47,26 +45,9 @@ public class Server
     public void Update()
     {
         ServerPeer.ReceiveAndHandleNetworkEvents();
-        
-        // respawn players
-        // TODO: move to system
-        foreach (var playerState in CurrentGameState.Players)
-        {
-            if (!playerState.IsAlive)
-            {
-                playerState.RespawnTimeLeft -= Time.deltaTime;
-
-                if (playerState.RespawnTimeLeft <= 0)
-                {
-                    PlayerSystem.Instance.ServerSpawnPlayer(this, playerState);
-                }
-            }
-        }
     }
     public void LateUpdate()
     {
-        gameStateScraperSystem.OnLateUpdate();
-
         if (SendGameStatePeriodicFunction != null)
         {
             SendGameStatePeriodicFunction.TryToCall();
@@ -79,49 +60,51 @@ public class Server
 
         // Store information about the client.
         playerIdsByConnectionId.Add(connectionId, playerId);
-        
+
+        // create player data object
         var playerState = new PlayerState
         {
             Id = playerId,
             Kills = 0,
             Deaths = 0
         };
-        CurrentGameState.Players.Add(playerState);
+        OsFps.Instance.CreateLocalPlayerDataObject(playerState);
 
         // Let the client know its player ID.
-        var setPlayerIdMessage = new SetPlayerIdMessage
+        OsFps.Instance.CallRpcOnClient("ClientOnSetPlayerId", connectionId, reliableSequencedChannelId, new
         {
-            PlayerId = playerId
-        };
-        SendMessageToClient(connectionId, reliableSequencedChannelId, setPlayerIdMessage);
+            playerId = playerId
+        });
 
         // Spawn the player.
-        PlayerSystem.Instance.ServerSpawnPlayer(this, playerState);
+        PlayerSystem.Instance.ServerSpawnPlayer(this, playerId);
     }
     public void OnClientDisconnected(int connectionId)
     {
         var playerId = playerIdsByConnectionId[connectionId];
-        var playerStateIndex = CurrentGameState.Players.FindIndex(ps => ps.Id == playerId);
-
         playerIdsByConnectionId.Remove(connectionId);
-        CurrentGameState.Players.RemoveAt(playerStateIndex);
 
-        Object.Destroy(OsFps.Instance.FindPlayerObject(playerId));
+        var playerObject = OsFps.Instance.FindPlayerObject(playerId);
+        if (playerObject != null)
+        {
+            Object.Destroy(playerObject);
+        }
+
+        var playerComponent = OsFps.Instance.FindPlayerComponent(playerId);
+        Object.Destroy(playerComponent.gameObject);
     }
 
-    public void SendMessageToAllClients(int channelId, INetworkMessage message)
+    public void SendMessageToAllClients(int channelId, byte[] serializedMessage)
     {
-        var serializedMessage = NetworkSerializationUtils.SerializeWithType(message);
         var connectionIds = playerIdsByConnectionId.Keys.Select(x => x).ToList();
 
-        foreach(var connectionId in connectionIds)
+        foreach (var connectionId in connectionIds)
         {
             SendMessageToClientHandleErrors(connectionId, channelId, serializedMessage);
         }
     }
-    public void SendMessageToClient(int connectionId, int channelId, INetworkMessage message)
+    public void SendMessageToClient(int connectionId, int channelId, byte[] serializedMessage)
     {
-        var serializedMessage = NetworkSerializationUtils.SerializeWithType(message);
         SendMessageToClientHandleErrors(connectionId, channelId, serializedMessage);
     }
     
@@ -134,24 +117,23 @@ public class Server
     private void OnMapLoaded(Scene scene, LoadSceneMode loadSceneMode)
     {
         SceneManager.sceneLoaded -= OnMapLoaded;
-
-        CurrentGameState.WeaponObjects = gameStateScraperSystem.ServerGetWeaponObjectStatesFromGameObjects(this);
-        CurrentGameState.WeaponSpawners = gameStateScraperSystem.ServerGetWeaponSpawnerStatesFromGameObjects(this);
+        
         SendGameStatePeriodicFunction = new ThrottledAction(SendGameState, 1.0f / 30);
 
-        if (OnServerStarted != null)
-        {
-            OnServerStarted();
-        }
+        gameStateScraperSystem.ServerInitWeaponObjectStatesInGameObjects(this);
+        gameStateScraperSystem.ServerInitWeaponSpawnerStatesInGameObjects(this);
+
+        OnServerStarted?.Invoke();
     }
     
     private void SendGameState()
     {
-        var message = new GameStateMessage
+        Debug.Log("Sending game state...");
+
+        OsFps.Instance.CallRpcOnAllClients("ClientOnReceiveGameState", unreliableStateUpdateChannelId, new
         {
-            GameState = CurrentGameState
-        };
-        SendMessageToAllClients(unreliableStateUpdateChannelId, message);
+            gameState = gameStateScraperSystem.GetGameState()
+        });
     }
 
     private void SendMessageToClientHandleErrors(int connectionId, int channelId, byte[] serializedMessage)
@@ -172,7 +154,7 @@ public class Server
         return netId;
     }
 
-    public PositionOrientation3d GetNextSpawnPoint(PlayerState playerState)
+    public PositionOrientation3d GetNextSpawnPoint()
     {
         var spawnPointObjects = GameObject.FindGameObjectsWithTag(OsFps.SpawnPointTag);
 
@@ -200,97 +182,93 @@ public class Server
     private void OnReceiveDataFromClient(int connectionId, int channelId, byte[] bytesReceived)
     {
         var reader = new BinaryReader(new MemoryStream(bytesReceived));
-        var messageType = (NetworkMessageType)reader.ReadByte();
+        var messageTypeAsByte = reader.ReadByte();
 
-        switch (messageType)
+        RpcInfo rpcInfo;
+        
+        if (OsFps.Instance.rpcInfoById.TryGetValue(messageTypeAsByte, out rpcInfo))
         {
-            case NetworkMessageType.PlayerInput:
-                var playerInputMessage = new PlayerInputMessage();
-                playerInputMessage.Deserialize(reader);
-
-                HandlePlayerInputMessage(playerInputMessage);
-                break;
-            case NetworkMessageType.TriggerPulled:
-                var triggerPulledMessage = new TriggerPulledMessage();
-                triggerPulledMessage.Deserialize(reader);
-
-                HandleTriggerPulledMessage(triggerPulledMessage);
-                break;
-            case NetworkMessageType.ReloadPressed:
-                var reloadPressedMessage = new ReloadPressedMessage();
-                reloadPressedMessage.Deserialize(reader);
-
-                HandleReloadPressedMessage(reloadPressedMessage);
-                break;
-            case NetworkMessageType.ThrowGrenade:
-                var throwGrenadeMessage = new ThrowGrenadeMessage();
-                throwGrenadeMessage.Deserialize(reader);
-
-                HandleThrowGrenadeMessage(throwGrenadeMessage);
-                break;
-            case NetworkMessageType.Chat:
-                var chatMessage = new ChatMessage();
-                chatMessage.Deserialize(reader);
-
-                HandleChatMessage(chatMessage);
-                break;
-            case NetworkMessageType.ChangeWeapon:
-                var changeWeaponMessage = new ChangeWeaponMessage();
-                changeWeaponMessage.Deserialize(reader);
-
-                HandleChangeWeaponMessage(changeWeaponMessage);
-                break;
-            default:
-                throw new System.NotImplementedException("Unknown message type: " + messageType);
+            var rpcArguments = NetworkSerializationUtils.DeserializeRpcCallArguments(rpcInfo, reader);
+            OsFps.Instance.ExecuteRpc(rpcInfo.Id, rpcArguments);
+        }
+        else
+        {
+            throw new System.NotImplementedException("Unknown message type: " + messageTypeAsByte);
         }
     }
-    private void HandlePlayerInputMessage(PlayerInputMessage message)
-    {
-        // TODO: Make sure the player ID is correct.
-        var playerState = CurrentGameState.Players.First(ps => ps.Id == message.PlayerId);
-        playerState.Input = message.PlayerInput;
-        playerState.LookDirAngles = message.LookDirAngles;
-    }
-    private void HandleTriggerPulledMessage(TriggerPulledMessage message)
-    {
-        // TODO: Make sure the player ID is correct.
-        var playerState = CurrentGameState.Players.First(ps => ps.Id == message.PlayerId);
-        PlayerSystem.Instance.ServerPlayerPullTrigger(this, playerState);
 
-        SendMessageToAllClients(reliableSequencedChannelId, message);
-    }
-    private void HandleReloadPressedMessage(ReloadPressedMessage message)
+    [Rpc(ExecuteOn = NetworkPeerType.Server)]
+    public void ServerOnPlayerReloadPressed(uint playerId)
     {
         // TODO: Make sure the player ID is correct.
-        var playerState = CurrentGameState.Players.First(ps => ps.Id == message.PlayerId);
+        var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(playerId);
 
-        if (playerState.CanReload)
+        if (playerObjectComponent.State.CanReload)
         {
-            PlayerSystem.Instance.ServerPlayerStartReload(playerState);
+            PlayerSystem.Instance.ServerPlayerStartReload(playerObjectComponent);
         }
 
         // TODO: Send to all other players???
     }
-    private void HandleThrowGrenadeMessage(ThrowGrenadeMessage message)
+
+    [Rpc(ExecuteOn = NetworkPeerType.Server)]
+    public void ServerOnPlayerTriggerPulled(uint playerId)
     {
         // TODO: Make sure the player ID is correct.
-        var playerState = CurrentGameState.Players.First(ps => ps.Id == message.PlayerId);
+        var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(playerId);
+        PlayerSystem.Instance.ServerPlayerPullTrigger(this, playerObjectComponent);
 
-        GrenadeSystem.Instance.ServerPlayerThrowGrenade(this, playerState);
+        OsFps.Instance.CallRpcOnAllClients("ClientOnTriggerPulled", reliableSequencedChannelId, new
+        {
+            playerId
+        });
     }
-    private void HandleChatMessage(ChatMessage message)
+
+    [Rpc(ExecuteOn = NetworkPeerType.Server)]
+    public void ServerOnPlayerThrowGrenade(uint playerId)
     {
-        SendMessageToAllClients(reliableSequencedChannelId, message);
+        // TODO: Make sure the player ID is correct.
+        var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(playerId);
+        GrenadeSystem.Instance.ServerPlayerThrowGrenade(this, playerObjectComponent);
     }
-    private void HandleChangeWeaponMessage(ChangeWeaponMessage message)
+
+    [Rpc(ExecuteOn = NetworkPeerType.Server)]
+    public void ServerOnChatMessage(uint? playerId, string message)
     {
-        SendMessageToAllClients(reliableSequencedChannelId, message);
+        OsFps.Instance.CallRpcOnAllClients("ClientOnReceiveChatMessage", reliableSequencedChannelId, new
+        {
+            playerId,
+            message
+        });
+    }
 
-        var playerState = CurrentGameState.Players.FirstOrDefault(ps => ps.Id == message.PlayerId);
-        if (playerState == null) return;
+    [Rpc(ExecuteOn = NetworkPeerType.Server)]
+    public void ServerOnChangeWeapon(uint playerId, byte weaponIndex)
+    {
+        OsFps.Instance.CallRpcOnAllClients("ClientOnChangeWeapon", reliableSequencedChannelId, new
+        {
+            playerId = playerId,
+            weaponIndex = weaponIndex
+        });
 
-        playerState.CurrentWeaponIndex = message.WeaponIndex;
-        playerState.ReloadTimeLeft = -1;
+        var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(playerId);
+
+        if (playerObjectComponent == null) return;
+
+        playerObjectComponent.State.CurrentWeaponIndex = weaponIndex;
+        playerObjectComponent.State.ReloadTimeLeft = -1;
+    }
+
+    [Rpc(ExecuteOn = NetworkPeerType.Server)]
+    public void ServerOnReceivePlayerInput(uint playerId, PlayerInput playerInput, Vector2 lookDirAngles)
+    {
+        // TODO: Make sure the player ID is correct.
+        var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(playerId);
+        if (playerObjectComponent == null) return;
+
+        var playerObjectState = playerObjectComponent.State;
+        playerObjectState.Input = playerInput;
+        playerObjectState.LookDirAngles = lookDirAngles;
     }
     #endregion
 }

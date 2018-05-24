@@ -7,13 +7,13 @@ public static class GameObjectExtensions
         if (gameObject.tag == tag) return gameObject;
 
         var parentTransform = gameObject.transform.parent;
-        return (parentTransform != null) ? parentTransform.gameObject.FindObjectOrAncestorWithTag(tag) : null;
+        return parentTransform?.gameObject.FindObjectOrAncestorWithTag(tag);
     }
 
     public static GameObject FindDescendant(this GameObject gameObject, string descendantName)
     {
         var descendantTransform = FindDescendant(gameObject.transform, descendantName);
-        return (descendantTransform != null) ? descendantTransform.gameObject : null;
+        return descendantTransform?.gameObject;
     }
     public static Transform FindDescendant(this Transform transform, string descendantName)
     {

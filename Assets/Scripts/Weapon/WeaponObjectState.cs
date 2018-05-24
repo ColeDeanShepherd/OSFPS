@@ -6,6 +6,7 @@ public class WeaponObjectState : INetworkSerializable
     public WeaponType Type = WeaponType.Pistol;
     public ushort BulletsLeftInMagazine;
     public ushort BulletsLeftOutOfMagazine;
+    public float TimeUntilCanShoot;
     public RigidBodyState RigidBodyState = new RigidBodyState();
 
     public ushort BulletsLeft
@@ -15,6 +16,13 @@ public class WeaponObjectState : INetworkSerializable
             return (ushort)(BulletsLeftInMagazine + BulletsLeftOutOfMagazine);
         }
     }
+    public WeaponDefinition Definition
+    {
+        get
+        {
+            return OsFps.GetWeaponDefinitionByType(Type);
+        }
+    }
 
     public void Deserialize(BinaryReader reader)
     {
@@ -22,6 +30,7 @@ public class WeaponObjectState : INetworkSerializable
         Type = (WeaponType)reader.ReadByte();
         BulletsLeftInMagazine = reader.ReadUInt16();
         BulletsLeftOutOfMagazine = reader.ReadUInt16();
+        TimeUntilCanShoot = reader.ReadSingle();
         RigidBodyState.Deserialize(reader);
     }
 
@@ -31,6 +40,7 @@ public class WeaponObjectState : INetworkSerializable
         writer.Write((byte)Type);
         writer.Write(BulletsLeftInMagazine);
         writer.Write(BulletsLeftOutOfMagazine);
+        writer.Write(TimeUntilCanShoot);
         RigidBodyState.Serialize(writer);
     }
 }

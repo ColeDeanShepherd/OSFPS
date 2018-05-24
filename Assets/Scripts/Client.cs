@@ -9,16 +9,15 @@ public class Client
 {
     public ClientPeer ClientPeer;
     public uint? PlayerId;
-    public GameState CurrentGameState;
     public GameObject Camera;
     public GameObject GuiContainer;
 
     public event ClientPeer.ServerConnectionChangeEventHandler OnDisconnectedFromServer;
 
+    public GameStateScraperSystem gameStateScraperSystem = new GameStateScraperSystem();
+
     public void Start(bool isServerRemote)
     {
-        CurrentGameState = new GameState();
-
         ClientPeer = new ClientPeer();
         ClientPeer.OnReceiveDataFromServer += OnReceiveDataFromServer;
         ClientPeer.OnDisconnectedFromServer += InternalOnDisconnectedFromServer;
@@ -76,16 +75,19 @@ public class Client
             SendInputPeriodicFunction.TryToCall();
         }
 
-        if (Input.GetKeyDown(KeyCode.Alpha1))
+        if (PlayerId != null)
         {
-            var playerState = CurrentGameState.Players.FirstOrDefault(ps => ps.Id == PlayerId);
-            SwitchWeapons(playerState, 0);
-        }
+            if (Input.GetKeyDown(KeyCode.Alpha1))
+            {
+                var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(PlayerId.Value);
+                SwitchWeapons(playerObjectComponent, 0);
+            }
 
-        if (Input.GetKeyDown(KeyCode.Alpha2))
-        {
-            var playerState = CurrentGameState.Players.FirstOrDefault(ps => ps.Id == PlayerId);
-            SwitchWeapons(playerState, 1);
+            if (Input.GetKeyDown(KeyCode.Alpha2))
+            {
+                var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(PlayerId.Value);
+                SwitchWeapons(playerObjectComponent, 1);
+            }
         }
 
         if (Input.GetKeyDown(OsFps.ChatKeyCode))
@@ -121,15 +123,16 @@ public class Client
     }
     public void LateUpdate()
     {
-        var playerState = CurrentGameState.Players.FirstOrDefault(ps => ps.Id == PlayerId);
-        if (playerState != null)
+        if (PlayerId != null)
         {
-            var playerComponent = OsFps.Instance.FindPlayerComponent(playerState.Id);
-            if (playerComponent != null)
+            var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(PlayerId.Value);
+            
+            if (playerObjectComponent != null)
             {
-                playerState.Position = playerComponent.transform.position;
-                playerState.Velocity = playerComponent.Rigidbody.velocity;
-                playerState.LookDirAngles = OsFps.Instance.GetPlayerLookDirAngles(playerComponent);
+                var playerObjectState = playerObjectComponent.State;
+                playerObjectState.Position = playerObjectComponent.transform.position;
+                playerObjectState.Velocity = playerObjectComponent.Rigidbody.velocity;
+                playerObjectState.LookDirAngles = OsFps.Instance.GetPlayerLookDirAngles(playerObjectComponent);
             }
         }
     }
@@ -167,25 +170,29 @@ public class Client
     }
     private void DrawHud()
     {
-        var playerState = CurrentGameState.Players.FirstOrDefault(ps => ps.Id == PlayerId);
+        var playerObjectComponent = PlayerId.HasValue
+            ? OsFps.Instance.FindPlayerObjectComponent(PlayerId.Value)
+            : null;
 
-        if (playerState != null)
+        if (playerObjectComponent != null)
         {
-            GUI.Label(new Rect(10, 10, 100, 30), "Health: " + playerState.Health);
+            var playerObjectState = playerObjectComponent.State;
+
+            GUI.Label(new Rect(10, 10, 100, 30), "Health: " + playerObjectState.Health);
 
             var weaponHudX = 110;
             var weaponHudY = 10;
             var weaponHudHeight = 110;
 
-            if (playerState.CurrentWeapon != null)
+            if (playerObjectState.CurrentWeapon != null)
             {
-                DrawWeaponHud(playerState.CurrentWeapon, new Vector2(weaponHudX, weaponHudY));
+                DrawWeaponHud(playerObjectState.CurrentWeapon, new Vector2(weaponHudX, weaponHudY));
                 weaponHudY += weaponHudHeight;
             }
 
-            foreach (var weapon in playerState.Weapons)
+            foreach (var weapon in playerObjectState.Weapons)
             {
-                if ((weapon != null) && (weapon != playerState.CurrentWeapon))
+                if ((weapon != null) && (weapon != playerObjectState.CurrentWeapon))
                 {
                     DrawWeaponHud(weapon, new Vector2(weaponHudX, weaponHudY));
                     weaponHudY += weaponHudHeight;
@@ -193,7 +200,7 @@ public class Client
             }
         }
     }
-    private void DrawWeaponHud(WeaponState weapon, Vector2 position)
+    private void DrawWeaponHud(WeaponObjectState weapon, Vector2 position)
     {
         GUI.Label(
             new Rect(position.x, position.y, 200, 50),
@@ -218,8 +225,10 @@ public class Client
         position.y += rowHeight;
 
         // Draw player rows.
-        foreach (var playerState in CurrentGameState.Players)
+        var playerComponents = Object.FindObjectsOfType<PlayerComponent>();
+        foreach (var playerComponent in playerComponents)
         {
+            var playerState = playerComponent.State;
             GUI.Label(new Rect(idColumnX, position.y, playerIdColumnWidth, rowHeight), playerState.Id.ToString());
             GUI.Label(new Rect(killsColumnX, position.y, killsColumnWidth, rowHeight), playerState.Kills.ToString());
             GUI.Label(new Rect(deathsColumnX, position.y, deathsColumnWidth, rowHeight), playerState.Deaths.ToString());
@@ -278,22 +287,22 @@ public class Client
     }
     #endregion
 
-    private int reliableSequencedChannelId;
-    private int reliableChannelId;
-    private int unreliableStateUpdateChannelId;
+    public int reliableSequencedChannelId;
+    public int reliableChannelId;
+    public int unreliableStateUpdateChannelId;
     private ThrottledAction SendInputPeriodicFunction;
 
     public bool _isShowingChatMessageInput;
     public bool _justOpenedChatMessageInput;
     private string _chatMessageBeingTyped;
-    private List<string> _chatMessages = new List<string>();
+    public List<string> _chatMessages = new List<string>();
 
     public bool _isShowingMenu;
     
     private void AttachCameraToPlayer(uint playerId)
     {
         var playerObject = OsFps.Instance.FindPlayerObject(playerId);
-        var cameraPointObject = playerObject.GetComponent<PlayerComponent>().CameraPointObject;
+        var cameraPointObject = playerObject.GetComponent<PlayerObjectComponent>().CameraPointObject;
         
         Camera.transform.SetParent(cameraPointObject.transform);
 
@@ -304,38 +313,37 @@ public class Client
     {
         Camera.transform.SetParent(null, true);
     }
-    private void EquipWeapon(PlayerState playerState)
+    private void EquipWeapon(PlayerObjectState playerState)
     {
         if (playerState.CurrentWeapon == null)
         {
             return;
         }
 
-        var playerComponent = OsFps.Instance.FindPlayerComponent(playerState.Id);
+        var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(playerState.Id);
 
         var weaponPrefab = OsFps.Instance.GetWeaponPrefab(playerState.CurrentWeapon.Type);
         GameObject weaponObject = Object.Instantiate(weaponPrefab, Vector3.zero, Quaternion.identity);
-        weaponObject.transform.SetParent(playerComponent.HandsPointObject.transform, false);
+        weaponObject.transform.SetParent(playerObjectComponent.HandsPointObject.transform, false);
 
         var weaponComponent = weaponObject.GetComponent<WeaponComponent>();
         Object.Destroy(weaponComponent.Rigidbody);
         Object.Destroy(weaponComponent.Collider);
     }
-    public void Reload(PlayerState playerState)
+    public void Reload(PlayerObjectState playerState)
     {
-        var message = new ReloadPressedMessage { PlayerId = playerState.Id };
-        ClientPeer.SendMessageToServer(
-            reliableChannelId, NetworkSerializationUtils.SerializeWithType(message)
-        );
+        OsFps.Instance.CallRpcOnServer("ServerOnPlayerReloadPressed", reliableChannelId, new
+        {
+            playerId = playerState.Id
+        });
     }
 
-    public void ShowMuzzleFlash(PlayerState playerState)
+    public void ShowMuzzleFlash(PlayerObjectComponent playerObjectComponent)
     {
         GameObject muzzleFlashObject = Object.Instantiate(
             OsFps.Instance.MuzzleFlashPrefab, Vector3.zero, Quaternion.identity
         );
-        var playerComponent = OsFps.Instance.FindPlayerComponent(playerState.Id);
-        var barrelExitObject = playerComponent.HandsPointObject.FindDescendant("BarrelExit");
+        var barrelExitObject = playerObjectComponent.HandsPointObject.FindDescendant("BarrelExit");
         muzzleFlashObject.transform.SetParent(barrelExitObject.transform, false);
 
         Object.Destroy(muzzleFlashObject, OsFps.MuzzleFlashDuration);
@@ -349,37 +357,39 @@ public class Client
 
         Object.Destroy(grenadeExplosionObject, OsFps.GrenadeExplosionDuration);
     }
-    public void Shoot(PlayerState playerState)
+    public void Shoot(PlayerObjectComponent playerObjectComponent)
     {
-        ShowMuzzleFlash(playerState);
+        ShowMuzzleFlash(playerObjectComponent);
 
-        var message = new TriggerPulledMessage { PlayerId = playerState.Id };
-        ClientPeer.SendMessageToServer(
-            reliableChannelId, NetworkSerializationUtils.SerializeWithType(message)
-        );
+        OsFps.Instance.CallRpcOnServer("ServerOnPlayerTriggerPulled", reliableChannelId, new
+        {
+            playerId = playerObjectComponent.State.Id
+        });
 
-        playerState.CurrentWeapon.TimeUntilCanShoot = playerState.CurrentWeapon.Definition.ShotInterval;
+        playerObjectComponent.State.CurrentWeapon.TimeUntilCanShoot =
+            playerObjectComponent.State.CurrentWeapon.Definition.ShotInterval;
     }
 
-    public void ThrowGrenade(PlayerState playerState)
+    public void ThrowGrenade(PlayerObjectState playerState)
     {
-        var message = new ThrowGrenadeMessage { PlayerId = playerState.Id };
-        ClientPeer.SendMessageToServer(
-            reliableChannelId, NetworkSerializationUtils.SerializeWithType(message)
-        );
+        OsFps.Instance.CallRpcOnServer("ServerOnPlayerThrowGrenade", reliableChannelId, new
+        {
+            playerId = playerState.Id
+        });
 
         playerState.TimeUntilCanThrowGrenade = OsFps.GrenadeThrowInterval;
     }
 
-    private void SwitchWeapons(PlayerState playerState, int weaponIndex)
+    public void SwitchWeapons(PlayerObjectComponent playerObjectComponent, int weaponIndex)
     {
-        if (weaponIndex == playerState.CurrentWeaponIndex) return;
+        var playerObjectState = playerObjectComponent.State;
+
+        if (weaponIndex == playerObjectState.CurrentWeaponIndex) return;
 
         // destroy weapon obj
-        if (playerState.CurrentWeapon != null)
+        if (playerObjectState.CurrentWeapon != null)
         {
-            var playerComponent = OsFps.Instance.FindPlayerComponent(playerState.Id);
-            var weaponComponent = playerComponent.HandsPointObject.GetComponentInChildren<WeaponComponent>();
+            var weaponComponent = playerObjectComponent.HandsPointObject.GetComponentInChildren<WeaponComponent>();
 
             if (weaponComponent != null)
             {
@@ -387,31 +397,27 @@ public class Client
             }
         }
 
-        playerState.CurrentWeaponIndex = (byte)weaponIndex;
+        playerObjectState.CurrentWeaponIndex = (byte)weaponIndex;
 
-        EquipWeapon(playerState);
+        EquipWeapon(playerObjectState);
 
         // Send message to server.
-        var message = new ChangeWeaponMessage
+        OsFps.Instance.CallRpcOnServer("ServerOnChangeWeapon", reliableSequencedChannelId, new
         {
-            PlayerId = playerState.Id,
-            WeaponIndex = (byte)weaponIndex
-        };
-        ClientPeer.SendMessageToServer(reliableSequencedChannelId, NetworkSerializationUtils.SerializeWithType(message));
+            playerId = playerObjectState.Id,
+            weaponIndex = (byte)weaponIndex
+        });
     }
 
     private void ConfirmChatMessage()
     {
         if (_chatMessageBeingTyped.Length > 0)
         {
-            var message = new ChatMessage
+            OsFps.Instance.CallRpcOnServer("ServerOnChatMessage", reliableChannelId, new
             {
-                PlayerId = PlayerId.Value,
-                Message = _chatMessageBeingTyped
-            };
-            ClientPeer.SendMessageToServer(
-                reliableChannelId, NetworkSerializationUtils.SerializeWithType(message)
-            );
+                playerId = PlayerId,
+                message = _chatMessageBeingTyped
+            });
 
             _chatMessageBeingTyped = "";
         }
@@ -471,175 +477,41 @@ public class Client
             oldList.Any(oldElement => doElementsMatch(oldElement, newElement))
         ).ToList();
     }
-
-    private void ApplyGameState(GameState newGameState)
-    {
-        if (!PlayerId.HasValue) return; // Wait until the player ID has been set.
-
-        ApplyPlayerStates(newGameState);
-        ApplyWeaponObjectStates(newGameState);
-        ApplyGrenadeStates(newGameState);
-    }
-
-    private void ApplyPlayerStates(GameState newGameState)
-    {
-        List<PlayerState> removedPlayerStates, addedPlayerStates, updatedPlayerStates;
-        GetChanges(
-            CurrentGameState.Players, newGameState.Players, (p1, p2) => p1.Id == p2.Id,
-            out removedPlayerStates, out addedPlayerStates, out updatedPlayerStates
-        );
-
-        // Despawn players.
-        foreach (var removedPlayerState in removedPlayerStates)
-        {
-            Object.Destroy(OsFps.Instance.FindPlayerObject(removedPlayerState.Id));
-            CurrentGameState.Players.RemoveAll(ps => ps.Id == removedPlayerState.Id);
-        }
-
-        // Spawn players.
-        foreach (var addedPlayerState in addedPlayerStates)
-        {
-            CurrentGameState.Players.Add(addedPlayerState);
-            SpawnPlayer(addedPlayerState);
-        }
-
-        // Update existing players.
-        foreach (var updatedPlayerState in updatedPlayerStates)
-        {
-            ApplyPlayerState(updatedPlayerState);
-        }
-    }
-    private void ApplyPlayerState(PlayerState updatedPlayerState)
-    {
-        var currentPlayerStateIndex = CurrentGameState.Players
-                .FindIndex(curPs => curPs.Id == updatedPlayerState.Id);
-        var currentPlayerState = CurrentGameState.Players[currentPlayerStateIndex];
-
-        var isPlayerMe = updatedPlayerState.Id == PlayerId;
-        var roundTripTime = ClientPeer.RoundTripTime.Value;
-
-        var playerObject = OsFps.Instance.FindPlayerObject(updatedPlayerState.Id);
-
-        // Handle player killed.
-        if ((playerObject != null) && !updatedPlayerState.IsAlive)
-        {
-            if (isPlayerMe)
-            {
-                DetachCameraFromPlayer();
-            }
-
-            Object.Destroy(playerObject);
-        }
-
-        // Handle player spawned.
-        if ((playerObject == null) && updatedPlayerState.IsAlive)
-        {
-            SpawnPlayer(updatedPlayerState);
-
-            if (isPlayerMe)
-            {
-                AttachCameraToPlayer(updatedPlayerState.Id);
-            }
-        }
-
-        // Handle weapon pickup.
-        if (
-            (playerObject != null) &&
-            (updatedPlayerState.CurrentWeaponIndex == currentPlayerState.CurrentWeaponIndex) &&
-            (updatedPlayerState.CurrentWeapon != null) &&
-            (currentPlayerState.CurrentWeapon == null)
-        )
-        {
-            EquipWeapon(updatedPlayerState);
-        }
-
-        // Update player object.
-        if (playerObject != null)
-        {
-            var playerComponent = playerObject.GetComponent<PlayerComponent>();
-
-            // Correct position.
-            var correctedPosition = CorrectedPosition(
-                updatedPlayerState.Position, updatedPlayerState.Velocity,
-                roundTripTime, playerComponent.transform.position
-            );
-            playerComponent.transform.position = correctedPosition;
-            updatedPlayerState.Position = correctedPosition;
-
-            // Correct velocity.
-            var correctedVelocity = CorrectedVelocity(
-                updatedPlayerState.Velocity, roundTripTime, playerComponent.Rigidbody.velocity
-            );
-            playerComponent.Rigidbody.velocity = correctedVelocity;
-            updatedPlayerState.Velocity = correctedVelocity;
-
-            // Update look direction.
-            if (isPlayerMe)
-            {
-                updatedPlayerState.LookDirAngles = OsFps.Instance.GetPlayerLookDirAngles(playerComponent);
-            }
-
-            OsFps.Instance.ApplyLookDirAnglesToPlayer(playerComponent, updatedPlayerState.LookDirAngles);
-
-            // Update weapon if reloading.
-            var weaponComponent = playerComponent.GetComponentInChildren<WeaponComponent>();
-            var weaponGameObject = (weaponComponent != null) ? weaponComponent.gameObject : null;
-            if ((weaponGameObject != null) && updatedPlayerState.IsReloading)
-            {
-                var percentDoneReloading = updatedPlayerState.ReloadTimeLeft / updatedPlayerState.CurrentWeapon.Definition.ReloadTime;
-
-                var y = -(1.0f - Mathf.Abs((2 * percentDoneReloading) - 1));
-                weaponGameObject.transform.localPosition = new Vector3(0, y, 0);
-            }
-        }
-
-        // Update state.
-        if (isPlayerMe)
-        {
-            if ((updatedPlayerState.CurrentWeapon != null) && (currentPlayerState.CurrentWeapon != null))
-            {
-                updatedPlayerState.CurrentWeapon.TimeUntilCanShoot = currentPlayerState.CurrentWeapon.TimeUntilCanShoot;
-            }
-
-            updatedPlayerState.TimeUntilCanThrowGrenade = currentPlayerState.TimeUntilCanThrowGrenade;
-
-            updatedPlayerState.Input = currentPlayerState.Input;
-        }
-
-        CurrentGameState.Players[currentPlayerStateIndex] = updatedPlayerState;
-    }
     
-    private void ApplyWeaponObjectStates(GameState newGameState)
+    private void ApplyStates<StateType>(
+        List<StateType> oldStates, List<StateType> newStates,
+        System.Func<StateType, StateType, bool> doStatesHaveSameId,
+        System.Action<StateType> removeStateObject,
+        System.Action<StateType> addStateObject,
+        System.Action<StateType, StateType> updateStateObject
+    )
     {
-        List<WeaponObjectState> removedWeaponObjectStates, addedWeaponObjectStates, updatedWeaponObjectStates;
+        List<StateType> removedStates, addedStates, updatedStates;
         GetChanges(
-            CurrentGameState.WeaponObjects, newGameState.WeaponObjects, (wo1, wo2) => wo1.Id == wo2.Id,
-            out removedWeaponObjectStates, out addedWeaponObjectStates, out updatedWeaponObjectStates
+            oldStates, newStates, doStatesHaveSameId,
+            out removedStates, out addedStates, out updatedStates
         );
 
         // Despawn weapon objects.
-        foreach (var removedWeaponObjectState in removedWeaponObjectStates)
+        foreach (var removedState in removedStates)
         {
-            Object.Destroy(OsFps.Instance.FindWeaponObject(removedWeaponObjectState.Id));
+            removeStateObject(removedState);
         }
-        var removedWeaponObjectIds = removedWeaponObjectStates
-            .Select(wos => wos.Id)
-            .ToList();
-        CurrentGameState.WeaponObjects.RemoveAll(ps => removedWeaponObjectIds.Contains(ps.Id));
 
         // Spawn weapon objects.
-        foreach (var addedWeaponObjectState in addedWeaponObjectStates)
+        foreach (var addedState in addedStates)
         {
-            CurrentGameState.WeaponObjects.Add(addedWeaponObjectState);
-            OsFps.Instance.SpawnLocalWeaponObject(addedWeaponObjectState);
+            addStateObject(addedState);
         }
 
         // Update existing weapon objects.
-        foreach (var updatedWeaponObjectState in updatedWeaponObjectStates)
+        foreach (var updatedState in updatedStates)
         {
-            ApplyWeaponObjectState(updatedWeaponObjectState);
+            var oldState = oldStates.First(os => doStatesHaveSameId(os, updatedState));
+            updateStateObject(oldState, updatedState);
         }
     }
+
     private void ApplyRigidbodyState(RigidBodyState newRigidBodyState, RigidBodyState oldRigidBodyState, Rigidbody rigidbody)
     {
         var roundTripTime = ClientPeer.RoundTripTime.Value;
@@ -674,82 +546,238 @@ public class Client
         rigidbody.angularVelocity = correctedAngularVelocity;
         newRigidBodyState.AngularVelocity = correctedAngularVelocity;
     }
+
+    public void ApplyGameState(GameState newGameState)
+    {
+        if (!PlayerId.HasValue) return; // Wait until the player ID has been set.
+
+        var oldGameState = gameStateScraperSystem.GetGameState();
+
+        ApplyPlayerStates(oldGameState, newGameState);
+        ApplyPlayerObjectStates(oldGameState, newGameState);
+        ApplyWeaponObjectStates(oldGameState, newGameState);
+        //ApplyWeaponSpawnerStates(oldGameState, newGameState);
+        ApplyGrenadeStates(oldGameState, newGameState);
+    }
+
+    private void ApplyPlayerStates(GameState oldGameState, GameState newGameState)
+    {
+        System.Func<PlayerState, PlayerState, bool> doIdsMatch =
+            (ps1, ps2) => ps1.Id == ps2.Id;
+
+        System.Action<PlayerState> handleRemovedPlayerState = removedPlayerState =>
+        {
+            var playerComponent = OsFps.Instance.FindPlayerComponent(removedPlayerState.Id);
+            Object.Destroy(playerComponent);
+        };
+
+        System.Action<PlayerState> handleAddedPlayerState = addedPlayerState =>
+            OsFps.Instance.CreateLocalPlayerDataObject(addedPlayerState);
+
+        System.Action<PlayerState, PlayerState> handleUpdatedPlayerState =
+            (oldPlayerState, updatedPlayerState) =>
+                ApplyPlayerState(oldGameState, updatedPlayerState);
+
+        ApplyStates(
+            oldGameState.Players, newGameState.Players, doIdsMatch,
+            handleRemovedPlayerState, handleAddedPlayerState, handleUpdatedPlayerState
+        );
+    }
+    private void ApplyPlayerState(GameState oldGameState, PlayerState updatedPlayerState)
+    {
+        var playerComponent = OsFps.Instance.FindPlayerComponent(updatedPlayerState.Id);
+        playerComponent.State = updatedPlayerState;
+    }
+
+    private void ApplyPlayerObjectStates(GameState oldGameState, GameState newGameState)
+    {
+        System.Func<PlayerObjectState, PlayerObjectState, bool> doIdsMatch =
+            (pos1, pos2) => pos1.Id == pos2.Id;
+
+        System.Action<PlayerObjectState> handleRemovedPlayerObjectState = removedPlayerObjectState =>
+        {
+            if (removedPlayerObjectState.Id == PlayerId)
+            {
+                DetachCameraFromPlayer();
+            }
+
+            Object.Destroy(OsFps.Instance.FindPlayerObject(removedPlayerObjectState.Id));
+        };
+
+        System.Action<PlayerObjectState> handleAddedPlayerObjectState = addedPlayerObjectState =>
+            SpawnPlayer(addedPlayerObjectState);
+
+        System.Action<PlayerObjectState, PlayerObjectState> handleUpdatedPlayerObjectState =
+            (oldPlayerObjectState, updatedPlayerObjectState) =>
+                ApplyPlayerObjectState(oldGameState, updatedPlayerObjectState);
+
+        ApplyStates(
+            oldGameState.PlayerObjects, newGameState.PlayerObjects, doIdsMatch,
+            handleRemovedPlayerObjectState, handleAddedPlayerObjectState, handleUpdatedPlayerObjectState
+        );
+    }
+    private void ApplyPlayerObjectState(GameState oldGameState, PlayerObjectState updatedPlayerObjectState)
+    {
+        var currentPlayerObjectStateIndex = oldGameState.PlayerObjects
+                .FindIndex(curPs => curPs.Id == updatedPlayerObjectState.Id);
+        var currentPlayerObjectState = oldGameState.PlayerObjects[currentPlayerObjectStateIndex];
+
+        var isPlayerMe = updatedPlayerObjectState.Id == PlayerId;
+        var roundTripTime = ClientPeer.RoundTripTime.Value;
+
+        var playerObject = OsFps.Instance.FindPlayerObject(updatedPlayerObjectState.Id);
+
+        // Handle weapon pickup.
+        if (
+            (playerObject != null) &&
+            (updatedPlayerObjectState.CurrentWeaponIndex == currentPlayerObjectState.CurrentWeaponIndex) &&
+            (updatedPlayerObjectState.CurrentWeapon != null) &&
+            (currentPlayerObjectState.CurrentWeapon == null)
+        )
+        {
+            EquipWeapon(updatedPlayerObjectState);
+        }
+
+        // Update player object.
+        if (playerObject != null)
+        {
+            var playerComponent = playerObject.GetComponent<PlayerObjectComponent>();
+
+            // Correct position.
+            var correctedPosition = CorrectedPosition(
+                updatedPlayerObjectState.Position, updatedPlayerObjectState.Velocity,
+                roundTripTime, playerComponent.transform.position
+            );
+            playerComponent.transform.position = correctedPosition;
+            updatedPlayerObjectState.Position = correctedPosition;
+
+            // Correct velocity.
+            var correctedVelocity = CorrectedVelocity(
+                updatedPlayerObjectState.Velocity, roundTripTime, playerComponent.Rigidbody.velocity
+            );
+            playerComponent.Rigidbody.velocity = correctedVelocity;
+            updatedPlayerObjectState.Velocity = correctedVelocity;
+
+            // Update look direction.
+            if (isPlayerMe)
+            {
+                updatedPlayerObjectState.LookDirAngles = OsFps.Instance.GetPlayerLookDirAngles(playerComponent);
+            }
+
+            OsFps.Instance.ApplyLookDirAnglesToPlayer(playerComponent, updatedPlayerObjectState.LookDirAngles);
+
+            // Update weapon if reloading.
+            var weaponComponent = playerComponent.GetComponentInChildren<WeaponComponent>();
+            var weaponGameObject = weaponComponent?.gameObject;
+            if ((weaponGameObject != null) && updatedPlayerObjectState.IsReloading)
+            {
+                var percentDoneReloading = updatedPlayerObjectState.ReloadTimeLeft / updatedPlayerObjectState.CurrentWeapon.Definition.ReloadTime;
+
+                var y = -(1.0f - Mathf.Abs((2 * percentDoneReloading) - 1));
+                weaponGameObject.transform.localPosition = new Vector3(0, y, 0);
+            }
+        }
+
+        // Update state.
+        if (isPlayerMe)
+        {
+            if ((updatedPlayerObjectState.CurrentWeapon != null) && (currentPlayerObjectState.CurrentWeapon != null))
+            {
+                updatedPlayerObjectState.CurrentWeapon.TimeUntilCanShoot = currentPlayerObjectState.CurrentWeapon.TimeUntilCanShoot;
+            }
+
+            updatedPlayerObjectState.TimeUntilCanThrowGrenade = currentPlayerObjectState.TimeUntilCanThrowGrenade;
+
+            updatedPlayerObjectState.Input = currentPlayerObjectState.Input;
+        }
+
+        if (playerObject != null)
+        {
+            var playerComponent = playerObject.GetComponent<PlayerObjectComponent>();
+            playerComponent.State = updatedPlayerObjectState;
+        }
+    }
+
+    private void ApplyWeaponObjectStates(GameState oldGameState, GameState newGameState)
+    {
+        System.Func<WeaponObjectState, WeaponObjectState, bool> doIdsMatch =
+            (wos1, wos2) => wos1.Id == wos2.Id;
+
+        System.Action<WeaponObjectState> handleRemovedWeaponObjectState = removedWeaponObjectState => 
+            Object.Destroy(OsFps.Instance.FindWeaponObject(removedWeaponObjectState.Id));
+
+        System.Action<WeaponObjectState> handleAddedWeaponObjectState = addedWeaponObjectState =>
+            OsFps.Instance.SpawnLocalWeaponObject(addedWeaponObjectState);
+
+        System.Action<WeaponObjectState, WeaponObjectState> handleUpdatedWeaponObjectState =
+            (oldWeaponObjectState, updatedWeaponObjectState) => ApplyWeaponObjectState(updatedWeaponObjectState);
+
+        ApplyStates(
+            oldGameState.WeaponObjects, newGameState.WeaponObjects, doIdsMatch,
+            handleRemovedWeaponObjectState, handleAddedWeaponObjectState, handleUpdatedWeaponObjectState
+        );
+    }
     private void ApplyWeaponObjectState(WeaponObjectState updatedWeaponObjectState)
     {
-        var currentWeaponObjectStateIndex = CurrentGameState.WeaponObjects
-                .FindIndex(curPs => curPs.Id == updatedWeaponObjectState.Id);
-        var currentWeaponObjectState = CurrentGameState.WeaponObjects[currentWeaponObjectStateIndex];
-        var weaponObject = OsFps.Instance.FindWeaponObject(updatedWeaponObjectState.Id);
+        var weaponComponent = OsFps.Instance.FindWeaponComponent(updatedWeaponObjectState.Id);
+        var currentWeaponObjectState = weaponComponent.State;
 
         // Update weapon object.
-        if (weaponObject != null)
+        if (weaponComponent != null)
         {
-            var weaponComponent = weaponObject.GetComponent<WeaponComponent>();
             ApplyRigidbodyState(
                 updatedWeaponObjectState.RigidBodyState,
                 currentWeaponObjectState.RigidBodyState,
                 weaponComponent.Rigidbody
             );
-        }
 
-        // Update state.
-        CurrentGameState.WeaponObjects[currentWeaponObjectStateIndex] = updatedWeaponObjectState;
+            // Update state.
+            weaponComponent.State = updatedWeaponObjectState;
+        }
     }
 
-    private void ApplyGrenadeStates(GameState newGameState)
+    private void ApplyGrenadeStates(GameState oldGameState, GameState newGameState)
     {
-        List<GrenadeState> removedGrenadeStates, addedGrenadeStates, updatedGrenadeStates;
-        GetChanges(
-            CurrentGameState.Grenades, newGameState.Grenades, (g1, g2) => g1.Id == g2.Id,
-            out removedGrenadeStates, out addedGrenadeStates, out updatedGrenadeStates
-        );
+        System.Func<GrenadeState, GrenadeState, bool> doIdsMatch =
+            (g1, g2) => g1.Id == g2.Id;
 
-        // Despawn weapon objects.
-        foreach (var removedGrenadeState in removedGrenadeStates)
+        System.Action<GrenadeState> handleRemovedGrenadeState = removedGrenadeState =>
         {
-            Object.Destroy(OsFps.Instance.FindGrenade(removedGrenadeState.Id));
-        }
-        var removedGrenadeIds = removedGrenadeStates
-            .Select(wos => wos.Id)
-            .ToList();
-        CurrentGameState.Grenades.RemoveAll(ps => removedGrenadeIds.Contains(ps.Id));
+            var grenadeComponent = OsFps.Instance.FindGrenadeComponent(removedGrenadeState.Id);
+            Object.Destroy(grenadeComponent.gameObject);
+        };
 
-        // Spawn weapon objects.
-        foreach (var addedGrenadeState in addedGrenadeStates)
-        {
-            CurrentGameState.Grenades.Add(addedGrenadeState);
+        System.Action<GrenadeState> handleAddedGrenadeState = addedGrenadeState =>
             OsFps.Instance.SpawnLocalGrenadeObject(addedGrenadeState);
-        }
 
-        // Update existing weapon objects.
-        foreach (var updatedGrenadeState in updatedGrenadeStates)
-        {
-            ApplyGrenadeState(updatedGrenadeState);
-        }
+        System.Action<GrenadeState, GrenadeState> handleUpdatedGrenadeState =
+            (oldGrenadeState, updatedGrenadeState) => ApplyGrenadeState(updatedGrenadeState);
+
+        ApplyStates(
+            oldGameState.Grenades, newGameState.Grenades, doIdsMatch,
+            handleRemovedGrenadeState, handleAddedGrenadeState, handleUpdatedGrenadeState
+        );
     }
     private void ApplyGrenadeState(GrenadeState updatedGrenadeState)
     {
-        var currentGrenadeStateIndex = CurrentGameState.Grenades
-                .FindIndex(curGs => curGs.Id == updatedGrenadeState.Id);
-        var currentGrenadeState = CurrentGameState.Grenades[currentGrenadeStateIndex];
-        var grenadeObject = OsFps.Instance.FindGrenade(updatedGrenadeState.Id);
+        var grenadeComponent = OsFps.Instance.FindGrenadeComponent(updatedGrenadeState.Id);
+        var currentGrenadeState = grenadeComponent.State;
 
         // Update weapon object.
-        if (grenadeObject != null)
+        if (grenadeComponent != null)
         {
-            var grenadeComponent = grenadeObject.GetComponent<GrenadeComponent>();
             ApplyRigidbodyState(
                 updatedGrenadeState.RigidBodyState,
                 currentGrenadeState.RigidBodyState,
                 grenadeComponent.Rigidbody
             );
-        }
 
-        // Update state.
-        CurrentGameState.Grenades[currentGrenadeStateIndex] = updatedGrenadeState;
+            // Update state.
+            grenadeComponent.State = updatedGrenadeState;
+        }
     }
 
-    private void SpawnPlayer(PlayerState playerState)
+    private void SpawnPlayer(PlayerObjectState playerState)
     {
         OsFps.Instance.SpawnLocalPlayer(playerState);
         EquipWeapon(playerState);
@@ -764,157 +792,97 @@ public class Client
     private void OnReceiveDataFromServer(int channelId, byte[] bytesReceived)
     {
         var reader = new BinaryReader(new MemoryStream(bytesReceived));
-        var messageType = (NetworkMessageType)reader.ReadByte();
+        var messageTypeAsByte = reader.ReadByte();
 
-        switch(messageType)
+        RpcInfo rpcInfo;
+
+        if (OsFps.Instance.rpcInfoById.TryGetValue(messageTypeAsByte, out rpcInfo))
         {
-            case NetworkMessageType.SetPlayerId:
-                var setPlayerIdMessage = new SetPlayerIdMessage();
-                setPlayerIdMessage.Deserialize(reader);
-
-                HandleSetPlayerIdMessage(setPlayerIdMessage);
-                break;
-            case NetworkMessageType.GameState:
-                var gameStateMessage = new GameStateMessage();
-                gameStateMessage.Deserialize(reader);
-
-                HandleGameStateMessage(gameStateMessage);
-                return;
-            case NetworkMessageType.SpawnPlayer:
-                var spawnPlayerMessage = new SpawnPlayerMessage();
-                spawnPlayerMessage.Deserialize(reader);
-
-                HandleSpawnPlayerMessage(spawnPlayerMessage);
-                break;
-            case NetworkMessageType.TriggerPulled:
-                var triggerPulledMessage = new TriggerPulledMessage();
-                triggerPulledMessage.Deserialize(reader);
-
-                HandleTriggerPulledMessage(triggerPulledMessage);
-                break;
-            case NetworkMessageType.DetonateGrenade:
-                var detonateGrenadeMessage = new DetonateGrenadeMessage();
-                detonateGrenadeMessage.Deserialize(reader);
-
-                HandleDetonateGrenadeMessage(detonateGrenadeMessage);
-                break;
-            case NetworkMessageType.Chat:
-                var chatMessage = new ChatMessage();
-                chatMessage.Deserialize(reader);
-
-                HandleChatMessage(chatMessage);
-                break;
-            case NetworkMessageType.ChangeWeapon:
-                var changeWeaponMessage = new ChangeWeaponMessage();
-                changeWeaponMessage.Deserialize(reader);
-
-                HandleChangeWeaponMessage(changeWeaponMessage);
-                break;
-            default:
-                throw new System.NotImplementedException("Unknown message type: " + messageType);
-        }
-    }
-    private void HandleSetPlayerIdMessage(SetPlayerIdMessage message)
-    {
-        PlayerId = message.PlayerId;
-
-        /*CurrentGameState.Players.Add(new PlayerState
-        {
-            Id = message.PlayerId
-        });*/
-    }
-    private void HandleGameStateMessage(GameStateMessage message)
-    {
-        ApplyGameState(message.GameState);
-    }
-    private void HandleSpawnPlayerMessage(SpawnPlayerMessage message)
-    {
-        var isSpawningMe = (message.PlayerId == PlayerId);
-        var playerState = CurrentGameState.Players
-            .FirstOrDefault(ps => ps.Id == message.PlayerId);
-
-        if(playerState == null)
-        {
-            playerState = new PlayerState
-            {
-                Id = message.PlayerId
-            };
-
-            CurrentGameState.Players.Add(playerState);
-        }
-        
-        playerState.Position = message.PlayerPosition;
-        playerState.Health = OsFps.MaxPlayerHealth;
-        playerState.LookDirAngles = new Vector3(0, message.PlayerLookDirYAngle, 0);
-
-        var playerObject = OsFps.Instance.SpawnLocalPlayer(playerState);
-
-        if (isSpawningMe)
-        {
-            AttachCameraToPlayer(playerState.Id);
-        }
-    }
-    private void HandleTriggerPulledMessage(TriggerPulledMessage message)
-    {
-        // Don't anything if we pulled the trigger.
-        if (message.PlayerId == PlayerId)
-        {
-            return;
-        }
-
-        var playerState = CurrentGameState.Players.First(ps => ps.Id == message.PlayerId);
-        ShowMuzzleFlash(playerState);
-    }
-    private void HandleDetonateGrenadeMessage(DetonateGrenadeMessage message)
-    {
-        ShowGrenadeExplosion(message.Position, message.Type);
-    }
-    private void HandleChatMessage(ChatMessage message)
-    {
-        if (message.PlayerId.HasValue)
-        {
-            _chatMessages.Add(string.Format("{0}: {1}", message.PlayerId, message.Message));
+            var rpcArguments = NetworkSerializationUtils.DeserializeRpcCallArguments(rpcInfo, reader);
+            OsFps.Instance.ExecuteRpc(rpcInfo.Id, rpcArguments);
         }
         else
         {
-            _chatMessages.Add(message.Message);
+            throw new System.NotImplementedException("Unknown message type: " + messageTypeAsByte);
         }
     }
-    private void HandleChangeWeaponMessage(ChangeWeaponMessage message)
+
+    [Rpc(ExecuteOn = NetworkPeerType.Client)]
+    public void ClientOnSetPlayerId(uint playerId)
     {
-        if (message.PlayerId == PlayerId)
+        PlayerId = playerId;
+    }
+
+    [Rpc(ExecuteOn = NetworkPeerType.Client)]
+    public void ClientOnReceiveGameState(GameState gameState)
+    {
+        ApplyGameState(gameState);
+    }
+
+    [Rpc(ExecuteOn = NetworkPeerType.Client)]
+    public void ClientOnTriggerPulled(uint playerId)
+    {
+        // Don't do anything if we pulled the trigger.
+        if (playerId == PlayerId)
         {
             return;
         }
 
-        var playerState = CurrentGameState.Players.FirstOrDefault(ps => ps.Id == message.PlayerId);
-        if (playerState == null) return;
+        var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(playerId);
+        ShowMuzzleFlash(playerObjectComponent);
+    }
 
-        SwitchWeapons(playerState, message.WeaponIndex);
+    [Rpc(ExecuteOn = NetworkPeerType.Client)]
+    public void ClientOnDetonateGrenade(uint id, Vector3 position, GrenadeType type)
+    {
+        ShowGrenadeExplosion(position, type);
+    }
+
+    [Rpc(ExecuteOn = NetworkPeerType.Client)]
+    public void ClientOnReceiveChatMessage(uint? playerId, string message)
+    {
+        if (playerId.HasValue)
+        {
+            _chatMessages.Add(string.Format("{0}: {1}", playerId, message));
+        }
+        else
+        {
+            _chatMessages.Add(message);
+        }
+    }
+
+    [Rpc(ExecuteOn = NetworkPeerType.Client)]
+    public void ClientOnChangeWeapon(uint playerId, byte weaponIndex)
+    {
+        if (playerId == PlayerId)
+        {
+            return;
+        }
+
+        var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(playerId);
+        if (playerObjectComponent == null) return;
+
+        SwitchWeapons(playerObjectComponent, weaponIndex);
     }
     #endregion
 
     private void InternalOnDisconnectedFromServer()
     {
-        if (OnDisconnectedFromServer != null)
-        {
-            OnDisconnectedFromServer();
-        }
+        OnDisconnectedFromServer?.Invoke();
     }
 
     private void SendPlayerInput()
     {
-        var playerState = CurrentGameState.Players.FirstOrDefault(ps => ps.Id == PlayerId);
-        if (playerState == null) return;
+        if (PlayerId == null) return;
 
-        var message = new PlayerInputMessage
+        var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(PlayerId.Value);
+        if (playerObjectComponent == null) return;
+
+        OsFps.Instance.CallRpcOnServer("ServerOnReceivePlayerInput", unreliableStateUpdateChannelId, new
         {
-            PlayerId = PlayerId.Value,
-            PlayerInput = playerState.Input,
-            LookDirAngles = playerState.LookDirAngles
-        };
-
-        var serializedMessage = NetworkSerializationUtils.SerializeWithType(message);
-        ClientPeer.SendMessageToServer(unreliableStateUpdateChannelId, serializedMessage);
+            playerId = PlayerId.Value,
+            playerInput = playerObjectComponent.State.Input,
+            lookDirAngles = playerObjectComponent.State.LookDirAngles
+        });
     }
 }

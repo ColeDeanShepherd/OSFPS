@@ -33,8 +33,7 @@ public class GrenadeSystem : ComponentSystem
         var entities = GetEntities<Group>();
         foreach (var entity in entities)
         {
-            var grenade = server.CurrentGameState.Grenades
-                .FirstOrDefault(g => g.Id == entity.GrenadeComponent.Id);
+            var grenade = entity.GrenadeComponent.State;
 
             if (grenade.IsFuseBurning)
             {
@@ -48,8 +47,7 @@ public class GrenadeSystem : ComponentSystem
         var grenadesToDetonate = new List<GrenadeState>();
         foreach (var entity in entities)
         {
-            var grenade = server.CurrentGameState.Grenades
-                .FirstOrDefault(g => g.Id == entity.GrenadeComponent.Id);
+            var grenade = entity.GrenadeComponent.State;
 
             if (grenade.IsFuseBurning && (grenade.TimeUntilDetonation <= 0))
             {
@@ -64,7 +62,7 @@ public class GrenadeSystem : ComponentSystem
     }
     private void ServerDetonateGrenade(Server server, GrenadeState grenade)
     {
-        var grenadeComponent = OsFps.Instance.FindGrenade(grenade.Id);
+        var grenadeComponent = OsFps.Instance.FindGrenadeComponent(grenade.Id);
         var grenadeDefinition = OsFps.GetGrenadeDefinitionByType(grenade.Type);
         var grenadePosition = grenadeComponent.transform.position;
 
@@ -76,10 +74,10 @@ public class GrenadeSystem : ComponentSystem
         foreach (var collider in affectedColliders)
         {
             // Apply damage.
-            var playerComponent = collider.gameObject.GetComponent<PlayerComponent>();
-            if (playerComponent != null)
+            var playerObjectComponent = collider.gameObject.GetComponent<PlayerObjectComponent>();
+            if (playerObjectComponent != null)
             {
-                var playerState = server.CurrentGameState.Players.FirstOrDefault(ps => ps.Id == playerComponent.Id);
+                var playerObjectState = playerObjectComponent.State;
                 var closestPointToGrenade = collider.ClosestPoint(grenadePosition);
                 var distanceFromGrenade = Vector3.Distance(closestPointToGrenade, grenadePosition);
                 var unclampedDamagePercent = (grenadeDefinition.ExplosionRadius - distanceFromGrenade) / grenadeDefinition.ExplosionRadius;
@@ -87,7 +85,7 @@ public class GrenadeSystem : ComponentSystem
                 var damage = damagePercent * grenadeDefinition.Damage;
 
                 // TODO: don't call system directly
-                PlayerSystem.Instance.ServerDamagePlayer(server, playerState, (int)damage, null);
+                PlayerSystem.Instance.ServerDamagePlayer(server, playerObjectComponent, (int)damage, null);
             }
 
             // Apply forces.
@@ -103,36 +101,30 @@ public class GrenadeSystem : ComponentSystem
         // destroy grenade object
         Object.Destroy(grenadeComponent.gameObject);
 
-        // remove grenade state
-        server.CurrentGameState.Grenades.RemoveAll(gs => gs.Id == grenade.Id);
-
         // send message
-        var message = new DetonateGrenadeMessage
+        OsFps.Instance.CallRpcOnAllClients("ClientOnDetonateGrenade", server.reliableChannelId, new
         {
-            Id = grenade.Id,
-            Position = grenadePosition,
-            Type = grenade.Type
-        };
-        server.SendMessageToAllClients(server.reliableChannelId, message);
+            id = grenade.Id,
+            position = grenadePosition,
+            type = grenade.Type
+        });
     }
 
-    public void ServerPlayerThrowGrenade(Server server, PlayerState playerState)
+    public void ServerPlayerThrowGrenade(Server server, PlayerObjectComponent playerObjectComponent)
     {
-        if (!playerState.CanThrowGrenade) return;
-
-        var playerComponent = OsFps.Instance.FindPlayerComponent(playerState.Id);
-        if (playerComponent == null) return;
+        var playerObjectState = playerObjectComponent.State;
+        if (!playerObjectState.CanThrowGrenade) return;
 
         var throwRay = new Ray(
-            playerComponent.CameraPointObject.transform.position,
-            playerComponent.CameraPointObject.transform.forward
+            playerObjectComponent.CameraPointObject.transform.position,
+            playerObjectComponent.CameraPointObject.transform.forward
         );
         var grenadeState = new GrenadeState
         {
             Id = server.GenerateNetworkId(),
-            Type = playerState.CurrentGrenadeType,
+            Type = playerObjectState.CurrentGrenadeType,
             IsFuseBurning = false,
-            TimeUntilDetonation = OsFps.GetGrenadeDefinitionByType(playerState.CurrentGrenadeType).TimeAfterHitUntilDetonation,
+            TimeUntilDetonation = OsFps.GetGrenadeDefinitionByType(playerObjectState.CurrentGrenadeType).TimeAfterHitUntilDetonation,
             RigidBodyState = new RigidBodyState
             {
                 Position = throwRay.origin,
@@ -142,18 +134,16 @@ public class GrenadeSystem : ComponentSystem
             }
         };
         var grenadeObject = OsFps.Instance.SpawnLocalGrenadeObject(grenadeState);
+        grenadeObject.GetComponent<GrenadeComponent>();
 
-        var grenadeComponent = grenadeObject.GetComponent<GrenadeComponent>();
-        server.CurrentGameState.Grenades.Add(grenadeState);
-
-        playerState.GrenadesLeftByType[playerState.CurrentGrenadeType]--;
-        playerState.TimeUntilCanThrowGrenade = OsFps.GrenadeThrowInterval;
+        playerObjectState.GrenadesLeftByType[playerObjectState.CurrentGrenadeType]--;
+        playerObjectState.TimeUntilCanThrowGrenade = OsFps.GrenadeThrowInterval;
     }
     public void ServerGrenadeOnCollisionEnter(Server server, GrenadeComponent grenadeComponent, Collision collision)
     {
         Debug.Log("Grenade collided with " + collision.gameObject.name);
 
-        var grenadeState = server.CurrentGameState.Grenades.First(g => g.Id == grenadeComponent.Id);
+        var grenadeState = grenadeComponent.State;
         grenadeState.IsFuseBurning = true;
     }
 }

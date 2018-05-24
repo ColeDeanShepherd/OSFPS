@@ -1,5 +1,8 @@
-﻿using System.Linq;
+﻿using System.Collections.Generic;
+using System.Linq;
+using Unity.Entities;
 using UnityEngine;
+using UnityEngine.Assertions;
 using UnityEngine.Networking;
 using UnityEngine.SceneManagement;
 
@@ -20,6 +23,7 @@ TODO
 -Implement delta game state sending.
 -Make weapons spawn repeatedly.
 -Remove system instances.
+-Send joined & left messages.
 */
 
 public class OsFps : MonoBehaviour
@@ -196,15 +200,27 @@ public class OsFps : MonoBehaviour
         }
     }
 
-    public GameObject SpawnLocalPlayer(PlayerState playerState)
+    public GameObject CreateLocalPlayerDataObject(PlayerState playerState)
+    {
+        var playerDataObject = new GameObject($"Player {playerState.Id}");
+
+        var playerComponent = playerDataObject.AddComponent<PlayerComponent>();
+        playerComponent.State = playerState;
+
+        playerDataObject.AddComponent<GameObjectEntity>();
+
+        return playerDataObject;
+    }
+
+    public GameObject SpawnLocalPlayer(PlayerObjectState playerObjectState)
     {
         var playerObject = Instantiate(
-            PlayerPrefab, playerState.Position, Quaternion.Euler(playerState.LookDirAngles)
+            PlayerPrefab, playerObjectState.Position, Quaternion.Euler(playerObjectState.LookDirAngles)
         );
 
-        var playerComponent = playerObject.GetComponent<PlayerComponent>();
-        playerComponent.Id = playerState.Id;
-        playerComponent.Rigidbody.velocity = playerState.Velocity;
+        var playerComponent = playerObject.GetComponent<PlayerObjectComponent>();
+        playerComponent.State = playerObjectState;
+        playerComponent.Rigidbody.velocity = playerObjectState.Velocity;
 
         return playerObject;
     }
@@ -218,7 +234,7 @@ public class OsFps : MonoBehaviour
         );
 
         var weaponObjectComponent = weaponObject.GetComponent<WeaponComponent>();
-        weaponObjectComponent.Id = weaponObjectState.Id;
+        weaponObjectComponent.State = weaponObjectState;
         weaponObjectComponent.BulletsLeftInMagazine = weaponObjectState.BulletsLeftInMagazine;
         weaponObjectComponent.BulletsLeftOutOfMagazine = weaponObjectState.BulletsLeftOutOfMagazine;
 
@@ -238,7 +254,7 @@ public class OsFps : MonoBehaviour
         );
 
         var grenadeComponent = grenadeObject.GetComponent<GrenadeComponent>();
-        grenadeComponent.Id = grenadeState.Id;
+        grenadeComponent.State = grenadeState;
 
         var rigidbody = grenadeComponent.Rigidbody;
         rigidbody.velocity = grenadeState.RigidBodyState.Velocity;
@@ -249,32 +265,40 @@ public class OsFps : MonoBehaviour
 
     public GameObject FindPlayerObject(uint playerId)
     {
-        return GameObject.FindGameObjectsWithTag(PlayerTag)
-            .FirstOrDefault(go => go.GetComponent<PlayerComponent>().Id == playerId);
-    }
-    public GameObject FindWeaponObject(uint id)
-    {
-        var weaponComponent = FindObjectsOfType<WeaponComponent>()
-            .FirstOrDefault(wc => wc.Id == id);
-
-        return (weaponComponent != null) ? weaponComponent.gameObject : null;
-    }
-    public GameObject FindGrenade(uint id)
-    {
-        var grenadeComponent = FindObjectsOfType<GrenadeComponent>()
-            .FirstOrDefault(g => g.Id == id);
-
-        return (grenadeComponent != null) ? grenadeComponent.gameObject : null;
+        var playerObjectComponent = FindPlayerObjectComponent(playerId);
+        return playerObjectComponent?.gameObject;
     }
     public PlayerComponent FindPlayerComponent(uint playerId)
     {
-        var playerObject = FindPlayerObject(playerId);
-        return (playerObject != null) ? playerObject.GetComponent<PlayerComponent>() : null;
+        return FindObjectsOfType<PlayerComponent>()
+            .FirstOrDefault(pc => pc.State.Id == playerId);
     }
+    public PlayerObjectComponent FindPlayerObjectComponent(uint playerId)
+    {
+        return FindObjectsOfType<PlayerObjectComponent>()
+            .FirstOrDefault(poc => poc.State.Id == playerId);
+    }
+
+    public WeaponComponent FindWeaponComponent(uint weaponId)
+    {
+        return FindObjectsOfType<WeaponComponent>()
+            .FirstOrDefault(wc => wc.State?.Id == weaponId);
+    }
+    public GameObject FindWeaponObject(uint weaponId)
+    {
+        var weaponComponent = FindWeaponComponent(weaponId);
+        return weaponComponent?.gameObject;
+    }
+    public GrenadeComponent FindGrenadeComponent(uint id)
+    {
+         return FindObjectsOfType<GrenadeComponent>()
+            .FirstOrDefault(g => g.State.Id == id);
+    }
+    
     public WeaponSpawnerComponent FindWeaponSpawnerComponent(uint id)
     {
         return FindObjectsOfType<WeaponSpawnerComponent>()
-            .FirstOrDefault(wsc => wsc.Id == id);
+            .FirstOrDefault(wsc => wsc.State.Id == id);
     }
 
     public PlayerInput GetCurrentPlayersInput()
@@ -315,48 +339,50 @@ public class OsFps : MonoBehaviour
         return moveDirection.normalized;
     }
 
-    public void UpdatePlayerMovement(PlayerState playerState)
+    public void UpdatePlayerMovement(PlayerObjectState playerObjectState)
     {
-        var playerComponent = FindPlayerComponent(playerState.Id);
-        if (playerComponent == null) return;
+        var playerObjectComponent = FindPlayerObjectComponent(playerObjectState.Id);
+        if (playerObjectComponent == null) return;
 
-        ApplyLookDirAnglesToPlayer(playerComponent, playerState.LookDirAngles);
+        ApplyLookDirAnglesToPlayer(playerObjectComponent, playerObjectState.LookDirAngles);
 
-        var relativeMoveDirection = GetRelativeMoveDirection(playerState.Input);
-        playerComponent.Rigidbody.AddRelativeForce(1000 * relativeMoveDirection);
+        var relativeMoveDirection = GetRelativeMoveDirection(playerObjectState.Input);
+        playerObjectComponent.Rigidbody.AddRelativeForce(1000 * relativeMoveDirection);
     }
-    public void UpdatePlayer(PlayerState playerState)
+    public void UpdatePlayer(PlayerObjectComponent playerObjectComponent)
     {
+        var playerObjectState = playerObjectComponent.State;
+
         // reload
-        if (playerState.IsReloading)
+        if (playerObjectState.IsReloading)
         {
-            playerState.ReloadTimeLeft -= Time.deltaTime;
+            playerObjectState.ReloadTimeLeft -= Time.deltaTime;
         }
 
         // shot interval
-        if ((playerState.CurrentWeapon != null) && (playerState.CurrentWeapon.TimeUntilCanShoot > 0))
+        if ((playerObjectState.CurrentWeapon != null) && (playerObjectState.CurrentWeapon.TimeUntilCanShoot > 0))
         {
-            playerState.CurrentWeapon.TimeUntilCanShoot -= Time.deltaTime;
+            playerObjectState.CurrentWeapon.TimeUntilCanShoot -= Time.deltaTime;
         }
 
         // grenade throw interval
-        if (playerState.TimeUntilCanThrowGrenade > 0)
+        if (playerObjectState.TimeUntilCanThrowGrenade > 0)
         {
-            playerState.TimeUntilCanThrowGrenade -= Time.deltaTime;
+            playerObjectState.TimeUntilCanThrowGrenade -= Time.deltaTime;
         }
 
         // update movement
-        UpdatePlayerMovement(playerState);
+        UpdatePlayerMovement(playerObjectState);
     }
 
-    public Vector2 GetPlayerLookDirAngles(PlayerComponent playerComponent)
+    public Vector2 GetPlayerLookDirAngles(PlayerObjectComponent playerComponent)
     {
         return new Vector2(
             playerComponent.CameraPointObject.transform.localEulerAngles.x,
             playerComponent.transform.eulerAngles.y
         );
     }
-    public void ApplyLookDirAnglesToPlayer(PlayerComponent playerComponent, Vector2 LookDirAngles)
+    public void ApplyLookDirAnglesToPlayer(PlayerObjectComponent playerComponent, Vector2 LookDirAngles)
     {
         playerComponent.transform.localEulerAngles = new Vector3(0, LookDirAngles.y, 0);
         playerComponent.CameraPointObject.transform.localEulerAngles = new Vector3(LookDirAngles.x, 0, 0);
@@ -389,6 +415,8 @@ public class OsFps : MonoBehaviour
 
     private void Awake()
     {
+        Assert.raiseExceptions = true;
+
         // Destroy the game object if there is already an OsFps instance.
         if(Instance != null)
         {
@@ -405,6 +433,8 @@ public class OsFps : MonoBehaviour
         DontDestroyOnLoad(guiContainer);
 
         CanvasObject = guiContainer.FindDescendant("Canvas");
+
+        SetupRpcs();
     }
     private void Start()
     {
@@ -471,6 +501,90 @@ public class OsFps : MonoBehaviour
         }
     }
 
+    public void CallRpcOnServer(string name, int channelId, object argumentsObj)
+    {
+        var rpcId = rpcIdByName[name];
+        var rpcInfo = rpcInfoById[rpcId];
+
+        Assert.IsTrue(rpcInfo.ExecuteOn == NetworkPeerType.Server);
+
+        var messageBytes = NetworkSerializationUtils.SerializeRpcCall(rpcInfo, argumentsObj);
+        Client.ClientPeer.SendMessageToServer(channelId, messageBytes);
+    }
+    public void CallRpcOnAllClients(string name, int channelId, object argumentsObj)
+    {
+        var rpcId = rpcIdByName[name];
+        var rpcInfo = rpcInfoById[rpcId];
+
+        Assert.IsTrue(rpcInfo.ExecuteOn == NetworkPeerType.Client);
+
+        var messageBytes = NetworkSerializationUtils.SerializeRpcCall(rpcInfo, argumentsObj);
+        Server.SendMessageToAllClients(channelId, messageBytes);
+    }
+    public void CallRpcOnClient(string name, int clientConnectionId, int channelId, object argumentsObj)
+    {
+        var rpcId = rpcIdByName[name];
+        var rpcInfo = rpcInfoById[rpcId];
+
+        Assert.IsTrue(rpcInfo.ExecuteOn == NetworkPeerType.Client);
+
+        var messageBytes = NetworkSerializationUtils.SerializeRpcCall(rpcInfo, argumentsObj);
+        Server.SendMessageToClient(clientConnectionId, channelId, messageBytes);
+    }
+
+    public void ExecuteRpc(byte id, params object[] arguments)
+    {
+        var rpcInfo = rpcInfoById[id];
+        var objContainingRpc = (rpcInfo.ExecuteOn == NetworkPeerType.Server)
+            ? (object)Server
+            : (object)Client;
+        rpcInfo.MethodInfo.Invoke(objContainingRpc, arguments);
+    }
+
+    public Dictionary<string, byte> rpcIdByName;
+    public Dictionary<byte, RpcInfo> rpcInfoById;
+    private void SetupRpcs()
+    {
+        rpcIdByName = new Dictionary<string, byte>();
+        rpcInfoById = new Dictionary<byte, RpcInfo>();
+
+        var assembly = System.Reflection.Assembly.GetExecutingAssembly();
+
+        foreach (var type in assembly.GetTypes())
+        {
+            var methodBindingFlags =
+                System.Reflection.BindingFlags.Public |
+                System.Reflection.BindingFlags.NonPublic |
+                System.Reflection.BindingFlags.Instance;
+
+            foreach (var methodInfo in type.GetMethods(methodBindingFlags))
+            {
+                var rpcAttribute = (RpcAttribute)methodInfo.GetCustomAttributes(typeof(RpcAttribute), inherit: false)
+                    .FirstOrDefault();
+                var parameterInfos = methodInfo.GetParameters();
+
+                if (rpcAttribute != null)
+                {
+                    var rpcInfo = new RpcInfo
+                    {
+                        Id = (byte)(1 + rpcInfoById.Count),
+                        Name = methodInfo.Name,
+                        ExecuteOn = rpcAttribute.ExecuteOn,
+                        MethodInfo = methodInfo,
+                        ParameterNames = parameterInfos
+                            .Select(parameterInfo => parameterInfo.Name)
+                            .ToArray(),
+                        ParameterTypes = parameterInfos
+                            .Select(parameterInfo => parameterInfo.ParameterType)
+                            .ToArray()
+                    };
+
+                    rpcIdByName.Add(rpcInfo.Name, rpcInfo.Id);
+                    rpcInfoById.Add(rpcInfo.Id, rpcInfo);
+                }
+            }
+        }
+    }
     private void ShutdownNetworkPeers()
     {
         if (Client != null)

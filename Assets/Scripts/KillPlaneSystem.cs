@@ -1,12 +1,10 @@
-﻿using System.Linq;
-using UnityEngine;
-using Unity.Entities;
+﻿using Unity.Entities;
 
 public class KillPlaneSystem : ComponentSystem
 {
     public struct Group
     {
-        public PlayerComponent PlayerComponent;
+        public PlayerObjectComponent PlayerObjectComponent;
     }
 
     protected override void OnUpdate()
@@ -22,12 +20,12 @@ public class KillPlaneSystem : ComponentSystem
     {
         foreach (var entity in GetEntities<Group>())
         {
-            var playerState = server.CurrentGameState.Players.First(ps => ps.Id == entity.PlayerComponent.Id);
+            var playerObjectComponent = entity.PlayerObjectComponent;
 
             // kill if too low in map
-            if (playerState.Position.y <= OsFps.KillPlaneY)
+            if (playerObjectComponent.transform.position.y <= OsFps.KillPlaneY)
             {
-                PlayerSystem.Instance.ServerDamagePlayer(server, playerState, 9999, null);
+                PlayerSystem.Instance.ServerDamagePlayer(server, playerObjectComponent, 9999, null);
             }
         }
     }

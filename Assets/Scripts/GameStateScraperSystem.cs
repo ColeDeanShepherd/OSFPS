@@ -1,71 +1,73 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 public class GameStateScraperSystem
 {
-    public void OnLateUpdate()
+    public GameState GetGameState()
     {
-        var server = OsFps.Instance.Server;
-        if (server != null)
+        return new GameState
         {
-            ServerOnLateUpdate(server);
-        }
+            Players = GetPlayerStates(),
+            PlayerObjects = GetPlayerObjectStates(),
+            WeaponObjects = GetWeaponObjectStates(),
+            WeaponSpawners = GetWeaponSpawnerStates(),
+            Grenades = GetGrenadeStates()
+        };
     }
-
-    public void ServerOnLateUpdate(Server server)
+    public List<PlayerState> GetPlayerStates()
     {
-        ServerUpdateGameStateFromObjects(server);
+        return Object.FindObjectsOfType<PlayerComponent>()
+            .Select(pc => pc.State)
+            .Where(ps => ps != null)
+            .ToList();
     }
-    private void ServerUpdateGameStateFromObjects(Server server)
+    public List<PlayerObjectState> GetPlayerObjectStates()
     {
-        foreach (var playerState in server.CurrentGameState.Players)
-        {
-            var playerComponent = OsFps.Instance.FindPlayerComponent(playerState.Id);
-
-            if (playerComponent != null)
+        return Object.FindObjectsOfType<PlayerObjectComponent>()
+            .Select(poc =>
             {
-                playerState.Position = playerComponent.transform.position;
-                playerState.Velocity = playerComponent.Rigidbody.velocity;
-                playerState.LookDirAngles = OsFps.Instance.GetPlayerLookDirAngles(playerComponent);
-            }
-        }
-
-        foreach (var weaponObjectState in server.CurrentGameState.WeaponObjects)
-        {
-            var weaponObject = OsFps.Instance.FindWeaponObject(weaponObjectState.Id);
-
-            if (weaponObject != null)
-            {
-                var weaponComponent = weaponObject.GetComponent<WeaponComponent>();
-                ServerUpdateRigidBodyStateFromRigidBody(weaponObjectState.RigidBodyState, weaponComponent.Rigidbody);
-            }
-            else
-            {
-                // remove weapon object state???
-            }
-        }
-
-        foreach (var grenadeState in server.CurrentGameState.Grenades)
-        {
-            var grenadeObject = OsFps.Instance.FindGrenade(grenadeState.Id);
-
-            if (grenadeObject != null)
-            {
-                var grenadeComponent = grenadeObject.GetComponent<GrenadeComponent>();
-                ServerUpdateRigidBodyStateFromRigidBody(grenadeState.RigidBodyState, grenadeComponent.Rigidbody);
-            }
-            else
-            {
-                // remove weapon object state???
-            }
-        }
+                poc.State.Position = poc.transform.position;
+                poc.State.Velocity = poc.Rigidbody.velocity;
+                return poc.State;
+            })
+            .Where(pos => pos != null)
+            .ToList();
     }
-    private void ServerUpdateRigidBodyStateFromRigidBody(RigidBodyState rigidBodyState, Rigidbody rigidbody)
+    public List<WeaponObjectState> GetWeaponObjectStates()
     {
-        rigidBodyState.Position = rigidbody.transform.position;
-        rigidBodyState.EulerAngles = rigidbody.transform.eulerAngles;
-        rigidBodyState.Velocity = rigidbody.velocity;
-        rigidBodyState.AngularVelocity = rigidbody.angularVelocity;
+        return Object.FindObjectsOfType<WeaponComponent>()
+            .Select(wc =>
+            {
+                if (wc.State != null)
+                {
+                    wc.State.RigidBodyState = (wc.Rigidbody != null)
+                        ? ToRigidBodyState(wc.Rigidbody)
+                        : new RigidBodyState();
+                }
+
+                return wc.State;
+            })
+            .Where(wos => wos != null)
+            .ToList();
+    }
+    public List<WeaponSpawnerState> GetWeaponSpawnerStates()
+    {
+        return Object.FindObjectsOfType<WeaponSpawnerComponent>()
+            .Select(wsc => wsc.State)
+            .Where(wss => wss != null)
+            .ToList();
+    }
+    public List<GrenadeState> GetGrenadeStates()
+    {
+        return Object.FindObjectsOfType<GrenadeComponent>()
+            .Select(gc =>
+            {
+                gc.State.RigidBodyState = ToRigidBodyState(gc.Rigidbody);
+                return gc.State;
+            })
+            .Where(gs => gs != null)
+            .ToList();
     }
 
     public RigidBodyState ToRigidBodyState(Rigidbody rigidbody)
@@ -78,45 +80,46 @@ public class GameStateScraperSystem
             AngularVelocity = rigidbody.angularVelocity
         };
     }
-    public WeaponObjectState ToWeaponObjectState(uint id, WeaponComponent weaponComponent)
+
+    private WeaponObjectState ToWeaponObjectState(uint weaponObjectId, WeaponComponent weaponComponent)
     {
-        var state = new WeaponObjectState
+        return new WeaponObjectState
         {
-            Id = id,
+            Id = weaponObjectId,
             Type = weaponComponent.Type,
             BulletsLeftInMagazine = weaponComponent.BulletsLeftInMagazine,
             BulletsLeftOutOfMagazine = weaponComponent.BulletsLeftOutOfMagazine,
             RigidBodyState = ToRigidBodyState(weaponComponent.Rigidbody)
         };
-
-        weaponComponent.Id = state.Id;
-
-        return state;
     }
-    public List<WeaponObjectState> ServerGetWeaponObjectStatesFromGameObjects(Server server)
+    public List<WeaponObjectState> ServerInitWeaponObjectStatesInGameObjects(Server server)
     {
         var weaponObjectStates = new List<WeaponObjectState>();
 
         var weaponComponents = Object.FindObjectsOfType<WeaponComponent>();
         foreach (var weaponComponent in weaponComponents)
         {
-            weaponObjectStates.Add(ToWeaponObjectState(server.GenerateNetworkId(), weaponComponent));
+            var weaponObjectState = ToWeaponObjectState(server.GenerateNetworkId(), weaponComponent);
+            weaponComponent.State = weaponObjectState;
+
+            weaponObjectStates.Add(weaponObjectState);
         }
 
         return weaponObjectStates;
     }
-    public WeaponSpawnerState ToWeaponSpawnerState(uint id, WeaponSpawnerComponent weaponSpawnerComponent)
+
+    private WeaponSpawnerState ToWeaponSpawnerState(uint weaponSpawnerId, WeaponSpawnerComponent weaponSpawnerComponent)
     {
         var state = new WeaponSpawnerState
         {
-            Id = id,
+            Id = weaponSpawnerId,
             Type = weaponSpawnerComponent.WeaponType,
             TimeUntilNextSpawn = 0
         };
 
         return state;
     }
-    public List<WeaponSpawnerState> ServerGetWeaponSpawnerStatesFromGameObjects(Server server)
+    public List<WeaponSpawnerState> ServerInitWeaponSpawnerStatesInGameObjects(Server server)
     {
         var weaponSpawnerStates = new List<WeaponSpawnerState>();
 
@@ -124,9 +127,9 @@ public class GameStateScraperSystem
         foreach (var weaponSpawnerComponent in weaponSpawnerComponents)
         {
             var weaponSpawnerState = ToWeaponSpawnerState(server.GenerateNetworkId(), weaponSpawnerComponent);
-            weaponSpawnerStates.Add(weaponSpawnerState);
+            weaponSpawnerComponent.State = weaponSpawnerState;
 
-            weaponSpawnerComponent.Id = weaponSpawnerState.Id;
+            weaponSpawnerStates.Add(weaponSpawnerState);
         }
 
         return weaponSpawnerStates;

@@ -1,6 +1,5 @@
 ﻿using UnityEngine;
 using Unity.Entities;
-using System.Linq;
 
 public class WeaponSpawnerSystem : ComponentSystem
 {
@@ -22,8 +21,7 @@ public class WeaponSpawnerSystem : ComponentSystem
     {
         foreach (var entity in GetEntities<Group>())
         {
-            var weaponSpawner = server.CurrentGameState.WeaponSpawners
-                .FirstOrDefault(ws => ws.Id == entity.WeaponSpawnerComponent.Id);
+            var weaponSpawner = entity.WeaponSpawnerComponent.State;
 
             // spawn interval
             if (weaponSpawner.TimeUntilNextSpawn > 0)
@@ -62,8 +60,6 @@ public class WeaponSpawnerSystem : ComponentSystem
             }
         };
         var weaponObject = OsFps.Instance.SpawnLocalWeaponObject(weaponObjectState);
-
-        var weaponComponent = weaponObject.GetComponent<WeaponComponent>();
-        server.CurrentGameState.WeaponObjects.Add(weaponObjectState);
+        weaponObject.GetComponent<WeaponComponent>();
     }
 }
