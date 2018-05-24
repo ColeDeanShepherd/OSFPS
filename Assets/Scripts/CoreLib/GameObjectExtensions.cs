@@ -28,4 +28,10 @@ public static class GameObjectExtensions
 
         return null;
     }
+
+    public static Vector3 GetHorizontalVelocity(Rigidbody rigidbody)
+    {
+        var velocity = rigidbody.velocity;
+        return new Vector3(velocity.x, 0, velocity.z);
+    }
 }

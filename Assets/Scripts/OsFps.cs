@@ -33,6 +33,7 @@ public class OsFps : MonoBehaviour
     public const string PlayerTag = "Player";
     public const string SpawnPointTag = "Respawn";
 
+    public const float MaxPlayerMovementSpeed = 2.25f;
     public const int MaxPlayerHealth = 100;
     public const float RespawnTime = 3;
 
@@ -338,17 +339,7 @@ public class OsFps : MonoBehaviour
 
         return moveDirection.normalized;
     }
-
-    public void UpdatePlayerMovement(PlayerObjectState playerObjectState)
-    {
-        var playerObjectComponent = FindPlayerObjectComponent(playerObjectState.Id);
-        if (playerObjectComponent == null) return;
-
-        ApplyLookDirAnglesToPlayer(playerObjectComponent, playerObjectState.LookDirAngles);
-
-        var relativeMoveDirection = GetRelativeMoveDirection(playerObjectState.Input);
-        playerObjectComponent.Rigidbody.AddRelativeForce(1000 * relativeMoveDirection);
-    }
+    
     public void UpdatePlayer(PlayerObjectComponent playerObjectComponent)
     {
         var playerObjectState = playerObjectComponent.State;
@@ -372,7 +363,7 @@ public class OsFps : MonoBehaviour
         }
 
         // update movement
-        UpdatePlayerMovement(playerObjectState);
+        PlayerSystem.Instance.UpdatePlayerMovement(playerObjectState);
     }
 
     public Vector2 GetPlayerLookDirAngles(PlayerObjectComponent playerComponent)

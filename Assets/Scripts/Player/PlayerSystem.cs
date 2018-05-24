@@ -225,6 +225,23 @@ public class PlayerSystem : ComponentSystem
         // ONLY PICK UP IF NOT ACTIVE
     }
 
+    public void UpdatePlayerMovement(PlayerObjectState playerObjectState)
+    {
+        var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(playerObjectState.Id);
+        if (playerObjectComponent == null) return;
+
+        OsFps.Instance.ApplyLookDirAnglesToPlayer(playerObjectComponent, playerObjectState.LookDirAngles);
+
+        var relativeMoveDirection = OsFps.Instance.GetRelativeMoveDirection(playerObjectState.Input);
+        var playerYAngle = playerObjectComponent.transform.eulerAngles.y;
+        var horizontalMoveDirection = Quaternion.Euler(new Vector3(0, playerYAngle, 0)) * relativeMoveDirection;
+        var desiredHorizontalVelocity = OsFps.MaxPlayerMovementSpeed * horizontalMoveDirection;
+        var currentHorizontalVelocity = GameObjectExtensions.GetHorizontalVelocity(playerObjectComponent.Rigidbody);
+        var horizontalVelocityError = desiredHorizontalVelocity - currentHorizontalVelocity;
+
+        playerObjectComponent.Rigidbody.AddForce(3000 * horizontalVelocityError);
+    }
+
     private string GetKillMessage(PlayerObjectComponent killedPlayerObjectComponent, PlayerObjectComponent attackerPlayerObjectComponent)
     {
         return (attackerPlayerObjectComponent != null)
