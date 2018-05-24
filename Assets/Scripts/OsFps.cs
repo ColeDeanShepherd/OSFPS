@@ -34,6 +34,7 @@ public class OsFps : MonoBehaviour
     public const string SpawnPointTag = "Respawn";
 
     public const float MaxPlayerMovementSpeed = 2.25f;
+    public const float PlayerInitialJumpSpeed = 4;
     public const int MaxPlayerHealth = 100;
     public const float RespawnTime = 3;
 
@@ -340,6 +341,22 @@ public class OsFps : MonoBehaviour
         return moveDirection.normalized;
     }
     
+    public bool IsPlayerGrounded(PlayerObjectComponent playerObjectComponent)
+    {
+        var sphereRadius = 0.4f;
+        var spherePosition = playerObjectComponent.transform.position + new Vector3(0, 0.3f, 0);
+
+        var intersectingColliders = Physics.OverlapSphere(spherePosition, sphereRadius);
+        return intersectingColliders.Any(collider =>
+        {
+            var otherPlayerObjectComponent = collider.gameObject.GetComponent<PlayerObjectComponent>();
+            return (
+                (otherPlayerObjectComponent == null) ||
+                (otherPlayerObjectComponent.State.Id != playerObjectComponent.State.Id)
+            );
+        });
+    }
+
     public void UpdatePlayer(PlayerObjectComponent playerObjectComponent)
     {
         var playerObjectState = playerObjectComponent.State;

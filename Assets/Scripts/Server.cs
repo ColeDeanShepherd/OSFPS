@@ -270,5 +270,17 @@ public class Server
         playerObjectState.Input = playerInput;
         playerObjectState.LookDirAngles = lookDirAngles;
     }
+    
+    [Rpc(ExecuteOn = NetworkPeerType.Server)]
+    public void ServerOnPlayerTryJump(uint playerId)
+    {
+        var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(playerId);
+        if (playerObjectComponent == null) return;
+
+        if (OsFps.Instance.IsPlayerGrounded(playerObjectComponent))
+        {
+            PlayerSystem.Instance.Jump(playerObjectComponent);
+        }
+    }
     #endregion
 }

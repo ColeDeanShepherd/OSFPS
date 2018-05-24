@@ -2,6 +2,7 @@
 using UnityEngine;
 using Unity.Entities;
 using System.Collections.Generic;
+using UnityEngine.Assertions;
 
 public class PlayerSystem : ComponentSystem
 {
@@ -232,14 +233,27 @@ public class PlayerSystem : ComponentSystem
 
         OsFps.Instance.ApplyLookDirAnglesToPlayer(playerObjectComponent, playerObjectState.LookDirAngles);
 
-        var relativeMoveDirection = OsFps.Instance.GetRelativeMoveDirection(playerObjectState.Input);
-        var playerYAngle = playerObjectComponent.transform.eulerAngles.y;
-        var horizontalMoveDirection = Quaternion.Euler(new Vector3(0, playerYAngle, 0)) * relativeMoveDirection;
-        var desiredHorizontalVelocity = OsFps.MaxPlayerMovementSpeed * horizontalMoveDirection;
-        var currentHorizontalVelocity = GameObjectExtensions.GetHorizontalVelocity(playerObjectComponent.Rigidbody);
-        var horizontalVelocityError = desiredHorizontalVelocity - currentHorizontalVelocity;
+        var isGrounded = OsFps.Instance.IsPlayerGrounded(playerObjectComponent);
 
-        playerObjectComponent.Rigidbody.AddForce(3000 * horizontalVelocityError);
+        if (isGrounded)
+        {
+            var relativeMoveDirection = OsFps.Instance.GetRelativeMoveDirection(playerObjectState.Input);
+            var playerYAngle = playerObjectComponent.transform.eulerAngles.y;
+            var horizontalMoveDirection = Quaternion.Euler(new Vector3(0, playerYAngle, 0)) * relativeMoveDirection;
+            var desiredHorizontalVelocity = OsFps.MaxPlayerMovementSpeed * horizontalMoveDirection;
+            var currentHorizontalVelocity = GameObjectExtensions.GetHorizontalVelocity(playerObjectComponent.Rigidbody);
+            var horizontalVelocityError = desiredHorizontalVelocity - currentHorizontalVelocity;
+
+            playerObjectComponent.Rigidbody.AddForce(3000 * horizontalVelocityError);
+        }
+    }
+    public void Jump(PlayerObjectComponent playerObjectComponent)
+    {
+        Assert.IsNotNull(playerObjectComponent);
+
+        var playerVelocity = playerObjectComponent.Rigidbody.velocity;
+        var newPlayerVelocity = new Vector3(playerVelocity.x, OsFps.PlayerInitialJumpSpeed, playerVelocity.z);
+        playerObjectComponent.Rigidbody.velocity = newPlayerVelocity;
     }
 
     private string GetKillMessage(PlayerObjectComponent killedPlayerObjectComponent, PlayerObjectComponent attackerPlayerObjectComponent)

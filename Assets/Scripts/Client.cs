@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using UnityEngine;
+using UnityEngine.Assertions;
 using UnityEngine.Networking;
 
 public class Client
@@ -72,38 +73,60 @@ public class Client
 
         if (ClientPeer.IsConnectedToServer)
         {
+            if (PlayerId != null)
+            {
+                if (Input.GetKeyDown(KeyCode.Alpha1))
+                {
+                    var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(PlayerId.Value);
+
+                    if (playerObjectComponent != null)
+                    {
+                        SwitchWeapons(playerObjectComponent, 0);
+                    }
+                }
+
+                if (Input.GetKeyDown(KeyCode.Alpha2))
+                {
+                    var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(PlayerId.Value);
+
+                    if (playerObjectComponent != null)
+                    {
+                        SwitchWeapons(playerObjectComponent, 1);
+                    }
+                }
+
+                if (Input.GetKeyDown(KeyCode.Space))
+                {
+                    var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(PlayerId.Value);
+
+                    if ((playerObjectComponent != null) && OsFps.Instance.IsPlayerGrounded(playerObjectComponent))
+                    {
+                        PlayerSystem.Instance.Jump(playerObjectComponent);
+                        OsFps.Instance.CallRpcOnServer("ServerOnPlayerTryJump", reliableChannelId, new
+                        {
+                            playerId = PlayerId.Value
+                        });
+                    }
+                }
+            }
+
+            if (Input.GetKeyDown(OsFps.ChatKeyCode))
+            {
+                if (!_isShowingChatMessageInput)
+                {
+                    _isShowingChatMessageInput = true;
+                    _justOpenedChatMessageInput = true;
+                    _chatMessageBeingTyped = "";
+
+                    Cursor.lockState = CursorLockMode.None;
+                }
+                else
+                {
+                    ConfirmChatMessage();
+                }
+            }
+
             SendInputPeriodicFunction.TryToCall();
-        }
-
-        if (PlayerId != null)
-        {
-            if (Input.GetKeyDown(KeyCode.Alpha1))
-            {
-                var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(PlayerId.Value);
-                SwitchWeapons(playerObjectComponent, 0);
-            }
-
-            if (Input.GetKeyDown(KeyCode.Alpha2))
-            {
-                var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(PlayerId.Value);
-                SwitchWeapons(playerObjectComponent, 1);
-            }
-        }
-
-        if (Input.GetKeyDown(OsFps.ChatKeyCode))
-        {
-            if (!_isShowingChatMessageInput)
-            {
-                _isShowingChatMessageInput = true;
-                _justOpenedChatMessageInput = true;
-                _chatMessageBeingTyped = "";
-
-                Cursor.lockState = CursorLockMode.None;
-            }
-            else
-            {
-                ConfirmChatMessage();
-            }
         }
 
         if (Input.GetKeyDown(OsFps.ToggleMenuKeyCode))
@@ -382,6 +405,8 @@ public class Client
 
     public void SwitchWeapons(PlayerObjectComponent playerObjectComponent, int weaponIndex)
     {
+        Assert.IsNotNull(playerObjectComponent);
+
         var playerObjectState = playerObjectComponent.State;
 
         if (weaponIndex == playerObjectState.CurrentWeaponIndex) return;
