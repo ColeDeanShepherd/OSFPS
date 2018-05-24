@@ -115,10 +115,9 @@ public class GrenadeSystem : ComponentSystem
         var playerObjectState = playerObjectComponent.State;
         if (!playerObjectState.CanThrowGrenade) return;
 
-        var throwRay = new Ray(
-            playerObjectComponent.CameraPointObject.transform.position,
-            playerObjectComponent.CameraPointObject.transform.forward
-        );
+        var cameraPosition = playerObjectComponent.CameraPointObject.transform.position;
+        var cameraForward = playerObjectComponent.CameraPointObject.transform.forward;
+        var throwRay = new Ray(cameraPosition + (0.5f * cameraForward), cameraForward);
         var grenadeState = new GrenadeState
         {
             Id = server.GenerateNetworkId(),

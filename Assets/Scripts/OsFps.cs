@@ -6,26 +6,6 @@ using UnityEngine.Assertions;
 using UnityEngine.Networking;
 using UnityEngine.SceneManagement;
 
-/*
-TODO
-====
--Handle networked shot intervals better.
--Improve server-side verification (use round trip time).
--Send shot rays from client.
--Set is fire pressed to false when switching weapons.
--Fix other players reloading.
--Improve player movement.
--Add player head & body.
--Add shields.
--Attribute grenade kills to the correct player.
--Improve grenade trajectories.
--Don't add bullets to magazine when running over weapon.
--Implement delta game state sending.
--Make weapons spawn repeatedly.
--Remove system instances.
--Send joined & left messages.
-*/
-
 public class OsFps : MonoBehaviour
 {
     public const string LocalHostIpv4Address = "127.0.0.1";
