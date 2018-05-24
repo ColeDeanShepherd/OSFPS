@@ -134,9 +134,9 @@ public class PlayerSystem : ComponentSystem
         var weaponState = shootingPlayerObjectState.CurrentWeapon;
 
         var shotRay = new Ray(
-                playerObjectComponent.CameraPointObject.transform.position,
-                playerObjectComponent.CameraPointObject.transform.forward
-            );
+            playerObjectComponent.CameraPointObject.transform.position,
+            playerObjectComponent.CameraPointObject.transform.forward
+        );
         var raycastHits = Physics.RaycastAll(shotRay);
 
         foreach (var hit in raycastHits)
@@ -147,7 +147,13 @@ public class PlayerSystem : ComponentSystem
             {
                 var hitPlayerObjectComponent = hitPlayerObject.GetComponent<PlayerObjectComponent>();
 
-                ServerDamagePlayer(server, hitPlayerObjectComponent, weaponState.Definition.DamagePerBullet, shootingPlayerObjectComponent);
+                var isHeadShot = hit.collider.gameObject.name == OsFps.PlayerHeadColliderName;
+                var damage = !isHeadShot
+                    ? weaponState.Definition.DamagePerBullet
+                    : weaponState.Definition.HeadShotDamagePerBullet;
+                ServerDamagePlayer(
+                    server, hitPlayerObjectComponent, damage, shootingPlayerObjectComponent
+                );
             }
 
             if (hit.rigidbody != null)

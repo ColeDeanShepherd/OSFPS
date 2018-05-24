@@ -8,7 +8,7 @@
 * Improve networked shot intervals better.
 * Fix showing other players reloading.
 * Add shields.
-* Add player head & body.
+* Polish UI.
 * Don't add bullets to magazine when running over weapon.
 * Send joined & left messages.
 * Attribute grenade kills to the correct player.

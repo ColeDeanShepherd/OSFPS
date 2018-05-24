@@ -12,6 +12,7 @@ public class OsFps : MonoBehaviour
 
     public const string PlayerTag = "Player";
     public const string SpawnPointTag = "Respawn";
+    public const string PlayerHeadColliderName = "Head";
 
     public const float MaxPlayerMovementSpeed = 2.25f;
     public const float PlayerInitialJumpSpeed = 4;
@@ -46,6 +47,7 @@ public class OsFps : MonoBehaviour
         MaxAmmo = 100,
         BulletsPerMagazine = 10,
         DamagePerBullet = 10,
+        HeadShotDamagePerBullet = 25,
         ReloadTime = 1,
         ShotInterval = 0.4f,
         IsAutomatic = false,
@@ -57,6 +59,7 @@ public class OsFps : MonoBehaviour
         MaxAmmo = 100,
         BulletsPerMagazine = 10,
         DamagePerBullet = 10,
+        HeadShotDamagePerBullet = 20,
         ReloadTime = 1,
         ShotInterval = 0.1f,
         IsAutomatic = true,

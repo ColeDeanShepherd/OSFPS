@@ -9,6 +9,14 @@ public static class GameObjectExtensions
         var parentTransform = gameObject.transform.parent;
         return parentTransform?.gameObject.FindObjectOrAncestorWithTag(tag);
     }
+    public static ComponentType FindComponentInObjectOrAncestor<ComponentType>(this GameObject gameObject) where ComponentType : class
+    {
+        var component = gameObject.GetComponent<ComponentType>();
+        if (component != null) return component;
+
+        var parentTransform = gameObject.transform.parent;
+        return parentTransform?.gameObject.FindComponentInObjectOrAncestor<ComponentType>();
+    }
 
     public static GameObject FindDescendant(this GameObject gameObject, string descendantName)
     {

@@ -4,6 +4,7 @@
     public ushort MaxAmmo;
     public ushort BulletsPerMagazine;
     public int DamagePerBullet;
+    public int HeadShotDamagePerBullet;
     public float ReloadTime;
     public float ShotInterval;
     public bool IsAutomatic;
