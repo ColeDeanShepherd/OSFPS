@@ -49,10 +49,19 @@ public class PlayerSystem : ComponentSystem
         }
     }
 
-    public void ServerDamagePlayer(Server server, PlayerObjectComponent playerObjectComponent, int damage, PlayerObjectComponent attackingPlayerObjectComponent)
+    public void ServerDamagePlayer(Server server, PlayerObjectComponent playerObjectComponent, float damage, PlayerObjectComponent attackingPlayerObjectComponent)
     {
+        if (damage <= 0) return;
+
         var playerObjectState = playerObjectComponent.State;
-        playerObjectState.Health -= damage;
+
+        var damageToShield = Mathf.Min(damage, playerObjectState.Shield);
+        playerObjectState.Shield -= damageToShield;
+
+        var damageToHealth = damage - damageToShield;
+        playerObjectState.Health -= damageToHealth;
+
+        playerObjectState.TimeUntilShieldCanRegen = OsFps.TimeAfterDamageUntilShieldRegen;
 
         var playerComponent = OsFps.Instance.FindPlayerComponent(playerObjectState.Id);
         var playerState = playerComponent.State;
@@ -97,6 +106,7 @@ public class PlayerSystem : ComponentSystem
             LookDirAngles = new Vector2(0, lookDirYAngle),
             Input = new PlayerInput(),
             Health = OsFps.MaxPlayerHealth,
+            Shield = OsFps.MaxPlayerShield,
             Weapons = new WeaponObjectState[OsFps.MaxWeaponCount],
             CurrentWeaponIndex = 0,
             TimeUntilCanThrowGrenade = 0,

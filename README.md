@@ -7,7 +7,6 @@
 * Send & use shot rays from client.
 * Improve networked shot intervals better.
 * Fix showing other players reloading.
-* Add shields.
 * Don't add bullets to magazine when running over weapon.
 * Attribute grenade kills to the correct player.
 * Handle message too long.

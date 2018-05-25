@@ -11,7 +11,9 @@ public class PlayerObjectState : INetworkSerializable
     public Vector3 Velocity;
     public Vector2 LookDirAngles;
     public PlayerInput Input;
-    public int Health;
+    public float Shield;
+    public float Health;
+    public float TimeUntilShieldCanRegen;
     public WeaponObjectState[] Weapons = new WeaponObjectState[OsFps.MaxWeaponCount];
     public byte CurrentWeaponIndex;
     public float TimeUntilCanThrowGrenade;
@@ -23,7 +25,8 @@ public class PlayerObjectState : INetworkSerializable
     {
         get
         {
-            return Health > 0;
+            // Rounding to compensate for accumulated floating point error.
+            return Math.Round(Health, 2) > 0;
         }
     }
     public WeaponObjectState CurrentWeapon
@@ -93,7 +96,9 @@ public class PlayerObjectState : INetworkSerializable
         NetworkSerializationUtils.Serialize(writer, Velocity);
         NetworkSerializationUtils.Serialize(writer, LookDirAngles);
         NetworkSerializationUtils.Serialize(writer, Input);
+        writer.Write(Shield);
         writer.Write(Health);
+        writer.Write(TimeUntilShieldCanRegen);
 
         for (var i = 0; i < OsFps.MaxWeaponCount; i++)
         {
@@ -117,7 +122,9 @@ public class PlayerObjectState : INetworkSerializable
         NetworkSerializationUtils.Deserialize(reader, ref Velocity);
         NetworkSerializationUtils.Deserialize(reader, ref LookDirAngles);
         Input = (PlayerInput)NetworkSerializationUtils.Deserialize(reader, typeof(PlayerInput));
-        Health = reader.ReadInt32();
+        Shield = reader.ReadSingle();
+        Health = reader.ReadSingle();
+        TimeUntilShieldCanRegen = reader.ReadSingle();
 
         for (var i = 0; i < OsFps.MaxWeaponCount; i++)
         {

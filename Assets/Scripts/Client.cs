@@ -202,7 +202,11 @@ public class Client
 
         var playerObjectState = playerObjectComponent.State;
 
-        GUI.Label(new Rect(hudMargin, hudMargin, 200, lineHeight), "Health: " + playerObjectState.Health);
+        var shieldLabelRect = new Rect(hudMargin, hudMargin + lineHeight, 200, lineHeight);
+        GUI.Label(shieldLabelRect, "Shield: " + Mathf.RoundToInt(playerObjectState.Shield));
+
+        var healthLabelRect = new Rect(hudMargin, hudMargin, 200, lineHeight);
+        GUI.Label(healthLabelRect, "Health: " + Mathf.RoundToInt(playerObjectState.Health));
 
         var weaponHudPosition = new Vector2(hudMargin + 110, hudMargin);
 

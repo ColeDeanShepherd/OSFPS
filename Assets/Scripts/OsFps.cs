@@ -16,7 +16,10 @@ public class OsFps : MonoBehaviour
 
     public const float MaxPlayerMovementSpeed = 2.25f;
     public const float PlayerInitialJumpSpeed = 4;
-    public const int MaxPlayerHealth = 100;
+    public const float TimeAfterDamageUntilShieldRegen = 2;
+    public const float ShieldRegenPerSecond = MaxPlayerShield / 2;
+    public const float MaxPlayerShield = 70;
+    public const float MaxPlayerHealth = 30;
     public const float RespawnTime = 3;
 
     public const float MuzzleFlashDuration = 0.1f;
@@ -362,6 +365,23 @@ public class OsFps : MonoBehaviour
         {
             playerObjectState.TimeUntilCanThrowGrenade -= Time.deltaTime;
         }
+
+        // shield regen interval
+        float shieldRegenTime;
+        if (playerObjectState.TimeUntilShieldCanRegen > 0)
+        {
+            playerObjectState.TimeUntilShieldCanRegen -= Time.deltaTime;
+            shieldRegenTime = (playerObjectState.TimeUntilShieldCanRegen <= 0)
+                ? Mathf.Abs(playerObjectState.TimeUntilShieldCanRegen)
+                : 0;
+        }
+        else
+        {
+            shieldRegenTime = Time.deltaTime;
+        }
+
+        var shieldRegenAmount = shieldRegenTime * OsFps.ShieldRegenPerSecond;
+        playerObjectState.Shield = Mathf.Min(playerObjectState.Shield + shieldRegenAmount, OsFps.MaxPlayerShield);
 
         // update movement
         PlayerSystem.Instance.UpdatePlayerMovement(playerObjectState);
