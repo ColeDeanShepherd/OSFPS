@@ -95,6 +95,38 @@ public class Client
                     }
                 }
 
+                var mouseScrollDirection = Input.GetAxis("Mouse ScrollWheel");
+                if (mouseScrollDirection > 0)
+                {
+                    var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(PlayerId.Value);
+                    if (playerObjectComponent != null)
+                    {
+                        var newWeaponIndex = MathfExtensions.Wrap(
+                            playerObjectComponent.State.CurrentWeaponIndex + 1,
+                            0, playerObjectComponent.State.Weapons.Length - 1
+                        );
+                        SwitchWeapons(
+                            playerObjectComponent,
+                            newWeaponIndex
+                        );
+                    }
+                }
+                else if (mouseScrollDirection < 0)
+                {
+                    var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(PlayerId.Value);
+                    if (playerObjectComponent != null)
+                    {
+                        var newWeaponIndex = MathfExtensions.Wrap(
+                            playerObjectComponent.State.CurrentWeaponIndex - 1,
+                            0, playerObjectComponent.State.Weapons.Length - 1
+                        );
+                        SwitchWeapons(
+                            playerObjectComponent,
+                            newWeaponIndex
+                        );
+                    }
+                }
+
                 if (Input.GetKeyDown(OsFps.JumpKeyCode))
                 {
                     var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(PlayerId.Value);
@@ -224,12 +256,35 @@ public class Client
                 weaponHudPosition.y += weaponHudHeight;
             }
         }
+
+        var grenadeHudPosition = new Vector2(hudMargin + 280, hudMargin);
+        if (playerObjectState.CurrentGrenadeSlot != null)
+        {
+            DrawGrenadeSlotHud(playerObjectState.CurrentGrenadeSlot, grenadeHudPosition);
+            grenadeHudPosition.y += weaponHudHeight;
+        }
+
+        foreach (var grenadeSlot in playerObjectState.GrenadeSlots)
+        {
+            if ((grenadeSlot != null) && (grenadeSlot != playerObjectState.CurrentGrenadeSlot))
+            {
+                DrawGrenadeSlotHud(grenadeSlot, grenadeHudPosition);
+                grenadeHudPosition.y += weaponHudHeight;
+            }
+        }
     }
     private void DrawWeaponHud(WeaponObjectState weapon, Vector2 position)
     {
         GUI.Label(
             new Rect(position.x, position.y, 200, 50),
             weapon.Type.ToString() + " Ammo: " + weapon.BulletsLeftInMagazine + " / " + weapon.BulletsLeftOutOfMagazine
+        );
+    }
+    private void DrawGrenadeSlotHud(GrenadeSlot grenadeSlot, Vector2 position)
+    {
+        GUI.Label(
+            new Rect(position.x, position.y, 200, 50),
+            grenadeSlot.GrenadeType.ToString() + " Grenades: " + grenadeSlot.GrenadeCount + " / " + OsFps.MaxGrenadesPerType
         );
     }
     private void DrawScoreBoard()
@@ -447,14 +502,20 @@ public class Client
             playerObjectComponent.State.CurrentWeapon.Definition.ShotInterval;
     }
 
-    public void ThrowGrenade(PlayerObjectState playerState)
+    public void ThrowGrenade(PlayerObjectState playerObjectState)
     {
         OsFps.Instance.CallRpcOnServer("ServerOnPlayerThrowGrenade", reliableChannelId, new
         {
-            playerId = playerState.Id
+            playerId = playerObjectState.Id
         });
 
-        playerState.TimeUntilCanThrowGrenade = OsFps.GrenadeThrowInterval;
+        playerObjectState.TimeUntilCanThrowGrenade = OsFps.GrenadeThrowInterval;
+    }
+    public void SwitchGrenadeType(PlayerObjectState playerObjectState)
+    {
+        OsFps.Instance.CallRpcOnServer("ServerOnPlayerSwitchGrenadeType", reliableChannelId, new {
+            playerId = playerObjectState.Id
+        });
     }
 
     public void SwitchWeapons(PlayerObjectComponent playerObjectComponent, int weaponIndex)

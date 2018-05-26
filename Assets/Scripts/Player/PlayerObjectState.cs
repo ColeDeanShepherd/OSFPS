@@ -10,16 +10,20 @@ public class PlayerObjectState : INetworkSerializable
     public Vector3 Position;
     public Vector3 Velocity;
     public Vector2 LookDirAngles;
+
     public PlayerInput Input;
+
     public float Shield;
     public float Health;
     public float TimeUntilShieldCanRegen;
+
     public WeaponObjectState[] Weapons = new WeaponObjectState[OsFps.MaxWeaponCount];
     public byte CurrentWeaponIndex;
-    public float TimeUntilCanThrowGrenade;
-    public GrenadeType CurrentGrenadeType;
-    public Dictionary<GrenadeType, byte> GrenadesLeftByType;
     public float ReloadTimeLeft;
+
+    public float TimeUntilCanThrowGrenade;
+    public byte CurrentGrenadeSlotIndex;
+    public GrenadeSlot[] GrenadeSlots = new GrenadeSlot[OsFps.MaxGrenadeSlotCount];
 
     public bool IsAlive
     {
@@ -66,7 +70,14 @@ public class PlayerObjectState : INetworkSerializable
             return
                 IsAlive &&
                 (TimeUntilCanThrowGrenade <= 0) &&
-                (GrenadesLeftByType[CurrentGrenadeType] > 0);
+                ((GrenadeSlots[CurrentGrenadeSlotIndex]?.GrenadeCount ?? 0) > 0);
+        }
+    }
+    public GrenadeSlot CurrentGrenadeSlot
+    {
+        get
+        {
+            return GrenadeSlots[CurrentGrenadeSlotIndex];
         }
     }
     public bool IsReloading
@@ -84,11 +95,6 @@ public class PlayerObjectState : INetworkSerializable
         }
     }
 
-    public PlayerObjectState()
-    {
-        GrenadesLeftByType = Enum.GetValues(typeof(GrenadeType)).Cast<GrenadeType>()
-            .ToDictionary(grenadeType => grenadeType, grenadeType => (byte)0);
-    }
     public void Serialize(BinaryWriter writer)
     {
         writer.Write(Id);
@@ -100,7 +106,7 @@ public class PlayerObjectState : INetworkSerializable
         writer.Write(Health);
         writer.Write(TimeUntilShieldCanRegen);
 
-        for (var i = 0; i < OsFps.MaxWeaponCount; i++)
+        for (var i = 0; i < Weapons.Length; i++)
         {
             NetworkSerializationUtils.SerializeNullable(writer, Weapons[i]);
         }
@@ -108,11 +114,15 @@ public class PlayerObjectState : INetworkSerializable
         writer.Write(CurrentWeaponIndex);
         writer.Write(ReloadTimeLeft);
         writer.Write(TimeUntilCanThrowGrenade);
-        writer.Write((byte)CurrentGrenadeType);
 
-        foreach (var grenadeType in Enum.GetValues(typeof(GrenadeType)).Cast<GrenadeType>())
+        writer.Write(CurrentGrenadeSlotIndex);
+
+        for (var i = 0; i < GrenadeSlots.Length; i++)
         {
-            writer.Write(GrenadesLeftByType[grenadeType]);
+            var grenadeSlot = GrenadeSlots[i];
+            NetworkSerializationUtils.Serialize(
+                writer, grenadeSlot, overrideType: null, isNullableIfReferenceType: true
+            );
         }
     }
     public void Deserialize(BinaryReader reader)
@@ -126,19 +136,22 @@ public class PlayerObjectState : INetworkSerializable
         Health = reader.ReadSingle();
         TimeUntilShieldCanRegen = reader.ReadSingle();
 
-        for (var i = 0; i < OsFps.MaxWeaponCount; i++)
+        for (var i = 0; i < Weapons.Length; i++)
         {
             Weapons[i] = NetworkSerializationUtils.DeserializeNullable<WeaponObjectState>(reader);
         }
 
         CurrentWeaponIndex = reader.ReadByte();
         ReloadTimeLeft = reader.ReadSingle();
-        TimeUntilCanThrowGrenade = reader.ReadSingle();
-        CurrentGrenadeType = (GrenadeType)reader.ReadByte();
 
-        foreach (var grenadeType in Enum.GetValues(typeof(GrenadeType)).Cast<GrenadeType>())
+        TimeUntilCanThrowGrenade = reader.ReadSingle();
+        CurrentGrenadeSlotIndex = reader.ReadByte();
+
+        for (var i = 0; i < GrenadeSlots.Length; i++)
         {
-            GrenadesLeftByType[grenadeType] = reader.ReadByte();
+            GrenadeSlots[i] = (GrenadeSlot)NetworkSerializationUtils.Deserialize(
+                reader, typeof(GrenadeSlot), isNullableIfReferenceType: true
+            );
         }
     }
 }

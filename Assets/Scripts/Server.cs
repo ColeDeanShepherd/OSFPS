@@ -245,6 +245,30 @@ public class Server
         var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(playerId);
         GrenadeSystem.Instance.ServerPlayerThrowGrenade(this, playerObjectComponent);
     }
+    
+    [Rpc(ExecuteOn = NetworkPeerType.Server)]
+    public void ServerOnPlayerSwitchGrenadeType(uint playerId)
+    {
+        var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(playerId);
+        if (playerObjectComponent == null) return;
+
+        var grenadeSlots = playerObjectComponent.State.GrenadeSlots;
+
+        for (var iOffset = 1; iOffset < grenadeSlots.Length; iOffset++)
+        {
+            var grenadeSlotIndex = MathfExtensions.Wrap(
+                playerObjectComponent.State.CurrentGrenadeSlotIndex + iOffset,
+                0,
+                grenadeSlots.Length - 1
+            );
+            var grenadeSlot = grenadeSlots[grenadeSlotIndex];
+
+            if (grenadeSlot.GrenadeCount > 0)
+            {
+                playerObjectComponent.State.CurrentGrenadeSlotIndex = (byte)grenadeSlotIndex;
+            }
+        }
+    }
 
     [Rpc(ExecuteOn = NetworkPeerType.Server)]
     public void ServerOnChatMessage(uint? playerId, string message)

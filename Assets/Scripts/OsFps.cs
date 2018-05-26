@@ -24,6 +24,7 @@ public class OsFps : MonoBehaviour
 
     public const float MuzzleFlashDuration = 0.1f;
     public const int MaxWeaponCount = 2;
+    public const int MaxGrenadeSlotCount = 2;
 
     public const int MaxGrenadesPerType = 2;
     public const float GrenadeThrowInterval = 1;
@@ -32,13 +33,14 @@ public class OsFps : MonoBehaviour
     public const float GrenadeExplosionDuration = 0.5f;
 
     public const int FireMouseButtonNumber = 0;
+    public const int ThrowGrenadeMouseButtonNumber = 1;
     public const KeyCode MoveForwardKeyCode = KeyCode.W;
     public const KeyCode MoveBackwardKeyCode = KeyCode.S;
     public const KeyCode MoveRightKeyCode = KeyCode.D;
     public const KeyCode MoveLeftKeyCode = KeyCode.A;
     public const KeyCode JumpKeyCode = KeyCode.Space;
     public const KeyCode ReloadKeyCode = KeyCode.R;
-    public const KeyCode ThrowGrenadeKeyCode = KeyCode.G;
+    public const KeyCode SwitchGrenadeTypeKeyCode = KeyCode.G;
     public const KeyCode ShowScoreboardKeyCode = KeyCode.Tab;
     public const KeyCode ChatKeyCode = KeyCode.Return;
     public const KeyCode ToggleMenuKeyCode = KeyCode.Escape;

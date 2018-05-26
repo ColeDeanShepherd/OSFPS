@@ -118,12 +118,14 @@ public class GrenadeSystem : ComponentSystem
         var cameraPosition = playerObjectComponent.CameraPointObject.transform.position;
         var cameraForward = playerObjectComponent.CameraPointObject.transform.forward;
         var throwRay = new Ray(cameraPosition + (0.5f * cameraForward), cameraForward);
+        var currentGrenadeSlot = playerObjectState.GrenadeSlots[playerObjectState.CurrentGrenadeSlotIndex];
+
         var grenadeState = new GrenadeState
         {
             Id = server.GenerateNetworkId(),
-            Type = playerObjectState.CurrentGrenadeType,
+            Type = currentGrenadeSlot.GrenadeType,
             IsFuseBurning = false,
-            TimeUntilDetonation = OsFps.GetGrenadeDefinitionByType(playerObjectState.CurrentGrenadeType).TimeAfterHitUntilDetonation,
+            TimeUntilDetonation = OsFps.GetGrenadeDefinitionByType(currentGrenadeSlot.GrenadeType).TimeAfterHitUntilDetonation,
             RigidBodyState = new RigidBodyState
             {
                 Position = throwRay.origin,
@@ -135,7 +137,7 @@ public class GrenadeSystem : ComponentSystem
         var grenadeObject = OsFps.Instance.SpawnLocalGrenadeObject(grenadeState);
         grenadeObject.GetComponent<GrenadeComponent>();
 
-        playerObjectState.GrenadesLeftByType[playerObjectState.CurrentGrenadeType]--;
+        currentGrenadeSlot.GrenadeCount--;
         playerObjectState.TimeUntilCanThrowGrenade = OsFps.GrenadeThrowInterval;
     }
     public void ServerGrenadeOnCollisionEnter(Server server, GrenadeComponent grenadeComponent, Collision collision)

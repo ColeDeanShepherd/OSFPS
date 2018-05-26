@@ -69,11 +69,18 @@ public static class NetworkSerializationUtils
             return typeof(uint);
         }
     }
-    public static void Serialize(BinaryWriter writer, object obj, Type overrideType = null)
+    public static void Serialize(
+        BinaryWriter writer, object obj, Type overrideType = null, bool isNullableIfReferenceType = false
+    )
     {
         var objType = overrideType ?? obj.GetType();
 
         var nullableUnderlyingType = Nullable.GetUnderlyingType(objType);
+        if ((nullableUnderlyingType == null) && isNullableIfReferenceType && objType.IsClass)
+        {
+            nullableUnderlyingType = objType;
+        }
+
         if (nullableUnderlyingType != null)
         {
             writer.Write(obj != null);
@@ -185,9 +192,13 @@ public static class NetworkSerializationUtils
             }
         }
     }
-    public static object Deserialize(BinaryReader reader, Type type)
+    public static object Deserialize(BinaryReader reader, Type type, bool isNullableIfReferenceType = false)
     {
         var nullableUnderlyingType = Nullable.GetUnderlyingType(type);
+        if ((nullableUnderlyingType == null) && isNullableIfReferenceType && type.IsClass)
+        {
+            nullableUnderlyingType = type;
+        }
 
         if (nullableUnderlyingType != null)
         {

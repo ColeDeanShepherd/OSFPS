@@ -110,8 +110,8 @@ public class PlayerSystem : ComponentSystem
             Weapons = new WeaponObjectState[OsFps.MaxWeaponCount],
             CurrentWeaponIndex = 0,
             TimeUntilCanThrowGrenade = 0,
-            CurrentGrenadeType = GrenadeType.Fragmentation,
-            GrenadesLeftByType = new Dictionary<GrenadeType, byte>(),
+            CurrentGrenadeSlotIndex = 0,
+            GrenadeSlots = new GrenadeSlot[OsFps.MaxGrenadeSlotCount],
             ReloadTimeLeft = -1
         };
         var firstWeaponDefinition = OsFps.PistolDefinition;
@@ -121,13 +121,17 @@ public class PlayerSystem : ComponentSystem
             BulletsLeftInMagazine = firstWeaponDefinition.BulletsPerMagazine,
             BulletsLeftOutOfMagazine = firstWeaponDefinition.MaxAmmoOutOfMagazine
         };
-        playerObjectState.GrenadesLeftByType[GrenadeType.Fragmentation] = 2;
-        playerObjectState.GrenadesLeftByType[GrenadeType.Sticky] = 2;
 
-        for (var i = 1; i < playerObjectState.Weapons.Length; i++)
+        playerObjectState.GrenadeSlots[0] = new GrenadeSlot
         {
-            playerObjectState.Weapons[i] = null;
-        }
+            GrenadeType = GrenadeType.Fragmentation,
+            GrenadeCount = 2
+        };
+        playerObjectState.GrenadeSlots[1] = new GrenadeSlot
+        {
+            GrenadeType = GrenadeType.Sticky,
+            GrenadeCount = 2
+        };
 
         var playerObject = OsFps.Instance.SpawnLocalPlayer(playerObjectState);
         return playerObject;
@@ -332,9 +336,14 @@ public class PlayerSystem : ComponentSystem
             }
         }
 
-        if (Input.GetKeyDown(OsFps.ThrowGrenadeKeyCode) && playerObjectState.CanThrowGrenade)
+        if (Input.GetMouseButtonDown(OsFps.ThrowGrenadeMouseButtonNumber) && playerObjectState.CanThrowGrenade)
         {
             client.ThrowGrenade(playerObjectState);
+        }
+
+        if (Input.GetKeyDown(OsFps.SwitchGrenadeTypeKeyCode))
+        {
+            client.SwitchGrenadeType(playerObjectState);
         }
     }
 }
