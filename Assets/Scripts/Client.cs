@@ -917,6 +917,47 @@ public class Client
         }
     }
 
+    private void ApplyRocketStates(GameState oldGameState, GameState newGameState)
+    {
+        System.Func<RocketState, RocketState, bool> doIdsMatch =
+            (rs1, rs2) => rs1.Id == rs2.Id;
+
+        System.Action<RocketState> handleRemovedRocketState = removedRocketState =>
+        {
+            var rocketComponent = OsFps.Instance.FindRocketComponent(removedRocketState.Id);
+            Object.Destroy(rocketComponent.gameObject);
+        };
+
+        System.Action<RocketState> handleAddedRocketState = addedRocketState =>
+            OsFps.Instance.SpawnLocalRocketObject(addedRocketState);
+
+        System.Action<RocketState, RocketState> handleUpdatedRocketState =
+            (oldRocketState, updatedRocketState) => ApplyRocketState(updatedRocketState);
+
+        ApplyStates(
+            oldGameState.Rockets, newGameState.Rockets, doIdsMatch,
+            handleRemovedRocketState, handleAddedRocketState, handleUpdatedRocketState
+        );
+    }
+    private void ApplyRocketState(RocketState updatedRocketState)
+    {
+        var rocketComponent = OsFps.Instance.FindRocketComponent(updatedRocketState.Id);
+        var currentRocketState = rocketComponent.State;
+
+        // Update weapon object.
+        if (rocketComponent != null)
+        {
+            ApplyRigidbodyState(
+                updatedRocketState.RigidBodyState,
+                currentRocketState.RigidBodyState,
+                rocketComponent.Rigidbody
+            );
+
+            // Update state.
+            rocketComponent.State = updatedRocketState;
+        }
+    }
+
     private void SpawnPlayer(PlayerObjectState playerState)
     {
         OsFps.Instance.SpawnLocalPlayer(playerState);

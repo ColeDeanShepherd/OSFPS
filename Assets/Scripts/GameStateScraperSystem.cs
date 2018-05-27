@@ -63,10 +63,25 @@ public class GameStateScraperSystem
         return Object.FindObjectsOfType<GrenadeComponent>()
             .Select(gc =>
             {
-                gc.State.RigidBodyState = ToRigidBodyState(gc.Rigidbody);
+                gc.State.RigidBodyState = (gc.Rigidbody != null)
+                    ? ToRigidBodyState(gc.Rigidbody)
+                    : new RigidBodyState();
                 return gc.State;
             })
             .Where(gs => gs != null)
+            .ToList();
+    }
+    public List<RocketState> GetRocketStates()
+    {
+        return Object.FindObjectsOfType<RocketComponent>()
+            .Select(rc =>
+            {
+                rc.State.RigidBodyState = (rc.Rigidbody != null)
+                    ? ToRigidBodyState(rc.Rigidbody)
+                    : new RigidBodyState();
+                return rc.State;
+            })
+            .Where(rs => rs != null)
             .ToList();
     }
 

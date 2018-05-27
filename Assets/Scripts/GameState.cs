@@ -9,6 +9,7 @@ public class GameState : INetworkSerializable
     public List<WeaponObjectState> WeaponObjects = new List<WeaponObjectState>();
     public List<WeaponSpawnerState> WeaponSpawners = new List<WeaponSpawnerState>();
     public List<GrenadeState> Grenades = new List<GrenadeState>();
+    public List<RocketState> Rockets = new List<RocketState>();
 
     public void Serialize(BinaryWriter writer)
     {
@@ -17,6 +18,7 @@ public class GameState : INetworkSerializable
         NetworkSerializationUtils.Serialize(writer, WeaponObjects);
         NetworkSerializationUtils.Serialize(writer, WeaponSpawners);
         NetworkSerializationUtils.Serialize(writer, Grenades);
+        NetworkSerializationUtils.Serialize(writer, Rockets);
     }
     public void Deserialize(BinaryReader reader)
     {
@@ -25,5 +27,6 @@ public class GameState : INetworkSerializable
         NetworkSerializationUtils.Deserialize(reader, WeaponObjects);
         NetworkSerializationUtils.Deserialize(reader, WeaponSpawners);
         NetworkSerializationUtils.Deserialize(reader, Grenades);
+        NetworkSerializationUtils.Deserialize(reader, Rockets);
     }
 }

@@ -74,7 +74,7 @@ public class GrenadeSystem : ComponentSystem
         foreach (var collider in affectedColliders)
         {
             // Apply damage.
-            var playerObjectComponent = collider.gameObject.GetComponent<PlayerObjectComponent>();
+            var playerObjectComponent = collider.gameObject.FindComponentInObjectOrAncestor<PlayerObjectComponent>();
             if (playerObjectComponent != null)
             {
                 var playerObjectState = playerObjectComponent.State;
@@ -140,11 +140,26 @@ public class GrenadeSystem : ComponentSystem
         currentGrenadeSlot.GrenadeCount--;
         playerObjectState.TimeUntilCanThrowGrenade = OsFps.GrenadeThrowInterval;
     }
+    public void StickStickyGrenadeToObject(GrenadeComponent grenadeComponent, GameObject hitObject)
+    {
+        grenadeComponent.Rigidbody.isKinematic = true;
+        grenadeComponent.Collider.isTrigger = true;
+        grenadeComponent.transform.SetParent(hitObject.transform);
+    }
     public void ServerGrenadeOnCollisionEnter(Server server, GrenadeComponent grenadeComponent, Collision collision)
     {
         Debug.Log("Grenade collided with " + collision.gameObject.name);
 
         var grenadeState = grenadeComponent.State;
         grenadeState.IsFuseBurning = true;
+
+        if (grenadeComponent.State.Type == GrenadeType.Sticky)
+        {
+            StickStickyGrenadeToObject(grenadeComponent, collision.gameObject);
+        }
+    }
+    public void ServerRocketOnCollisionEnter(Server server, RocketComponent rocketComponent, Collision collision)
+    {
+        var rocketState = rocketComponent.State;
     }
 }

@@ -22,6 +22,8 @@ public class OsFps : MonoBehaviour
     public const float MaxPlayerHealth = 30;
     public const float RespawnTime = 3;
 
+    public const float RocketExplosionRadius = 4;
+
     public const float MuzzleFlashDuration = 0.1f;
     public const int MaxWeaponCount = 2;
     public const int MaxGrenadeSlotCount = 2;
@@ -71,6 +73,18 @@ public class OsFps : MonoBehaviour
         IsAutomatic = true,
         SpawnInterval = 20
     };
+    public static WeaponDefinition RocketLauncherDefinition = new WeaponDefinition
+    {
+        Type = WeaponType.RocketLauncher,
+        MaxAmmo = 8,
+        BulletsPerMagazine = 2,
+        DamagePerBullet = 100,
+        HeadShotDamagePerBullet = 100,
+        ReloadTime = 2,
+        ShotInterval = 0.75f,
+        IsAutomatic = false,
+        SpawnInterval = 40
+    };
     public static WeaponDefinition GetWeaponDefinitionByType(WeaponType type)
     {
         switch (type)
@@ -79,6 +93,8 @@ public class OsFps : MonoBehaviour
                 return PistolDefinition;
             case WeaponType.Smg:
                 return SmgDefinition;
+            case WeaponType.RocketLauncher:
+                return RocketLauncherDefinition;
             default:
                 throw new System.NotImplementedException();
         }
@@ -128,6 +144,9 @@ public class OsFps : MonoBehaviour
     public GameObject PistolPrefab;
     public GameObject SmgPrefab;
 
+    public GameObject RocketLauncherPrefab;
+    public GameObject RocketPrefab;
+
     public GameObject MuzzleFlashPrefab;
 
     public GameObject FragmentationGrenadePrefab;
@@ -162,6 +181,8 @@ public class OsFps : MonoBehaviour
                 return PistolPrefab;
             case WeaponType.Smg:
                 return SmgPrefab;
+            case WeaponType.RocketLauncher:
+                return RocketLauncherPrefab;
             default:
                 throw new System.NotImplementedException("Unknown weapon type: " + weaponType);
         }
@@ -253,6 +274,23 @@ public class OsFps : MonoBehaviour
 
         return grenadeObject;
     }
+    public GameObject SpawnLocalRocketObject(RocketState rocketState)
+    {
+        var rocketObject = Instantiate(
+            RocketPrefab,
+            rocketState.RigidBodyState.Position,
+            Quaternion.Euler(rocketState.RigidBodyState.EulerAngles)
+        );
+
+        var rocketComponent = rocketObject.GetComponent<RocketComponent>();
+        rocketComponent.State = rocketState;
+
+        var rigidbody = rocketComponent.Rigidbody;
+        rigidbody.velocity = rocketState.RigidBodyState.Velocity;
+        rigidbody.angularVelocity = rocketState.RigidBodyState.AngularVelocity;
+
+        return rocketObject;
+    }
 
     public GameObject FindPlayerObject(uint playerId)
     {
@@ -285,7 +323,12 @@ public class OsFps : MonoBehaviour
          return FindObjectsOfType<GrenadeComponent>()
             .FirstOrDefault(g => g.State.Id == id);
     }
-    
+    public RocketComponent FindRocketComponent(uint id)
+    {
+        return FindObjectsOfType<RocketComponent>()
+           .FirstOrDefault(g => g.State.Id == id);
+    }
+
     public WeaponSpawnerComponent FindWeaponSpawnerComponent(uint id)
     {
         return FindObjectsOfType<WeaponSpawnerComponent>()
@@ -424,6 +467,13 @@ public class OsFps : MonoBehaviour
         if (Server != null)
         {
             GrenadeSystem.Instance.ServerGrenadeOnCollisionEnter(Server, grenadeComponent, collision);
+        }
+    }
+    public void RocketOnCollisionEnter(RocketComponent rocketComponent, Collision collision)
+    {
+        if (Server != null)
+        {
+            GrenadeSystem.Instance.ServerRocketOnCollisionEnter(Server, rocketComponent, collision);
         }
     }
 

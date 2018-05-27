@@ -1,5 +1,6 @@
 ﻿public enum WeaponType
 {
     Pistol,
-    Smg
+    Smg,
+    RocketLauncher
 }

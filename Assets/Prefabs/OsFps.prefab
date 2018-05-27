@@ -59,6 +59,10 @@ MonoBehaviour:
   PistolPrefab: {fileID: 1010797790457592, guid: 5d87d3b5c75bc3949a4c736ad3313d75,
     type: 2}
   SmgPrefab: {fileID: 1585401937717724, guid: e02fc32f11ad4a049a208260ad83e80a, type: 2}
+  RocketLauncherPrefab: {fileID: 1757310994202714, guid: bb27c9736e8d3da45a783fa78ee90de2,
+    type: 2}
+  RocketPrefab: {fileID: 1194062123376506, guid: f6cbc1b0090d9784584f0e47bf443a0b,
+    type: 2}
   MuzzleFlashPrefab: {fileID: 1354871173001656, guid: 1855e5917da52b84ab776dd490c388c5,
     type: 2}
   FragmentationGrenadePrefab: {fileID: 1864906674804262, guid: 3832104089c964b41820ab8af630b631,
