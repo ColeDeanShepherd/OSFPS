@@ -564,6 +564,8 @@ public class OsFps : MonoBehaviour
 
     private void RenderMainMenu()
     {
+        Cursor.lockState = CursorLockMode.None;
+
         const float buttonWidth = 200;
         const float buttonHeight = 30;
         const float buttonSpacing = 10;

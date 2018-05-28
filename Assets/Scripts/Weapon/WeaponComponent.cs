@@ -38,7 +38,11 @@ public class WeaponComponent : MonoBehaviour
         if (WeaponSpawnerId.HasValue)
         {
             var weaponSpawnerComponent = OsFps.Instance.FindWeaponSpawnerComponent(WeaponSpawnerId.Value);
-            weaponSpawnerComponent.State.TimeUntilNextSpawn = OsFps.GetWeaponDefinitionByType(weaponSpawnerComponent.WeaponType).SpawnInterval;
+
+            if (weaponSpawnerComponent != null)
+            {
+                weaponSpawnerComponent.State.TimeUntilNextSpawn = OsFps.GetWeaponDefinitionByType(weaponSpawnerComponent.WeaponType).SpawnInterval;
+            }
         }
     }
 }

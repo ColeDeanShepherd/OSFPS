@@ -1,10 +1,11 @@
 ﻿using Unity.Entities;
+using UnityEngine;
 
 public class KillPlaneSystem : ComponentSystem
 {
     public struct Group
     {
-        public PlayerObjectComponent PlayerObjectComponent;
+        public Transform Transform;
     }
 
     protected override void OnUpdate()
@@ -20,12 +21,18 @@ public class KillPlaneSystem : ComponentSystem
     {
         foreach (var entity in GetEntities<Group>())
         {
-            var playerObjectComponent = entity.PlayerObjectComponent;
-
-            // kill if too low in map
-            if (playerObjectComponent.transform.position.y <= OsFps.KillPlaneY)
+            if (entity.Transform.position.y <= OsFps.KillPlaneY)
             {
-                PlayerSystem.Instance.ServerDamagePlayer(server, playerObjectComponent, 9999, null);
+                var playerObjectComponent = entity.Transform.gameObject.GetComponent<PlayerObjectComponent>();
+
+                if (playerObjectComponent == null)
+                {
+                    Object.Destroy(entity.Transform.gameObject);
+                }
+                else
+                {
+                    PlayerSystem.Instance.ServerDamagePlayer(server, playerObjectComponent, 9999, null);
+                }
             }
         }
     }
