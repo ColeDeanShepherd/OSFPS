@@ -216,7 +216,10 @@ public class PlayerSystem : ComponentSystem
                 AngularVelocity = Vector3.zero
             }
         };
-        OsFps.Instance.SpawnLocalRocketObject(rocketState);
+        var rocket = OsFps.Instance.SpawnLocalRocketObject(rocketState);
+
+        var rocketComponent = rocket.GetComponent<RocketComponent>();
+        rocketComponent.ShooterPlayerId = shootingPlayerObjectComponent.State.Id;
     }
     public void ServerPlayerPullTrigger(Server server, PlayerObjectComponent playerObjectComponent)
     {

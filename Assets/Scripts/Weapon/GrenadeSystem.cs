@@ -44,14 +44,14 @@ public class GrenadeSystem : ComponentSystem
             }
         }
 
-        var grenadesToDetonate = new List<GrenadeState>();
+        var grenadesToDetonate = new List<GrenadeComponent>();
         foreach (var entity in entities)
         {
             var grenade = entity.GrenadeComponent.State;
 
             if (grenade.IsFuseBurning && (grenade.TimeUntilDetonation <= 0))
             {
-                grenadesToDetonate.Add(grenade);
+                grenadesToDetonate.Add(entity.GrenadeComponent);
             }
         }
 
@@ -60,9 +60,9 @@ public class GrenadeSystem : ComponentSystem
             ServerDetonateGrenade(server, grenadeToDetonate);
         }
     }
-    private void ServerDetonateGrenade(Server server, GrenadeState grenade)
+    private void ServerDetonateGrenade(Server server, GrenadeComponent grenadeComponent)
     {
-        var grenadeComponent = OsFps.Instance.FindGrenadeComponent(grenade.Id);
+        var grenade = grenadeComponent.State;
         var grenadeDefinition = OsFps.GetGrenadeDefinitionByType(grenade.Type);
         var grenadePosition = grenadeComponent.transform.position;
 
@@ -85,7 +85,10 @@ public class GrenadeSystem : ComponentSystem
                 var damage = damagePercent * grenadeDefinition.Damage;
 
                 // TODO: don't call system directly
-                PlayerSystem.Instance.ServerDamagePlayer(server, playerObjectComponent, damage, null);
+                var attackingPlayerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(grenadeComponent.ThrowerPlayerId);
+                PlayerSystem.Instance.ServerDamagePlayer(
+                    server, playerObjectComponent, damage, attackingPlayerObjectComponent
+                );
             }
 
             // Apply forces.
@@ -135,7 +138,8 @@ public class GrenadeSystem : ComponentSystem
             }
         };
         var grenadeObject = OsFps.Instance.SpawnLocalGrenadeObject(grenadeState);
-        grenadeObject.GetComponent<GrenadeComponent>();
+        var grenadeComponent = grenadeObject.GetComponent<GrenadeComponent>();
+        grenadeComponent.ThrowerPlayerId = playerObjectState.Id;
 
         currentGrenadeSlot.GrenadeCount--;
         playerObjectState.TimeUntilCanThrowGrenade = OsFps.GrenadeThrowInterval;

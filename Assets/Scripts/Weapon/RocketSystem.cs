@@ -30,9 +30,8 @@ public class RocketSystem : ComponentSystem
     {
         var deltaTime = Time.deltaTime;
     }
-    private void ServerDetonateRocket(Server server, RocketState rocket)
+    private void ServerDetonateRocket(Server server, RocketComponent rocketComponent)
     {
-        var rocketComponent = OsFps.Instance.FindRocketComponent(rocket.Id);
         var rocketPosition = rocketComponent.transform.position;
 
         // apply damage & forces to players within range
@@ -54,7 +53,10 @@ public class RocketSystem : ComponentSystem
                 var damage = damagePercent * OsFps.RocketLauncherDefinition.DamagePerBullet;
 
                 // TODO: don't call system directly
-                PlayerSystem.Instance.ServerDamagePlayer(server, playerObjectComponent, damage, null);
+                var attackingPlayerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(rocketComponent.ShooterPlayerId);
+                PlayerSystem.Instance.ServerDamagePlayer(
+                    server, playerObjectComponent, damage, attackingPlayerObjectComponent
+                );
             }
 
             // Apply forces.
@@ -73,14 +75,13 @@ public class RocketSystem : ComponentSystem
         // send message
         OsFps.Instance.CallRpcOnAllClients("ClientOnDetonateRocket", server.reliableChannelId, new
         {
-            id = rocket.Id,
+            id = rocketComponent.State.Id,
             position = rocketPosition
         });
     }
 
     public void ServerRocketOnCollisionEnter(Server server, RocketComponent rocketComponent, Collision collision)
     {
-        var rocketState = rocketComponent.State;
-        ServerDetonateRocket(server, rocketState);
+        ServerDetonateRocket(server, rocketComponent);
     }
 }

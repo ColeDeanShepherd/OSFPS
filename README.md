@@ -4,6 +4,7 @@
 
 #### Current
 
+* **REWORK STATE SYNCHRONIZATION**
 * Add gun recoil.
 * Add more weapons.
   * battle rifle?
@@ -17,7 +18,6 @@
 * Only spawn weapon if previous weapon was taken.
 * Add sounds.
 * Handle connect to server failure.
-* Attribute grenade kills to the correct player.
 * Handle message too long.
 * Fix showing other players reloading.
 * Send & use shot rays from client.

@@ -3,6 +3,7 @@
 public class GrenadeComponent : MonoBehaviour
 {
     public GrenadeState State;
+    public uint ThrowerPlayerId;
 
     public GrenadeDefinition Definition
     {
