@@ -36,7 +36,7 @@ public static class NetworkSerializationUtils
                         $"RPC parameter {parameterName} has type {parameterType.AssemblyQualifiedName} but was passed {argumentType.AssemblyQualifiedName}."
                     );
 
-                    Serialize(binaryWriter, argument, argumentType);
+                    SerializeObject(binaryWriter, argument, argumentType);
                 }
             }
 
@@ -69,11 +69,16 @@ public static class NetworkSerializationUtils
             return typeof(uint);
         }
     }
-    public static void Serialize(
+    public static void Serialize<T>(BinaryWriter writer, T t, bool isNullableIfReferenceType = false)
+    {
+        SerializeObject(writer, t, typeof(T), isNullableIfReferenceType);
+    }
+    public static void SerializeObject(
         BinaryWriter writer, object obj, Type overrideType = null, bool isNullableIfReferenceType = false
     )
     {
-        var objType = overrideType ?? obj.GetType();
+        var objType = overrideType ?? obj?.GetType();
+        Assert.IsNotNull(objType);
 
         var nullableUnderlyingType = Nullable.GetUnderlyingType(objType);
         if ((nullableUnderlyingType == null) && isNullableIfReferenceType && objType.IsClass)
@@ -168,7 +173,7 @@ public static class NetworkSerializationUtils
             if (objType.IsEnum)
             {
                 var smallestTypeToHoldEnumValues = GetSmallestIntTypeToHoldEnumValues(objType);
-                Serialize(writer, Convert.ChangeType(obj, smallestTypeToHoldEnumValues));
+                SerializeObject(writer, Convert.ChangeType(obj, smallestTypeToHoldEnumValues));
             }
             else if (objType.IsClass || objType.IsValueType)
             {
@@ -177,13 +182,13 @@ public static class NetworkSerializationUtils
                 var objFields = objType.GetFields();
                 foreach (var objField in objFields)
                 {
-                    Serialize(writer, objField.GetValue(obj));
+                    SerializeObject(writer, objField.GetValue(obj));
                 }
 
                 var objProperties = objType.GetProperties();
                 foreach (var objProperty in objProperties)
                 {
-                    Serialize(writer, objProperty.GetValue(obj));
+                    SerializeObject(writer, objProperty.GetValue(obj));
                 }
             }
             else
@@ -316,6 +321,10 @@ public static class NetworkSerializationUtils
                 throw new NotImplementedException($"Cannot deserialize type: {type.AssemblyQualifiedName}");
             }
         }
+    }
+    public static T Deserialize<T>(BinaryReader reader, bool isNullableIfReferenceType = false)
+    {
+        return (T)Deserialize(reader, typeof(T), isNullableIfReferenceType);
     }
 
     public static void Serialize(BinaryWriter writer, Vector2 v)

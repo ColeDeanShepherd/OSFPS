@@ -85,7 +85,9 @@ public class GrenadeSystem : ComponentSystem
                 var damage = damagePercent * grenadeDefinition.Damage;
 
                 // TODO: don't call system directly
-                var attackingPlayerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(grenadeComponent.ThrowerPlayerId);
+                var attackingPlayerObjectComponent = grenadeComponent.ThrowerPlayerId.HasValue
+                    ? OsFps.Instance.FindPlayerObjectComponent(grenadeComponent.ThrowerPlayerId.Value)
+                    : null;
                 PlayerSystem.Instance.ServerDamagePlayer(
                     server, playerObjectComponent, damage, attackingPlayerObjectComponent
                 );

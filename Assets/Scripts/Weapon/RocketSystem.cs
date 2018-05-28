@@ -53,7 +53,9 @@ public class RocketSystem : ComponentSystem
                 var damage = damagePercent * OsFps.RocketLauncherDefinition.DamagePerBullet;
 
                 // TODO: don't call system directly
-                var attackingPlayerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(rocketComponent.ShooterPlayerId);
+                var attackingPlayerObjectComponent = rocketComponent.ShooterPlayerId.HasValue
+                    ? OsFps.Instance.FindPlayerObjectComponent(rocketComponent.ShooterPlayerId.Value)
+                    : null;
                 PlayerSystem.Instance.ServerDamagePlayer(
                     server, playerObjectComponent, damage, attackingPlayerObjectComponent
                 );

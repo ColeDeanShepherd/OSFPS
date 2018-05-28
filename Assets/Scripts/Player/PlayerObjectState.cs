@@ -101,7 +101,7 @@ public class PlayerObjectState : INetworkSerializable
         NetworkSerializationUtils.Serialize(writer, Position);
         NetworkSerializationUtils.Serialize(writer, Velocity);
         NetworkSerializationUtils.Serialize(writer, LookDirAngles);
-        NetworkSerializationUtils.Serialize(writer, Input);
+        NetworkSerializationUtils.SerializeObject(writer, Input);
         writer.Write(Shield);
         writer.Write(Health);
         writer.Write(TimeUntilShieldCanRegen);
@@ -120,7 +120,7 @@ public class PlayerObjectState : INetworkSerializable
         for (var i = 0; i < GrenadeSlots.Length; i++)
         {
             var grenadeSlot = GrenadeSlots[i];
-            NetworkSerializationUtils.Serialize(
+            NetworkSerializationUtils.SerializeObject(
                 writer, grenadeSlot, overrideType: null, isNullableIfReferenceType: true
             );
         }
@@ -131,7 +131,7 @@ public class PlayerObjectState : INetworkSerializable
         NetworkSerializationUtils.Deserialize(reader, ref Position);
         NetworkSerializationUtils.Deserialize(reader, ref Velocity);
         NetworkSerializationUtils.Deserialize(reader, ref LookDirAngles);
-        Input = (PlayerInput)NetworkSerializationUtils.Deserialize(reader, typeof(PlayerInput));
+        Input = NetworkSerializationUtils.Deserialize<PlayerInput>(reader);
         Shield = reader.ReadSingle();
         Health = reader.ReadSingle();
         TimeUntilShieldCanRegen = reader.ReadSingle();
@@ -149,8 +149,8 @@ public class PlayerObjectState : INetworkSerializable
 
         for (var i = 0; i < GrenadeSlots.Length; i++)
         {
-            GrenadeSlots[i] = (GrenadeSlot)NetworkSerializationUtils.Deserialize(
-                reader, typeof(GrenadeSlot), isNullableIfReferenceType: true
+            GrenadeSlots[i] = NetworkSerializationUtils.Deserialize<GrenadeSlot>(
+                reader, isNullableIfReferenceType: true
             );
         }
     }

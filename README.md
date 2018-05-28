@@ -4,6 +4,9 @@
 
 #### Current
 
+* Destroy everything below kill plane.
+* 
+
 * **REWORK STATE SYNCHRONIZATION**
 * Add gun recoil.
 * Add more weapons.
@@ -14,8 +17,8 @@
   * needler?
   * sword?
   * plasma rifle?
+* Fix walking over weapon causing bullets exceeding max mag capacity bug.
 * Implement button press to switch current weapon with picked-up weapon.
-* Only spawn weapon if previous weapon was taken.
 * Add sounds.
 * Handle connect to server failure.
 * Handle message too long.

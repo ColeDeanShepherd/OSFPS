@@ -32,7 +32,7 @@ public class WeaponSpawnerSystem : ComponentSystem
             if (weaponSpawner.TimeUntilNextSpawn <= 0)
             {
                 ServerSpawnWeapon(server, weaponSpawner);
-                weaponSpawner.TimeUntilNextSpawn += OsFps.GetWeaponDefinitionByType(weaponSpawner.Type).SpawnInterval;
+                weaponSpawner.TimeUntilNextSpawn = null;
             }
         }
     }
@@ -60,6 +60,8 @@ public class WeaponSpawnerSystem : ComponentSystem
             }
         };
         var weaponObject = OsFps.Instance.SpawnLocalWeaponObject(weaponObjectState);
-        weaponObject.GetComponent<WeaponComponent>();
+
+        var weaponComponent = weaponObject.GetComponent<WeaponComponent>();
+        weaponComponent.WeaponSpawnerId = weaponSpawnerState.Id;
     }
 }

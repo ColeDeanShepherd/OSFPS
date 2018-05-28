@@ -268,8 +268,7 @@ public class PlayerSystem : ComponentSystem
 
             if (weaponObjectState.BulletsLeft == 0)
             {
-                var weaponObjectId = weaponComponent.State.Id;
-                Object.Destroy(weaponObject);
+                Object.Destroy(weaponComponent.gameObject);
             }
         }
         else if (playerState.HasEmptyWeapon)
@@ -277,8 +276,7 @@ public class PlayerSystem : ComponentSystem
             var emptyWeaponIndex = System.Array.FindIndex(playerState.Weapons, w => w == null);
             playerState.Weapons[emptyWeaponIndex] = weaponObjectState;
 
-            var weaponObjectId = weaponComponent.State.Id;
-            Object.Destroy(weaponObject);
+            Object.Destroy(weaponComponent.gameObject);
         }
     }
     public void ServerOnPlayerCollidingWithGrenade(GameObject playerObject, GameObject weaponObject)

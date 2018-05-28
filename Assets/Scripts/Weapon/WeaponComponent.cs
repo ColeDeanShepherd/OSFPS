@@ -13,6 +13,7 @@ public class WeaponComponent : MonoBehaviour
             return OsFps.GetWeaponDefinitionByType(Type);
         }
     }
+    public uint? WeaponSpawnerId;
 
     public Rigidbody Rigidbody;
     public Collider Collider;
@@ -30,6 +31,14 @@ public class WeaponComponent : MonoBehaviour
         if (playerObject != null)
         {
             OsFps.Instance.OnPlayerCollidingWithWeapon(playerObject, gameObject);
+        }
+    }
+    private void OnDestroy()
+    {
+        if (WeaponSpawnerId.HasValue)
+        {
+            var weaponSpawnerComponent = OsFps.Instance.FindWeaponSpawnerComponent(WeaponSpawnerId.Value);
+            weaponSpawnerComponent.State.TimeUntilNextSpawn = OsFps.GetWeaponDefinitionByType(weaponSpawnerComponent.WeaponType).SpawnInterval;
         }
     }
 }
