@@ -12,7 +12,8 @@ public class GameStateScraperSystem
             PlayerObjects = GetPlayerObjectStates(),
             WeaponObjects = GetWeaponObjectStates(),
             WeaponSpawners = GetWeaponSpawnerStates(),
-            Grenades = GetGrenadeStates()
+            Grenades = GetGrenadeStates(),
+            Rockets = GetRocketStates()
         };
     }
     public List<PlayerState> GetPlayerStates()

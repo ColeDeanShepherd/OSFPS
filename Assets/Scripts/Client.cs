@@ -489,6 +489,15 @@ public class Client
 
         Object.Destroy(grenadeExplosionObject, OsFps.GrenadeExplosionDuration);
     }
+    public void ShowRocketExplosion(Vector3 position)
+    {
+        var explosionPrefab = OsFps.Instance.RocketExplosionPrefab;
+        GameObject explosionObject = Object.Instantiate(
+            explosionPrefab, position, Quaternion.identity
+        );
+
+        Object.Destroy(explosionObject, OsFps.RocketExplosionDuration);
+    }
     public void Shoot(PlayerObjectComponent playerObjectComponent)
     {
         ShowMuzzleFlash(playerObjectComponent);
@@ -698,6 +707,7 @@ public class Client
         ApplyWeaponObjectStates(oldGameState, newGameState);
         //ApplyWeaponSpawnerStates(oldGameState, newGameState);
         ApplyGrenadeStates(oldGameState, newGameState);
+        ApplyRocketStates(oldGameState, newGameState);
     }
 
     private void ApplyPlayerStates(GameState oldGameState, GameState newGameState)
@@ -1017,6 +1027,12 @@ public class Client
     public void ClientOnDetonateGrenade(uint id, Vector3 position, GrenadeType type)
     {
         ShowGrenadeExplosion(position, type);
+    }
+
+    [Rpc(ExecuteOn = NetworkPeerType.Client)]
+    public void ClientOnDetonateRocket(uint id, Vector3 position)
+    {
+        ShowRocketExplosion(position);
     }
 
     [Rpc(ExecuteOn = NetworkPeerType.Client)]

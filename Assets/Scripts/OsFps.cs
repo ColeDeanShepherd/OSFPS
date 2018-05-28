@@ -22,7 +22,10 @@ public class OsFps : MonoBehaviour
     public const float MaxPlayerHealth = 30;
     public const float RespawnTime = 3;
 
+    public const float RocketSpeed = 15;
     public const float RocketExplosionRadius = 4;
+    public const float RocketExplosionForce = 1000;
+    public const float RocketExplosionDuration = 0.5f;
 
     public const float MuzzleFlashDuration = 0.1f;
     public const int MaxWeaponCount = 2;
@@ -30,7 +33,7 @@ public class OsFps : MonoBehaviour
 
     public const int MaxGrenadesPerType = 2;
     public const float GrenadeThrowInterval = 1;
-    public const float GrenadeThrowSpeed = 10;
+    public const float GrenadeThrowSpeed = 20;
     public const float GrenadeExplosionForce = 500;
     public const float GrenadeExplosionDuration = 0.5f;
 
@@ -59,6 +62,7 @@ public class OsFps : MonoBehaviour
         ReloadTime = 1,
         ShotInterval = 0.4f,
         IsAutomatic = false,
+        IsHitScan = true,
         SpawnInterval = 10
     };
     public static WeaponDefinition SmgDefinition = new WeaponDefinition
@@ -71,6 +75,7 @@ public class OsFps : MonoBehaviour
         ReloadTime = 1,
         ShotInterval = 0.1f,
         IsAutomatic = true,
+        IsHitScan = true,
         SpawnInterval = 20
     };
     public static WeaponDefinition RocketLauncherDefinition = new WeaponDefinition
@@ -83,6 +88,7 @@ public class OsFps : MonoBehaviour
         ReloadTime = 2,
         ShotInterval = 0.75f,
         IsAutomatic = false,
+        IsHitScan = false,
         SpawnInterval = 40
     };
     public static WeaponDefinition GetWeaponDefinitionByType(WeaponType type)
@@ -146,6 +152,7 @@ public class OsFps : MonoBehaviour
 
     public GameObject RocketLauncherPrefab;
     public GameObject RocketPrefab;
+    public GameObject RocketExplosionPrefab;
 
     public GameObject MuzzleFlashPrefab;
 
@@ -473,7 +480,7 @@ public class OsFps : MonoBehaviour
     {
         if (Server != null)
         {
-            GrenadeSystem.Instance.ServerRocketOnCollisionEnter(Server, rocketComponent, collision);
+            RocketSystem.Instance.ServerRocketOnCollisionEnter(Server, rocketComponent, collision);
         }
     }
 

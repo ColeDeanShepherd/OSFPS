@@ -8,6 +8,7 @@
     public float ReloadTime;
     public float ShotInterval;
     public bool IsAutomatic;
+    public bool IsHitScan;
     public float SpawnInterval;
 
     public ushort MaxAmmoOutOfMagazine

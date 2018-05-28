@@ -4,8 +4,6 @@
 
 #### Current
 
-* rocket launcher
-
 * Add gun recoil.
 * Add more weapons.
   * battle rifle?
@@ -24,6 +22,7 @@
 * Fix showing other players reloading.
 * Send & use shot rays from client.
 * Create a cool map.
+* Make players drop weapons & grenades when dead.
 
 #### High-Priority
 

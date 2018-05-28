@@ -49,9 +49,9 @@ public class RocketSystem : ComponentSystem
                 var playerObjectState = playerObjectComponent.State;
                 var closestPointToRocket = collider.ClosestPoint(rocketPosition);
                 var distanceFromRocket = Vector3.Distance(closestPointToRocket, rocketPosition);
-                var unclampedDamagePercent = (rocketDefinition.ExplosionRadius - distanceFromRocket) / rocketDefinition.ExplosionRadius;
+                var unclampedDamagePercent = (OsFps.RocketExplosionRadius - distanceFromRocket) / OsFps.RocketExplosionRadius;
                 var damagePercent = Mathf.Max(unclampedDamagePercent, 0);
-                var damage = damagePercent * rocketDefinition.Damage;
+                var damage = damagePercent * OsFps.RocketLauncherDefinition.DamagePerBullet;
 
                 // TODO: don't call system directly
                 PlayerSystem.Instance.ServerDamagePlayer(server, playerObjectComponent, damage, null);
@@ -62,7 +62,7 @@ public class RocketSystem : ComponentSystem
             if (rigidbody != null)
             {
                 rigidbody.AddExplosionForce(
-                    OsFps.RocketExplosionForce, rocketPosition, rocketDefinition.ExplosionRadius
+                    OsFps.RocketExplosionForce, rocketPosition, OsFps.RocketExplosionRadius
                 );
             }
         }
@@ -74,13 +74,13 @@ public class RocketSystem : ComponentSystem
         OsFps.Instance.CallRpcOnAllClients("ClientOnDetonateRocket", server.reliableChannelId, new
         {
             id = rocket.Id,
-            position = rocketPosition,
-            type = rocket.Type
+            position = rocketPosition
         });
     }
 
     public void ServerRocketOnCollisionEnter(Server server, RocketComponent rocketComponent, Collision collision)
     {
         var rocketState = rocketComponent.State;
+        ServerDetonateRocket(server, rocketState);
     }
 }

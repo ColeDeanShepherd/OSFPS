@@ -151,6 +151,31 @@ public class PlayerSystem : ComponentSystem
             playerObjectComponent.CameraPointObject.transform.position,
             playerObjectComponent.CameraPointObject.transform.forward
         );
+
+        var weaponDefinition = weaponState.Definition;
+        if (weaponState.Definition.IsHitScan)
+        {
+            ServerFireHitscanWeapon(server, shootingPlayerObjectComponent, weaponDefinition, shotRay);
+        }
+        else
+        {
+            if (weaponDefinition.Type == WeaponType.RocketLauncher)
+            {
+                ServerFireRocketLauncher(server, shootingPlayerObjectComponent, shotRay);
+            }
+        }
+
+        weaponState.BulletsLeftInMagazine--;
+        weaponState.TimeUntilCanShoot = weaponState.Definition.ShotInterval;
+    }
+    public void ServerFireHitscanWeapon(
+        Server server, PlayerObjectComponent shootingPlayerObjectComponent,
+        WeaponDefinition weaponDefinition, Ray shotRay
+    )
+    {
+        var shootingPlayerObjectState = shootingPlayerObjectComponent.State;
+        var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(shootingPlayerObjectState.Id);
+
         var raycastHits = Physics.RaycastAll(shotRay);
 
         foreach (var hit in raycastHits)
@@ -163,8 +188,8 @@ public class PlayerSystem : ComponentSystem
 
                 var isHeadShot = hit.collider.gameObject.name == OsFps.PlayerHeadColliderName;
                 var damage = !isHeadShot
-                    ? weaponState.Definition.DamagePerBullet
-                    : weaponState.Definition.HeadShotDamagePerBullet;
+                    ? weaponDefinition.DamagePerBullet
+                    : weaponDefinition.HeadShotDamagePerBullet;
                 ServerDamagePlayer(
                     server, hitPlayerObjectComponent, damage, shootingPlayerObjectComponent
                 );
@@ -175,10 +200,23 @@ public class PlayerSystem : ComponentSystem
                 hit.rigidbody.AddForceAtPosition(5 * shotRay.direction, hit.point, ForceMode.Impulse);
             }
         }
-
-        weaponState.BulletsLeftInMagazine--;
-
-        weaponState.TimeUntilCanShoot = weaponState.Definition.ShotInterval;
+    }
+    public void ServerFireRocketLauncher(
+        Server server, PlayerObjectComponent shootingPlayerObjectComponent, Ray shotRay
+    )
+    {
+        var rocketState = new RocketState
+        {
+            Id = server.GenerateNetworkId(),
+            RigidBodyState = new RigidBodyState
+            {
+                Position = shotRay.origin + shotRay.direction,
+                EulerAngles = Quaternion.LookRotation(shotRay.direction, Vector3.up).eulerAngles,
+                Velocity = OsFps.RocketSpeed * shotRay.direction,
+                AngularVelocity = Vector3.zero
+            }
+        };
+        OsFps.Instance.SpawnLocalRocketObject(rocketState);
     }
     public void ServerPlayerPullTrigger(Server server, PlayerObjectComponent playerObjectComponent)
     {

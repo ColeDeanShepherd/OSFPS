@@ -158,8 +158,4 @@ public class GrenadeSystem : ComponentSystem
             StickStickyGrenadeToObject(grenadeComponent, collision.gameObject);
         }
     }
-    public void ServerRocketOnCollisionEnter(Server server, RocketComponent rocketComponent, Collision collision)
-    {
-        var rocketState = rocketComponent.State;
-    }
 }

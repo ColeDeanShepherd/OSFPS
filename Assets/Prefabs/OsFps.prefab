@@ -63,6 +63,8 @@ MonoBehaviour:
     type: 2}
   RocketPrefab: {fileID: 1194062123376506, guid: f6cbc1b0090d9784584f0e47bf443a0b,
     type: 2}
+  RocketExplosionPrefab: {fileID: 1612869826966746, guid: 5937abced5d654442aaea2c2c8a39f52,
+    type: 2}
   MuzzleFlashPrefab: {fileID: 1354871173001656, guid: 1855e5917da52b84ab776dd490c388c5,
     type: 2}
   FragmentationGrenadePrefab: {fileID: 1864906674804262, guid: 3832104089c964b41820ab8af630b631,
