@@ -10,7 +10,7 @@ public class PlayerRespawnSystem : ComponentSystem
 
     protected override void OnUpdate()
     {
-        var server = OsFps.Instance.Server;
+        var server = OsFps.Instance?.Server;
         if (server != null)
         {
             ServerOnUpdate(server);

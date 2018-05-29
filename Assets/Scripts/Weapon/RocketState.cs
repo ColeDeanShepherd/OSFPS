@@ -1,9 +1,11 @@
 ﻿using System.IO;
 
+[System.Serializable]
 public class RocketState : INetworkSerializable
 {
     public uint Id;
     public RigidBodyState RigidBodyState = new RigidBodyState();
+    public uint? ShooterPlayerId;
 
     public void Deserialize(BinaryReader reader)
     {

@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using UnityEngine;
 
+[System.Serializable]
 public class PlayerState : INetworkSerializable
 {
     public uint Id;

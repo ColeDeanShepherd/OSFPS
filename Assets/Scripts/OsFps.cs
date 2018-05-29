@@ -46,6 +46,7 @@ public class OsFps : MonoBehaviour
     public const KeyCode JumpKeyCode = KeyCode.Space;
     public const KeyCode ReloadKeyCode = KeyCode.R;
     public const KeyCode SwitchGrenadeTypeKeyCode = KeyCode.G;
+    public const KeyCode SwitchWeaponKeyCode = KeyCode.E;
     public const KeyCode ShowScoreboardKeyCode = KeyCode.Tab;
     public const KeyCode ChatKeyCode = KeyCode.Return;
     public const KeyCode ToggleMenuKeyCode = KeyCode.Escape;
@@ -254,8 +255,6 @@ public class OsFps : MonoBehaviour
 
         var weaponObjectComponent = weaponObject.GetComponent<WeaponComponent>();
         weaponObjectComponent.State = weaponObjectState;
-        weaponObjectComponent.BulletsLeftInMagazine = weaponObjectState.BulletsLeftInMagazine;
-        weaponObjectComponent.BulletsLeftOutOfMagazine = weaponObjectState.BulletsLeftOutOfMagazine;
 
         var rigidbody = weaponObjectComponent.Rigidbody;
         rigidbody.velocity = weaponObjectState.RigidBodyState.Velocity;
@@ -274,7 +273,6 @@ public class OsFps : MonoBehaviour
 
         var grenadeComponent = grenadeObject.GetComponent<GrenadeComponent>();
         grenadeComponent.State = grenadeState;
-        grenadeComponent.Type = grenadeState.Type;
 
         var rigidbody = grenadeComponent.Rigidbody;
         rigidbody.velocity = grenadeState.RigidBodyState.Velocity;

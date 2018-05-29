@@ -134,10 +134,6 @@ public class Server
         
         SendGameStatePeriodicFunction = new ThrottledAction(SendGameState, 1.0f / 30);
 
-        gameStateScraperSystem.ServerInitWeaponObjectStatesInGameObjects(this);
-        gameStateScraperSystem.ServerInitWeaponSpawnerStatesInGameObjects(this);
-        gameStateScraperSystem.ServerInitGrenadeStatesInGameObjects(this);
-
         OnServerStarted?.Invoke();
     }
     

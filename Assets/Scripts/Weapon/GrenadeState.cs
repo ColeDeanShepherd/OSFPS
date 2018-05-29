@@ -1,5 +1,6 @@
 ﻿using System.IO;
 
+[System.Serializable]
 public class GrenadeState : INetworkSerializable
 {
     public uint Id;
@@ -7,6 +8,7 @@ public class GrenadeState : INetworkSerializable
     public RigidBodyState RigidBodyState = new RigidBodyState();
     public bool IsActive;
     public float? TimeUntilDetonation;
+    public uint? ThrowerPlayerId;
 
     public void Deserialize(BinaryReader reader)
     {

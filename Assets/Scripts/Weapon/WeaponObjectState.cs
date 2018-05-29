@@ -1,5 +1,6 @@
 ﻿using System.IO;
 
+[System.Serializable]
 public class WeaponObjectState : INetworkSerializable
 {
     public uint Id;
@@ -8,6 +9,7 @@ public class WeaponObjectState : INetworkSerializable
     public ushort BulletsLeftOutOfMagazine;
     public float TimeUntilCanShoot;
     public RigidBodyState RigidBodyState = new RigidBodyState();
+    public uint? WeaponSpawnerId;
 
     public ushort BulletsLeft
     {

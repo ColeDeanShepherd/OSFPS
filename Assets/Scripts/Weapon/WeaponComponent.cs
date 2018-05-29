@@ -3,17 +3,13 @@
 public class WeaponComponent : MonoBehaviour
 {
     public WeaponObjectState State;
-    public WeaponType Type;
-    public ushort BulletsLeftInMagazine;
-    public ushort BulletsLeftOutOfMagazine;
     public WeaponDefinition Definition
     {
         get
         {
-            return OsFps.GetWeaponDefinitionByType(Type);
+            return OsFps.GetWeaponDefinitionByType(State.Type);
         }
     }
-    public uint? WeaponSpawnerId;
 
     public Rigidbody Rigidbody;
     public Collider Collider;
@@ -35,13 +31,13 @@ public class WeaponComponent : MonoBehaviour
     }
     private void OnDestroy()
     {
-        if (WeaponSpawnerId.HasValue)
+        if (State.WeaponSpawnerId.HasValue)
         {
-            var weaponSpawnerComponent = OsFps.Instance.FindWeaponSpawnerComponent(WeaponSpawnerId.Value);
+            var weaponSpawnerComponent = OsFps.Instance.FindWeaponSpawnerComponent(State.WeaponSpawnerId.Value);
 
             if (weaponSpawnerComponent != null)
             {
-                weaponSpawnerComponent.State.TimeUntilNextSpawn = OsFps.GetWeaponDefinitionByType(weaponSpawnerComponent.WeaponType).SpawnInterval;
+                weaponSpawnerComponent.State.TimeUntilNextSpawn = OsFps.GetWeaponDefinitionByType(weaponSpawnerComponent.State.Type).SpawnInterval;
             }
         }
     }

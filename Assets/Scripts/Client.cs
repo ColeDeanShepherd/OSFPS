@@ -140,6 +140,11 @@ public class Client
                         });
                     }
                 }
+
+                if (Input.GetKeyDown(OsFps.SwitchWeaponKeyCode))
+                {
+
+                }
             }
 
             if (Input.GetKeyDown(OsFps.ChatKeyCode))

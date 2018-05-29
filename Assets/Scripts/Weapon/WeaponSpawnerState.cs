@@ -1,5 +1,6 @@
 ﻿using System.IO;
 
+[System.Serializable]
 public class WeaponSpawnerState : INetworkSerializable
 {
     public uint Id;

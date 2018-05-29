@@ -19,7 +19,7 @@ public class RocketSystem : ComponentSystem
 
     protected override void OnUpdate()
     {
-        var server = OsFps.Instance.Server;
+        var server = OsFps.Instance?.Server;
         if (server != null)
         {
             ServerOnUpdate(server);
@@ -53,8 +53,8 @@ public class RocketSystem : ComponentSystem
                 var damage = damagePercent * OsFps.RocketLauncherDefinition.DamagePerBullet;
 
                 // TODO: don't call system directly
-                var attackingPlayerObjectComponent = rocketComponent.ShooterPlayerId.HasValue
-                    ? OsFps.Instance.FindPlayerObjectComponent(rocketComponent.ShooterPlayerId.Value)
+                var attackingPlayerObjectComponent = rocketComponent.State.ShooterPlayerId.HasValue
+                    ? OsFps.Instance.FindPlayerObjectComponent(rocketComponent.State.ShooterPlayerId.Value)
                     : null;
                 PlayerSystem.Instance.ServerDamagePlayer(
                     server, playerObjectComponent, damage, attackingPlayerObjectComponent

@@ -331,6 +331,11 @@ Prefab:
       propertyPath: m_Name
       value: Weapon Spawner (1)
       objectReference: {fileID: 0}
+    - target: {fileID: 114163527370344864, guid: 6627d5821b375794ba7eceb2d36d0dbf,
+        type: 2}
+      propertyPath: State.Type
+      value: 2
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_ParentPrefab: {fileID: 100100000, guid: 6627d5821b375794ba7eceb2d36d0dbf, type: 2}
   m_IsPrefabParent: 0
@@ -638,6 +643,11 @@ Prefab:
     - target: {fileID: 114163527370344864, guid: 6627d5821b375794ba7eceb2d36d0dbf,
         type: 2}
       propertyPath: WeaponType
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 114163527370344864, guid: 6627d5821b375794ba7eceb2d36d0dbf,
+        type: 2}
+      propertyPath: State.Type
       value: 1
       objectReference: {fileID: 0}
     m_RemovedComponents: []

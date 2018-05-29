@@ -182,13 +182,13 @@ public static class NetworkSerializationUtils
                 var objFields = objType.GetFields();
                 foreach (var objField in objFields)
                 {
-                    SerializeObject(writer, objField.GetValue(obj));
+                    SerializeObject(writer, objField.GetValue(obj), objField.FieldType);
                 }
 
                 var objProperties = objType.GetProperties();
                 foreach (var objProperty in objProperties)
                 {
-                    SerializeObject(writer, objProperty.GetValue(obj));
+                    SerializeObject(writer, objProperty.GetValue(obj), objProperty.PropertyType);
                 }
             }
             else

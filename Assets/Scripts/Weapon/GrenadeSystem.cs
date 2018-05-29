@@ -19,7 +19,7 @@ public class GrenadeSystem : ComponentSystem
 
     protected override void OnUpdate()
     {
-        var server = OsFps.Instance.Server;
+        var server = OsFps.Instance?.Server;
         if (server != null)
         {
             ServerOnUpdate(server);
@@ -82,8 +82,8 @@ public class GrenadeSystem : ComponentSystem
                 var damage = damagePercent * grenadeDefinition.Damage;
 
                 // TODO: don't call system directly
-                var attackingPlayerObjectComponent = grenadeComponent.ThrowerPlayerId.HasValue
-                    ? OsFps.Instance.FindPlayerObjectComponent(grenadeComponent.ThrowerPlayerId.Value)
+                var attackingPlayerObjectComponent = grenade.ThrowerPlayerId.HasValue
+                    ? OsFps.Instance.FindPlayerObjectComponent(grenade.ThrowerPlayerId.Value)
                     : null;
                 PlayerSystem.Instance.ServerDamagePlayer(
                     server, playerObjectComponent, damage, attackingPlayerObjectComponent
@@ -134,11 +134,10 @@ public class GrenadeSystem : ComponentSystem
                 EulerAngles = Quaternion.LookRotation(throwRay.direction, Vector3.up).eulerAngles,
                 Velocity = OsFps.GrenadeThrowSpeed * throwRay.direction,
                 AngularVelocity = Vector3.zero
-            }
+            },
+            ThrowerPlayerId = playerObjectState.Id
         };
         var grenadeObject = OsFps.Instance.SpawnLocalGrenadeObject(grenadeState);
-        var grenadeComponent = grenadeObject.GetComponent<GrenadeComponent>();
-        grenadeComponent.ThrowerPlayerId = playerObjectState.Id;
 
         currentGrenadeSlot.GrenadeCount--;
         playerObjectState.TimeUntilCanThrowGrenade = OsFps.GrenadeThrowInterval;

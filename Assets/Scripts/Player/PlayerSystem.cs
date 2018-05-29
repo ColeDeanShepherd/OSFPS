@@ -20,13 +20,13 @@ public class PlayerSystem : ComponentSystem
 
     protected override void OnUpdate()
     {
-        var server = OsFps.Instance.Server;
+        var server = OsFps.Instance?.Server;
         if (server != null)
         {
             ServerOnUpdate(server);
         }
 
-        var client = OsFps.Instance.Client;
+        var client = OsFps.Instance?.Client;
         if (client != null)
         {
             ClientOnUpdate(client);
@@ -257,12 +257,10 @@ public class PlayerSystem : ComponentSystem
                 EulerAngles = Quaternion.LookRotation(shotRay.direction, Vector3.up).eulerAngles,
                 Velocity = OsFps.RocketSpeed * shotRay.direction,
                 AngularVelocity = Vector3.zero
-            }
+            },
+            ShooterPlayerId = shootingPlayerObjectComponent.State.Id
         };
         var rocket = OsFps.Instance.SpawnLocalRocketObject(rocketState);
-
-        var rocketComponent = rocket.GetComponent<RocketComponent>();
-        rocketComponent.ShooterPlayerId = shootingPlayerObjectComponent.State.Id;
     }
     public void ServerPlayerPullTrigger(Server server, PlayerObjectComponent playerObjectComponent)
     {
@@ -299,7 +297,7 @@ public class PlayerSystem : ComponentSystem
         var weaponObjectState = weaponComponent.State;
 
         var playersMatchingWeapon = playerState.Weapons.FirstOrDefault(
-            w => (w != null) && (w.Type == weaponComponent.Type)
+            w => (w != null) && (w.Type == weaponComponent.State.Type)
         );
 
         if (playersMatchingWeapon != null)

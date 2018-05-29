@@ -10,7 +10,7 @@ public class WeaponSpawnerSystem : ComponentSystem
 
     protected override void OnUpdate()
     {
-        var server = OsFps.Instance.Server;
+        var server = OsFps.Instance?.Server;
         if (server != null)
         {
             ServerOnUpdate(server);
@@ -57,11 +57,8 @@ public class WeaponSpawnerSystem : ComponentSystem
                 EulerAngles = weaponSpawnerComponent.transform.eulerAngles,
                 Velocity = Vector3.zero,
                 AngularVelocity = Vector3.zero
-            }
+            },
+            WeaponSpawnerId = weaponSpawnerState.Id
         };
-        var weaponObject = OsFps.Instance.SpawnLocalWeaponObject(weaponObjectState);
-
-        var weaponComponent = weaponObject.GetComponent<WeaponComponent>();
-        weaponComponent.WeaponSpawnerId = weaponSpawnerState.Id;
     }
 }
