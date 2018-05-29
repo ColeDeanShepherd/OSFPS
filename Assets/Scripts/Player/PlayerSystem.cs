@@ -72,6 +72,49 @@ public class PlayerSystem : ComponentSystem
             Object.Destroy(playerObjectComponent.gameObject);
             playerState.RespawnTimeLeft = OsFps.RespawnTime;
 
+            // Drop weapons.
+            foreach (var weapon in playerObjectState.Weapons)
+            {
+                if ((weapon == null) || (weapon.BulletsLeft == 0)) break;
+
+                weapon.Id = server.GenerateNetworkId();
+                weapon.RigidBodyState = new RigidBodyState
+                {
+                    Position = playerObjectComponent.HandsPointObject.transform.position,
+                    EulerAngles = Vector3.zero,
+                    Velocity = Vector3.zero,
+                    AngularVelocity = Vector3.zero
+                };
+
+                OsFps.Instance.SpawnLocalWeaponObject(weapon);
+            }
+
+            // Drop grenades
+            foreach (var grenadeSlot in playerObjectState.GrenadeSlots)
+            {
+                if ((grenadeSlot == null) || (grenadeSlot.GrenadeCount == 0)) break;
+
+                for (var i = 0; i < grenadeSlot.GrenadeCount; i++)
+                {
+                    var grenadeState = new GrenadeState
+                    {
+                        Id = server.GenerateNetworkId(),
+                        Type = grenadeSlot.GrenadeType,
+                        RigidBodyState = new RigidBodyState
+                        {
+                            Position = playerObjectComponent.HandsPointObject.transform.position,
+                            EulerAngles = Vector3.zero,
+                            Velocity = Vector3.zero,
+                            AngularVelocity = Vector3.zero
+                        },
+                        IsActive = false,
+                        TimeUntilDetonation = null
+                    };
+
+                    OsFps.Instance.SpawnLocalGrenadeObject(grenadeState);
+                }
+            }
+
             // Update scores
             playerState.Deaths++;
 

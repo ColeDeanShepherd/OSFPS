@@ -4,8 +4,18 @@
 
 #### Current
 
-* Destroy everything below kill plane.
-* 
+* Implement grenade pickup.
+* Implement button press to switch current weapon with picked-up weapon.
+* Fix walking over weapon causing bullets exceeding max mag capacity bug.
+
+
+
+* Handle message too long.
+* Handle connect to server failure.
+* Fix showing other players reloading.
+* Send & use shot rays from client.
+
+
 
 * **REWORK STATE SYNCHRONIZATION**
 * Add gun recoil.
@@ -17,15 +27,8 @@
   * needler?
   * sword?
   * plasma rifle?
-* Fix walking over weapon causing bullets exceeding max mag capacity bug.
-* Implement button press to switch current weapon with picked-up weapon.
 * Add sounds.
-* Handle connect to server failure.
-* Handle message too long.
-* Fix showing other players reloading.
-* Send & use shot rays from client.
 * Create a cool map.
-* Make players drop weapons & grenades when dead.
 
 #### High-Priority
 

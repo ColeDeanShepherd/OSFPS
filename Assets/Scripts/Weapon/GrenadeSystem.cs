@@ -35,12 +35,9 @@ public class GrenadeSystem : ComponentSystem
         {
             var grenade = entity.GrenadeComponent.State;
 
-            if (grenade.IsFuseBurning)
+            if (grenade.TimeUntilDetonation > 0)
             {
-                if (grenade.TimeUntilDetonation > 0)
-                {
-                    grenade.TimeUntilDetonation -= deltaTime;
-                }
+                grenade.TimeUntilDetonation -= deltaTime;
             }
         }
 
@@ -49,7 +46,7 @@ public class GrenadeSystem : ComponentSystem
         {
             var grenade = entity.GrenadeComponent.State;
 
-            if (grenade.IsFuseBurning && (grenade.TimeUntilDetonation <= 0))
+            if (grenade.TimeUntilDetonation <= 0)
             {
                 grenadesToDetonate.Add(entity.GrenadeComponent);
             }
@@ -129,8 +126,8 @@ public class GrenadeSystem : ComponentSystem
         {
             Id = server.GenerateNetworkId(),
             Type = currentGrenadeSlot.GrenadeType,
-            IsFuseBurning = false,
-            TimeUntilDetonation = OsFps.GetGrenadeDefinitionByType(currentGrenadeSlot.GrenadeType).TimeAfterHitUntilDetonation,
+            IsActive = true,
+            TimeUntilDetonation = null,
             RigidBodyState = new RigidBodyState
             {
                 Position = throwRay.origin,
@@ -154,14 +151,16 @@ public class GrenadeSystem : ComponentSystem
     }
     public void ServerGrenadeOnCollisionEnter(Server server, GrenadeComponent grenadeComponent, Collision collision)
     {
-        Debug.Log("Grenade collided with " + collision.gameObject.name);
-
         var grenadeState = grenadeComponent.State;
-        grenadeState.IsFuseBurning = true;
 
-        if (grenadeComponent.State.Type == GrenadeType.Sticky)
+        if (grenadeState.IsActive)
         {
-            StickStickyGrenadeToObject(grenadeComponent, collision.gameObject);
+            grenadeState.TimeUntilDetonation = OsFps.GetGrenadeDefinitionByType(grenadeState.Type).TimeAfterHitUntilDetonation;
+
+            if (grenadeComponent.State.Type == GrenadeType.Sticky)
+            {
+                StickStickyGrenadeToObject(grenadeComponent, collision.gameObject);
+            }
         }
     }
 }
