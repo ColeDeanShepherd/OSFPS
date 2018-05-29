@@ -136,6 +136,7 @@ public class Server
 
         gameStateScraperSystem.ServerInitWeaponObjectStatesInGameObjects(this);
         gameStateScraperSystem.ServerInitWeaponSpawnerStatesInGameObjects(this);
+        gameStateScraperSystem.ServerInitGrenadeStatesInGameObjects(this);
 
         OnServerStarted?.Invoke();
     }

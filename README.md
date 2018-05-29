@@ -4,9 +4,13 @@
 
 #### Current
 
-* Implement grenade pickup.
+* Fix bug where player drops more weapons/grenades than they should.
+
+
+
 * Implement button press to switch current weapon with picked-up weapon.
 * Fix walking over weapon causing bullets exceeding max mag capacity bug.
+* Add grenade spawners.
 
 
 

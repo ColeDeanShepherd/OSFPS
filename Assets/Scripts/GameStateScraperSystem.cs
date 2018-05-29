@@ -124,6 +124,31 @@ public class GameStateScraperSystem
         return weaponObjectStates;
     }
 
+    private GrenadeState ToGrenadeState(uint grenadeId, GrenadeComponent grenadeComponent)
+    {
+        return new GrenadeState
+        {
+            Id = grenadeId,
+            Type = grenadeComponent.Type,
+            RigidBodyState = ToRigidBodyState(grenadeComponent.Rigidbody)
+        };
+    }
+    public List<GrenadeState> ServerInitGrenadeStatesInGameObjects(Server server)
+    {
+        var grenadeStates = new List<GrenadeState>();
+
+        var grenadeComponents = Object.FindObjectsOfType<GrenadeComponent>();
+        foreach (var grenadeComponent in grenadeComponents)
+        {
+            var grenadeState = ToGrenadeState(server.GenerateNetworkId(), grenadeComponent);
+            grenadeComponent.State = grenadeState;
+
+            grenadeStates.Add(grenadeState);
+        }
+
+        return grenadeStates;
+    }
+
     private WeaponSpawnerState ToWeaponSpawnerState(uint weaponSpawnerId, WeaponSpawnerComponent weaponSpawnerComponent)
     {
         var state = new WeaponSpawnerState

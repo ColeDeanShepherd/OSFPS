@@ -274,6 +274,7 @@ public class OsFps : MonoBehaviour
 
         var grenadeComponent = grenadeObject.GetComponent<GrenadeComponent>();
         grenadeComponent.State = grenadeState;
+        grenadeComponent.Type = grenadeState.Type;
 
         var rigidbody = grenadeComponent.Rigidbody;
         rigidbody.velocity = grenadeState.RigidBodyState.Velocity;

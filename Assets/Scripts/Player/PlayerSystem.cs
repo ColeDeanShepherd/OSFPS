@@ -322,10 +322,50 @@ public class PlayerSystem : ComponentSystem
             Object.Destroy(weaponComponent.gameObject);
         }
     }
-    public void ServerOnPlayerCollidingWithGrenade(GameObject playerObject, GameObject weaponObject)
+    public void ServerOnPlayerCollidingWithGrenade(GameObject playerObject, GameObject grenadeObject)
     {
-        Debug.Log("TODO: Implement OnPlayerCollidingWithGrenade");
-        // ONLY PICK UP IF NOT ACTIVE
+        var playerObjectComponent = playerObject.GetComponent<PlayerObjectComponent>();
+        var playerState = playerObjectComponent.State;
+        var grenadeComponent = grenadeObject.GetComponent<GrenadeComponent>();
+        var grenadeState = grenadeComponent.State;
+
+        if (grenadeState.IsActive) return;
+
+        // Try to find a grenade slot with a matching grenade type.
+        var grenadeSlot = playerState.GrenadeSlots.FirstOrDefault(gs =>
+            (gs != null) &&
+            (gs.GrenadeType == grenadeState.Type)
+        );
+
+        // Try to find a grenade slot with a different type but 0 grenades.
+        if (grenadeSlot == null)
+        {
+            grenadeSlot = playerState.GrenadeSlots.FirstOrDefault(gs =>
+                (gs != null) &&
+                (gs.GrenadeCount == 0)
+            );
+            grenadeSlot.GrenadeType = grenadeState.Type;
+        }
+
+        // Try to find a null grenade slot.
+        if (grenadeSlot == null)
+        {
+            var nullSlotIndex = System.Array.FindIndex(playerState.GrenadeSlots, gs => gs == null);
+            if (nullSlotIndex >= 0)
+            {
+                grenadeSlot = new GrenadeSlot
+                {
+                    GrenadeType = grenadeState.Type,
+                    GrenadeCount = 0
+                };
+                playerState.GrenadeSlots[nullSlotIndex] = grenadeSlot;
+            }
+        }
+
+        if ((grenadeSlot == null) || (grenadeSlot.GrenadeCount >= OsFps.MaxGrenadesPerType)) return;
+
+        grenadeSlot.GrenadeCount++;
+        Object.Destroy(grenadeObject);
     }
 
     public void UpdatePlayerMovement(PlayerObjectState playerObjectState)
