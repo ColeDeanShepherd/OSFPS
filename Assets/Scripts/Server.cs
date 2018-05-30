@@ -139,8 +139,6 @@ public class Server
     
     private void SendGameState()
     {
-        Debug.Log("Sending game state...");
-
         OsFps.Instance.CallRpcOnAllClients("ClientOnReceiveGameState", unreliableStateUpdateChannelId, new
         {
             gameState = gameStateScraperSystem.GetGameState()

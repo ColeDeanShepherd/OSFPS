@@ -141,6 +141,14 @@ public class OsFps : MonoBehaviour
     public Server Server;
     public Client Client;
 
+    public bool IsServer
+    {
+        get
+        {
+            return Server != null;
+        }
+    }
+
     [HideInInspector]
     public GameObject CanvasObject;
 

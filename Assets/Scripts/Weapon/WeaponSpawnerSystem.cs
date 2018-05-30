@@ -60,5 +60,6 @@ public class WeaponSpawnerSystem : ComponentSystem
             },
             WeaponSpawnerId = weaponSpawnerState.Id
         };
+        OsFps.Instance.SpawnLocalWeaponObject(weaponObjectState);
     }
 }

@@ -450,22 +450,36 @@ public class Client
     {
         Camera.transform.SetParent(null, true);
     }
-    private void EquipWeapon(PlayerObjectState playerState)
+    private GameObject GetEquippedWeaponObject(PlayerObjectComponent playerObjectComponent)
     {
-        if (playerState.CurrentWeapon == null)
+        foreach (Transform weaponTransform in playerObjectComponent.HandsPointObject.transform)
         {
-            return;
+            return weaponTransform.gameObject;
         }
 
+        return null;
+    }
+    private void EquipWeapon(PlayerObjectState playerState)
+    {
         var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(playerState.Id);
 
-        var weaponPrefab = OsFps.Instance.GetWeaponPrefab(playerState.CurrentWeapon.Type);
-        GameObject weaponObject = Object.Instantiate(weaponPrefab, Vector3.zero, Quaternion.identity);
-        weaponObject.transform.SetParent(playerObjectComponent.HandsPointObject.transform, false);
+        var equippedWeaponObject = GetEquippedWeaponObject(playerObjectComponent);
+        if (equippedWeaponObject != null)
+        {
+            Object.Destroy(equippedWeaponObject);
+        }
 
-        var weaponComponent = weaponObject.GetComponent<WeaponComponent>();
-        Object.Destroy(weaponComponent.Rigidbody);
-        Object.Destroy(weaponComponent.Collider);
+        if (playerState.CurrentWeapon != null)
+        {
+            var weaponPrefab = OsFps.Instance.GetWeaponPrefab(playerState.CurrentWeapon.Type);
+            GameObject weaponObject = Object.Instantiate(weaponPrefab, Vector3.zero, Quaternion.identity);
+            weaponObject.transform.SetParent(playerObjectComponent.HandsPointObject.transform, false);
+
+            var weaponComponent = weaponObject.GetComponent<WeaponComponent>();
+            Object.DestroyImmediate(weaponComponent.Rigidbody);
+            Object.DestroyImmediate(weaponComponent.Collider);
+            Object.DestroyImmediate(weaponComponent);
+        }
     }
     public void Reload(PlayerObjectState playerState)
     {
@@ -590,12 +604,21 @@ public class Client
     }
     private Vector3 CorrectedEulerAngles(Vector3 serverEulerAngles, Vector3 serverAngularVelocity, float roundTripTime, Vector3 clientEulerAngles)
     {
-        var serverToClientLatency = roundTripTime / 2;
-        var predictedEulerAngles = serverEulerAngles + (serverToClientLatency * serverAngularVelocity);
-        var eulerAnglesDifference = predictedEulerAngles - clientEulerAngles;
-        var percentOfDiffToCorrect = 1f / 3;
-        var eulerAnglesDelta = percentOfDiffToCorrect * eulerAnglesDifference;
-        return clientEulerAngles + eulerAnglesDelta;
+        const bool correctSmoothly = false;
+
+        if (!correctSmoothly)
+        {
+            return serverEulerAngles;
+        }
+        else
+        {
+            var serverToClientLatency = roundTripTime / 2;
+            var predictedEulerAngles = serverEulerAngles + (serverToClientLatency * serverAngularVelocity);
+            var eulerAnglesDifference = predictedEulerAngles - clientEulerAngles;
+            var percentOfDiffToCorrect = 1f / 3;
+            var eulerAnglesDelta = percentOfDiffToCorrect * eulerAnglesDifference;
+            return clientEulerAngles + eulerAnglesDelta;
+        }
     }
     private Vector3 CorrectedVelocity(Vector3 serverVelocity, float roundTripTime, Vector3 clientVelocity)
     {
@@ -822,8 +845,8 @@ public class Client
             OsFps.Instance.ApplyLookDirAnglesToPlayer(playerComponent, updatedPlayerObjectState.LookDirAngles);
 
             // Update weapon if reloading.
-            var weaponComponent = playerComponent.GetComponentInChildren<WeaponComponent>();
-            var weaponGameObject = weaponComponent?.gameObject;
+            var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(updatedPlayerObjectState.Id);
+            var weaponGameObject = GetEquippedWeaponObject(playerObjectComponent);
             if ((weaponGameObject != null) && updatedPlayerObjectState.IsReloading)
             {
                 var percentDoneReloading = updatedPlayerObjectState.ReloadTimeLeft / updatedPlayerObjectState.CurrentWeapon.Definition.ReloadTime;
