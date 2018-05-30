@@ -255,8 +255,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 319e78abd2d7abd4099741186eb04081, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  Id: 0
-  Type: 0
+  State:
+    Id: 0
+    Type: 0
+    RigidBodyState:
+      Position: {x: 0, y: 0, z: 0}
+      EulerAngles: {x: 0, y: 0, z: 0}
+      Velocity: {x: 0, y: 0, z: 0}
+      AngularVelocity: {x: 0, y: 0, z: 0}
+    IsActive: 0
   Rigidbody: {fileID: 0}
   Collider: {fileID: 0}
 --- !u!135 &135031566452671668
@@ -265,7 +272,7 @@ SphereCollider:
   m_PrefabParentObject: {fileID: 0}
   m_PrefabInternal: {fileID: 100100000}
   m_GameObject: {fileID: 1864906674804262}
-  m_Material: {fileID: 0}
+  m_Material: {fileID: 13400000, guid: b036a33c6882aec45b90de058b13bdba, type: 2}
   m_IsTrigger: 0
   m_Enabled: 1
   serializedVersion: 2

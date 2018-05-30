@@ -30,7 +30,9 @@ public class Server
         var connectionConfig = OsFps.Instance.CreateConnectionConfig(
             out reliableSequencedChannelId,
             out reliableChannelId,
-            out unreliableStateUpdateChannelId
+            out unreliableStateUpdateChannelId,
+            out unreliableFragmentedChannelId,
+            out unreliableChannelId
         );
         var hostTopology = new HostTopology(connectionConfig, MaxPlayerCount);
         ServerPeer.Start(PortNumber, hostTopology);
@@ -125,6 +127,9 @@ public class Server
     public int reliableSequencedChannelId;
     public int reliableChannelId;
     public int unreliableStateUpdateChannelId;
+    public int unreliableFragmentedChannelId;
+    public int unreliableChannelId;
+
     private Dictionary<int, uint> playerIdsByConnectionId;
     private ThrottledAction SendGameStatePeriodicFunction;
     
@@ -139,7 +144,7 @@ public class Server
     
     private void SendGameState()
     {
-        OsFps.Instance.CallRpcOnAllClients("ClientOnReceiveGameState", unreliableStateUpdateChannelId, new
+        OsFps.Instance.CallRpcOnAllClients("ClientOnReceiveGameState", unreliableFragmentedChannelId, new
         {
             gameState = gameStateScraperSystem.GetGameState()
         });

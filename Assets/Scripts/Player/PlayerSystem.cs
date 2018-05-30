@@ -51,7 +51,7 @@ public class PlayerSystem : ComponentSystem
 
     public void ServerDamagePlayer(Server server, PlayerObjectComponent playerObjectComponent, float damage, PlayerObjectComponent attackingPlayerObjectComponent)
     {
-        if (damage <= 0) return;
+        if (!playerObjectComponent.State.IsAlive || (damage <= 0)) return;
 
         var playerObjectState = playerObjectComponent.State;
 
@@ -293,6 +293,9 @@ public class PlayerSystem : ComponentSystem
     {
         var playerObjectComponent = playerObject.GetComponent<PlayerObjectComponent>();
         var playerState = playerObjectComponent.State;
+
+        if (!playerState.IsAlive) return;
+
         var weaponComponent = weaponObject.GetComponent<WeaponComponent>();
         var weaponObjectState = weaponComponent.State;
 
@@ -324,6 +327,9 @@ public class PlayerSystem : ComponentSystem
     {
         var playerObjectComponent = playerObject.GetComponent<PlayerObjectComponent>();
         var playerState = playerObjectComponent.State;
+
+        if (!playerState.IsAlive) return;
+
         var grenadeComponent = grenadeObject.GetComponent<GrenadeComponent>();
         var grenadeState = grenadeComponent.State;
 

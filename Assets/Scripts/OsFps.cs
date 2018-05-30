@@ -118,7 +118,7 @@ public class OsFps : MonoBehaviour
     public static GrenadeDefinition StickyGrenadeDefinition = new GrenadeDefinition
     {
         Type = GrenadeType.Sticky,
-        Damage = 90,
+        Damage = 130,
         TimeAfterHitUntilDetonation = 1,
         ExplosionRadius = 4,
         SpawnInterval = 20
@@ -178,13 +178,17 @@ public class OsFps : MonoBehaviour
     public ConnectionConfig CreateConnectionConfig(
         out int reliableSequencedChannelId,
         out int reliableChannelId,
-        out int unreliableStateUpdateChannelId
+        out int unreliableStateUpdateChannelId,
+        out int unreliableFragmentedChannelId,
+        out int unreliableChannelId
     )
     {
         var connectionConfig = new ConnectionConfig();
         reliableSequencedChannelId = connectionConfig.AddChannel(QosType.ReliableSequenced);
         reliableChannelId = connectionConfig.AddChannel(QosType.Reliable);
         unreliableStateUpdateChannelId = connectionConfig.AddChannel(QosType.StateUpdate);
+        unreliableFragmentedChannelId = connectionConfig.AddChannel(QosType.UnreliableFragmented);
+        unreliableChannelId = connectionConfig.AddChannel(QosType.Unreliable);
 
         return connectionConfig;
     }
@@ -304,6 +308,74 @@ public class OsFps : MonoBehaviour
         rigidbody.angularVelocity = rocketState.RigidBodyState.AngularVelocity;
 
         return rocketObject;
+    }
+
+    public void ApplyExplosionDamageAndForces(
+        Server server, Vector3 explosionPosition, float explosionRadius, float maxExplosionForce,
+        float maxDamage, uint? attackerPlayerId
+    )
+    {
+        // apply damage & forces to players within range
+        var affectedColliders = Physics.OverlapSphere(explosionPosition, explosionRadius);
+        var affectedColliderPlayerObjectComponents = affectedColliders
+            .Select(collider => collider.gameObject.FindComponentInObjectOrAncestor<PlayerObjectComponent>())
+            .ToArray();
+
+        var affectedPlayerPointPairs = affectedColliders
+            .Select((collider, colliderIndex) =>
+                new System.Tuple<PlayerObjectComponent, Vector3>(
+                    affectedColliderPlayerObjectComponents[colliderIndex],
+                    collider.ClosestPoint(explosionPosition)
+                )
+            )
+            .Where(pair => pair.Item1 != null)
+            .GroupBy(pair => pair.Item1)
+            .Select(g => g
+                .OrderBy(pair => Vector3.Distance(pair.Item2, explosionPosition))
+                .FirstOrDefault()
+            )
+            .ToArray();
+
+        foreach (var pair in affectedPlayerPointPairs)
+        {
+            // Apply damage.
+            var playerObjectComponent = pair.Item1;
+            var closestPointToExplosion = pair.Item2;
+
+            var distanceFromExplosion = Vector3.Distance(closestPointToExplosion, explosionPosition);
+            var unclampedDamagePercent = (explosionRadius - distanceFromExplosion) / explosionRadius;
+            var damagePercent = Mathf.Max(unclampedDamagePercent, 0);
+            var damage = damagePercent * maxDamage;
+
+            // TODO: don't call system directly
+            var attackingPlayerObjectComponent = attackerPlayerId.HasValue
+                ? OsFps.Instance.FindPlayerObjectComponent(attackerPlayerId.Value)
+                : null;
+            PlayerSystem.Instance.ServerDamagePlayer(
+                server, playerObjectComponent, damage, attackingPlayerObjectComponent
+            );
+
+            // Apply forces.
+            var rigidbody = playerObjectComponent.gameObject.GetComponent<Rigidbody>();
+            if (rigidbody != null)
+            {
+                rigidbody.AddExplosionForce(maxExplosionForce, explosionPosition, explosionRadius);
+            }
+        }
+
+        for (var colliderIndex = 0; colliderIndex < affectedColliders.Length; colliderIndex++)
+        {
+            if (affectedColliderPlayerObjectComponents[colliderIndex] != null) continue;
+
+            var collider = affectedColliders[colliderIndex];
+
+            // Apply forces.
+            var rigidbody = collider.gameObject.GetComponent<Rigidbody>();
+            if (rigidbody != null)
+            {
+                rigidbody.AddExplosionForce(maxExplosionForce, explosionPosition, explosionRadius);
+            }
+        }
     }
 
     public GameObject FindPlayerObject(uint playerId)

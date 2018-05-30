@@ -64,41 +64,10 @@ public class GrenadeSystem : ComponentSystem
         var grenadePosition = grenadeComponent.transform.position;
 
         // apply damage & forces to players within range
-        var affectedColliders = Physics.OverlapSphere(
-            grenadePosition, grenadeDefinition.ExplosionRadius
+        OsFps.Instance.ApplyExplosionDamageAndForces(
+            server, grenadePosition, grenadeDefinition.ExplosionRadius, OsFps.GrenadeExplosionForce,
+            grenadeDefinition.Damage, grenade.ThrowerPlayerId
         );
-
-        foreach (var collider in affectedColliders)
-        {
-            // Apply damage.
-            var playerObjectComponent = collider.gameObject.FindComponentInObjectOrAncestor<PlayerObjectComponent>();
-            if (playerObjectComponent != null)
-            {
-                var playerObjectState = playerObjectComponent.State;
-                var closestPointToGrenade = collider.ClosestPoint(grenadePosition);
-                var distanceFromGrenade = Vector3.Distance(closestPointToGrenade, grenadePosition);
-                var unclampedDamagePercent = (grenadeDefinition.ExplosionRadius - distanceFromGrenade) / grenadeDefinition.ExplosionRadius;
-                var damagePercent = Mathf.Max(unclampedDamagePercent, 0);
-                var damage = damagePercent * grenadeDefinition.Damage;
-
-                // TODO: don't call system directly
-                var attackingPlayerObjectComponent = grenade.ThrowerPlayerId.HasValue
-                    ? OsFps.Instance.FindPlayerObjectComponent(grenade.ThrowerPlayerId.Value)
-                    : null;
-                PlayerSystem.Instance.ServerDamagePlayer(
-                    server, playerObjectComponent, damage, attackingPlayerObjectComponent
-                );
-            }
-
-            // Apply forces.
-            var rigidbody = collider.gameObject.GetComponent<Rigidbody>();
-            if (rigidbody != null)
-            {
-                rigidbody.AddExplosionForce(
-                    OsFps.GrenadeExplosionForce, grenadePosition, grenadeDefinition.ExplosionRadius
-                );
-            }
-        }
 
         // destroy grenade object
         Object.Destroy(grenadeComponent.gameObject);

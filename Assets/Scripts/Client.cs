@@ -26,7 +26,9 @@ public class Client
         var connectionConfig = OsFps.Instance.CreateConnectionConfig(
             out reliableSequencedChannelId,
             out reliableChannelId,
-            out unreliableStateUpdateChannelId
+            out unreliableStateUpdateChannelId,
+            out unreliableFragmentedChannelId,
+            out unreliableChannelId
         );
         ClientPeer.Start(connectionConfig);
 
@@ -426,6 +428,9 @@ public class Client
     public int reliableSequencedChannelId;
     public int reliableChannelId;
     public int unreliableStateUpdateChannelId;
+    public int unreliableFragmentedChannelId;
+    public int unreliableChannelId;
+
     private ThrottledAction SendInputPeriodicFunction;
 
     public bool _isShowingChatMessageInput;

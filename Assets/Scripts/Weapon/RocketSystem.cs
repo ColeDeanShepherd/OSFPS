@@ -35,41 +35,10 @@ public class RocketSystem : ComponentSystem
         var rocketPosition = rocketComponent.transform.position;
 
         // apply damage & forces to players within range
-        var affectedColliders = Physics.OverlapSphere(
-            rocketPosition, OsFps.RocketExplosionRadius
+        OsFps.Instance.ApplyExplosionDamageAndForces(
+            server, rocketPosition, OsFps.RocketExplosionRadius, OsFps.RocketExplosionForce,
+            OsFps.RocketLauncherDefinition.DamagePerBullet, rocketComponent.State.ShooterPlayerId
         );
-
-        foreach (var collider in affectedColliders)
-        {
-            // Apply damage.
-            var playerObjectComponent = collider.gameObject.FindComponentInObjectOrAncestor<PlayerObjectComponent>();
-            if (playerObjectComponent != null)
-            {
-                var playerObjectState = playerObjectComponent.State;
-                var closestPointToRocket = collider.ClosestPoint(rocketPosition);
-                var distanceFromRocket = Vector3.Distance(closestPointToRocket, rocketPosition);
-                var unclampedDamagePercent = (OsFps.RocketExplosionRadius - distanceFromRocket) / OsFps.RocketExplosionRadius;
-                var damagePercent = Mathf.Max(unclampedDamagePercent, 0);
-                var damage = damagePercent * OsFps.RocketLauncherDefinition.DamagePerBullet;
-
-                // TODO: don't call system directly
-                var attackingPlayerObjectComponent = rocketComponent.State.ShooterPlayerId.HasValue
-                    ? OsFps.Instance.FindPlayerObjectComponent(rocketComponent.State.ShooterPlayerId.Value)
-                    : null;
-                PlayerSystem.Instance.ServerDamagePlayer(
-                    server, playerObjectComponent, damage, attackingPlayerObjectComponent
-                );
-            }
-
-            // Apply forces.
-            var rigidbody = collider.gameObject.GetComponent<Rigidbody>();
-            if (rigidbody != null)
-            {
-                rigidbody.AddExplosionForce(
-                    OsFps.RocketExplosionForce, rocketPosition, OsFps.RocketExplosionRadius
-                );
-            }
-        }
 
         // destroy rocket object
         Object.Destroy(rocketComponent.gameObject);

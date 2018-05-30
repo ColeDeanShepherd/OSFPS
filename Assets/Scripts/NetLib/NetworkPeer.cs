@@ -6,7 +6,7 @@ namespace NetLib
 {
     public class NetworkPeer
     {
-        public const int ReceiveBufferSize = 1024;
+        public const int ReceiveBufferSize = 65535;
 
         public int? socketId;
 
@@ -76,6 +76,11 @@ namespace NetLib
                 }
 
                 var networkError = (NetworkError)networkErrorAsByte;
+
+                if (networkError == NetworkError.MessageToLong)
+                {
+                    throw new System.Exception("A message was too long for the read buffer!");
+                }
 
                 HandleNetworkEvent(
                     networkEventType, connectionId, channelId,
