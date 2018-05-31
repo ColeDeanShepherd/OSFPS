@@ -4,13 +4,9 @@
 
 #### Current
 
-* Add grenade spawners.
-  * Duplicate weapon spawner code?
-  * Combine the two?
-  * Do a generic object spawner?
-    * Then we need to track spawners for all objects...
 * Auto pickup weapon if empty or matches type
 * Improve networked shot intervals better.
+* Fix "InvalidOperationException: The NativeArray has been deallocated, it is not allowed to access it"
 
 
 

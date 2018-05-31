@@ -13,6 +13,7 @@ public class GameStateScraperSystem
             WeaponObjects = GetWeaponObjectStates(),
             WeaponSpawners = GetWeaponSpawnerStates(),
             Grenades = GetGrenadeStates(),
+            GrenadeSpawners = GetGrenadeSpawnerStates(),
             Rockets = GetRocketStates()
         };
     }
@@ -70,6 +71,13 @@ public class GameStateScraperSystem
                 return gc.State;
             })
             .Where(gs => gs != null)
+            .ToList();
+    }
+    public List<GrenadeSpawnerState> GetGrenadeSpawnerStates()
+    {
+        return Object.FindObjectsOfType<GrenadeSpawnerComponent>()
+            .Select(wsc => wsc.State)
+            .Where(wss => wss != null)
             .ToList();
     }
     public List<RocketState> GetRocketStates()

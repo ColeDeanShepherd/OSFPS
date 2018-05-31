@@ -34,4 +34,16 @@ public class GrenadeComponent : MonoBehaviour
             OsFps.Instance.OnPlayerCollidingWithGrenade(playerObject, gameObject);
         }
     }
+    private void OnDestroy()
+    {
+        if (State.GrenadeSpawnerId.HasValue)
+        {
+            var grenadeSpawnerComponent = OsFps.Instance.FindGrenadeSpawnerComponent(State.GrenadeSpawnerId.Value);
+
+            if (grenadeSpawnerComponent != null)
+            {
+                grenadeSpawnerComponent.State.TimeUntilNextSpawn = OsFps.GetGrenadeDefinitionByType(grenadeSpawnerComponent.State.Type).SpawnInterval;
+            }
+        }
+    }
 }

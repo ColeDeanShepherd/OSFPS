@@ -433,6 +433,11 @@ public class OsFps : MonoBehaviour
         return FindObjectsOfType<WeaponSpawnerComponent>()
             .FirstOrDefault(wsc => wsc.State.Id == id);
     }
+    public GrenadeSpawnerComponent FindGrenadeSpawnerComponent(uint id)
+    {
+        return FindObjectsOfType<GrenadeSpawnerComponent>()
+            .FirstOrDefault(gsc => gsc.State.Id == id);
+    }
 
     public PlayerInput GetCurrentPlayersInput()
     {

@@ -9,6 +9,7 @@ public class GrenadeState : INetworkSerializable
     public bool IsActive;
     public float? TimeUntilDetonation;
     public uint? ThrowerPlayerId;
+    public uint? GrenadeSpawnerId;
 
     public void Deserialize(BinaryReader reader)
     {
