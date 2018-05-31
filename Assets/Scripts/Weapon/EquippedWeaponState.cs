@@ -15,6 +15,13 @@ public class EquippedWeaponState : INetworkSerializable
             return (ushort)(BulletsLeftInMagazine + BulletsLeftOutOfMagazine);
         }
     }
+    public ushort BulletsShotFromMagazine
+    {
+        get
+        {
+            return (ushort)(Definition.BulletsPerMagazine - BulletsLeftInMagazine);
+        }
+    }
     public WeaponDefinition Definition
     {
         get

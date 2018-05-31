@@ -39,7 +39,7 @@ public class WeaponSystem : ComponentSystem
     {
         var numBulletsCanAdd = weaponState.Definition.MaxAmmo - weaponState.BulletsLeft;
         var bulletsToPickUp = Mathf.Min(numBulletsToTryToAdd, numBulletsCanAdd);
-        var bulletsToAddInMagazine = Mathf.Min(bulletsToPickUp, weaponState.BulletsLeftInMagazine);
+        var bulletsToAddInMagazine = Mathf.Min(bulletsToPickUp, weaponState.BulletsShotFromMagazine);
         
         weaponState.BulletsLeftInMagazine += (ushort)bulletsToAddInMagazine;
         weaponState.BulletsLeftOutOfMagazine += (ushort)(bulletsToPickUp - bulletsToAddInMagazine);
