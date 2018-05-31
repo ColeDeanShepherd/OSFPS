@@ -77,6 +77,8 @@ public static class NetworkSerializationUtils
         BinaryWriter writer, object obj, Type overrideType = null, bool isNullableIfReferenceType = false
     )
     {
+        Assert.IsTrue(!isNullableIfReferenceType || (overrideType != null));
+
         var objType = overrideType ?? obj?.GetType();
         Assert.IsNotNull(objType);
 

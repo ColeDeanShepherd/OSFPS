@@ -4,20 +4,31 @@
 
 #### Current
 
-* Implement button press to switch current weapon with picked-up weapon.
 * Fix walking over weapon causing bullets exceeding max mag capacity bug.
+  * Add lots of weapon spawners temporarily.
+  * Set debug breakpoint on pickup weapon if bullets get nonsensical.
 * Add grenade spawners.
+  * Duplicate weapon spawner code?
+  * Combine the two?
+  * Do a generic object spawner?
+    * Then we need to track spawners for all objects...
+* Handle connect to server failure.
+* Fix showing other players reloading.
 
 
 
 * Handle message too long.
-* Handle connect to server failure.
-* Fix showing other players reloading.
+  * Compress game state?
+  * Delta compression?
+    * number packets
+    * client send acks
+    * server tracks latest ack for each client
+    * server & client cache previous snapshots
+    * server delta encodes current state relative to each client's latest ack'ed snapshot
+      * only send changed properties?
+      * compress entire delta?
 * Send & use shot rays from client.
 
-
-
-* **REWORK STATE SYNCHRONIZATION**
 * Add gun recoil.
 * Add more weapons.
   * battle rifle?

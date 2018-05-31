@@ -122,7 +122,7 @@ public class PlayerObjectState : INetworkSerializable
         {
             var grenadeSlot = GrenadeSlots[i];
             NetworkSerializationUtils.SerializeObject(
-                writer, grenadeSlot, overrideType: null, isNullableIfReferenceType: true
+                writer, grenadeSlot, overrideType: typeof(GrenadeSlot), isNullableIfReferenceType: true
             );
         }
     }
