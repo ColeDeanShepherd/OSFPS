@@ -12,6 +12,10 @@ public class RocketComponent : MonoBehaviour
         Rigidbody = GetComponent<Rigidbody>();
         Collider = GetComponent<Collider>();
     }
+    private void Start()
+    {
+        Destroy(gameObject, OsFps.MaxRocketLifetime);
+    }
     private void OnCollisionEnter(Collision collision)
     {
         OsFps.Instance.RocketOnCollisionEnter(this, collision);

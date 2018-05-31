@@ -14,6 +14,9 @@ public class OsFps : MonoBehaviour
     public const string SpawnPointTag = "Respawn";
     public const string PlayerHeadColliderName = "Head";
 
+    public const bool ShowHitScanShotsOnServer = true;
+    public const float HitScanShotDebugLineLifetime = 1;
+
     public const float MaxPlayerMovementSpeed = 2.25f;
     public const float PlayerInitialJumpSpeed = 4;
     public const float TimeAfterDamageUntilShieldRegen = 2;
@@ -28,6 +31,7 @@ public class OsFps : MonoBehaviour
     public const float RocketExplosionRadius = 4;
     public const float RocketExplosionForce = 1000;
     public const float RocketExplosionDuration = 0.5f;
+    public const float MaxRocketLifetime = 30;
 
     public const float MuzzleFlashDuration = 0.1f;
     public const int MaxWeaponCount = 2;

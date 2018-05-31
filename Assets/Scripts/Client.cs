@@ -143,7 +143,7 @@ public class Client
                     }
                 }
 
-                if (Input.GetKeyDown(OsFps.PickupWeaponKeyCode))
+                if (Input.GetKey(OsFps.PickupWeaponKeyCode))
                 {
                     var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(PlayerId.Value);
 

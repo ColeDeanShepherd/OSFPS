@@ -4,16 +4,13 @@
 
 #### Current
 
-* Fix walking over weapon causing bullets exceeding max mag capacity bug.
-  * Add lots of weapon spawners temporarily.
-  * Set debug breakpoint on pickup weapon if bullets get nonsensical.
 * Add grenade spawners.
   * Duplicate weapon spawner code?
   * Combine the two?
   * Do a generic object spawner?
     * Then we need to track spawners for all objects...
-* Handle connect to server failure.
-* Fix showing other players reloading.
+* Auto pickup weapon if empty or matches type
+* Improve networked shot intervals better.
 
 
 
@@ -53,11 +50,11 @@
 * Implement FFA/teams.
 * Show dead/alive players in scoreboard.
 * Show player names above head.
-* Improve networked shot intervals better.
-* Don't add bullets to magazine when running over weapon.
+* Add listen servers.
 
 #### Low-Priority
 
+* Allow cancelling connecting to server.
 * Add customizable key bindings.
 * Add bullet holes.
 * Improve server-side verification (use round trip time).

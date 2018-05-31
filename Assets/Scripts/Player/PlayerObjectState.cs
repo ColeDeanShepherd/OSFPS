@@ -61,7 +61,8 @@ public class PlayerObjectState : INetworkSerializable
                 IsAlive &&
                 (CurrentWeapon != null) &&
                 !IsReloading &&
-                (CurrentWeapon.BulletsLeftInMagazine < CurrentWeapon.Definition.BulletsPerMagazine);
+                (CurrentWeapon.BulletsLeftInMagazine < CurrentWeapon.Definition.BulletsPerMagazine) &&
+                (CurrentWeapon.BulletsLeftOutOfMagazine > 0);
         }
     }
     public bool CanThrowGrenade

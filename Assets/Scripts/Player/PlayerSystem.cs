@@ -263,6 +263,26 @@ public class PlayerSystem : ComponentSystem
                 hit.rigidbody.AddForceAtPosition(5 * shotRay.direction, hit.point, ForceMode.Impulse);
             }
         }
+
+        if (OsFps.ShowHitScanShotsOnServer)
+        {
+            CreateHitScanShotDebugLine(shotRay);
+        }
+    }
+    public void CreateHitScanShotDebugLine(Ray ray)
+    {
+        var hitScanShotObject = new GameObject("Hit Scan Shot");
+
+        var lineRenderer = hitScanShotObject.AddComponent<LineRenderer>();
+        var lineWidth = 0.05f;
+        lineRenderer.startWidth = lineWidth;
+        lineRenderer.endWidth = lineWidth;
+        lineRenderer.SetPositions(new Vector3[] {
+            ray.origin,
+            ray.origin + (1000 * ray.direction)
+        });
+
+        Object.Destroy(hitScanShotObject, OsFps.HitScanShotDebugLineLifetime);
     }
     public void ServerFireRocketLauncher(
         Server server, PlayerObjectComponent shootingPlayerObjectComponent, Ray shotRay
@@ -491,7 +511,7 @@ public class PlayerSystem : ComponentSystem
             Mathf.Repeat(playerObjectState.LookDirAngles.y + deltaMouse.x, 360)
         );
 
-        if (Input.GetKeyDown(OsFps.ReloadKeyCode))
+        if (Input.GetKeyDown(OsFps.ReloadKeyCode) && playerObjectState.CanReload)
         {
             client.Reload(playerObjectState);
         }
