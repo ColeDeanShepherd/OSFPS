@@ -143,9 +143,27 @@ public class Client
                     }
                 }
 
-                if (Input.GetKeyDown(OsFps.SwitchWeaponKeyCode))
+                if (Input.GetKeyDown(OsFps.PickupWeaponKeyCode))
                 {
+                    var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(PlayerId.Value);
 
+                    if (playerObjectComponent != null)
+                    {
+                        var playerId = playerObjectComponent.State.Id;
+                        var playersClosestWeaponInfo = WeaponObjectSystem.Instance.ClosestWeaponInfoByPlayerId
+                            .GetValueOrDefault(playerId);
+
+                        if (playersClosestWeaponInfo != null)
+                        {
+                            var weaponId = playersClosestWeaponInfo.Item1;
+
+                            OsFps.Instance.CallRpcOnServer("ServerOnPlayerTryPickupWeapon", reliableChannelId, new
+                            {
+                                playerId = playerId,
+                                weaponId = weaponId
+                            });
+                        }
+                    }
                 }
             }
 
@@ -212,6 +230,7 @@ public class Client
         crosshair.transform.localPosition = Vector3.zero;
         crosshair.transform.localRotation = Quaternion.identity;
     }
+
     public void OnGui()
     {
         DrawHud();
@@ -227,6 +246,18 @@ public class Client
         }
 
         DrawChatWindow();
+
+        if (PlayerId.HasValue)
+        {
+            var closestWeaponInfo = WeaponObjectSystem.Instance.ClosestWeaponInfoByPlayerId
+                .GetValueOrDefault(PlayerId.Value);
+
+            if (closestWeaponInfo != null)
+            {
+                var weaponComponent = OsFps.Instance.FindWeaponComponent(closestWeaponInfo.Item1);
+                DrawWeaponPickupHud(weaponComponent);
+            }
+        }
     }
     private void DrawHud()
     {
@@ -280,7 +311,7 @@ public class Client
             }
         }
     }
-    private void DrawWeaponHud(WeaponObjectState weapon, Vector2 position)
+    private void DrawWeaponHud(EquippedWeaponState weapon, Vector2 position)
     {
         GUI.Label(
             new Rect(position.x, position.y, 200, 50),
@@ -423,6 +454,15 @@ public class Client
             DisconnectFromServer();
         }
     }
+    private void DrawWeaponPickupHud(WeaponComponent weaponComponent)
+    {
+        const float margin = 10;
+        var labelSize = new Vector2(300, 30);
+        var labelPosition = new Vector2(Screen.width - margin - labelSize.x, Screen.height - margin - labelSize.y);
+        var text = $"Press E to pick up {weaponComponent.State.Type}.";
+
+        GUI.Label(new Rect(labelPosition, labelSize), text);
+    }
     #endregion
 
     public int reliableSequencedChannelId;
@@ -455,11 +495,15 @@ public class Client
     {
         Camera.transform.SetParent(null, true);
     }
-    private GameObject GetEquippedWeaponObject(PlayerObjectComponent playerObjectComponent)
+    private EquippedWeaponComponent GetEquippedWeaponComponent(PlayerObjectComponent playerObjectComponent)
     {
         foreach (Transform weaponTransform in playerObjectComponent.HandsPointObject.transform)
         {
-            return weaponTransform.gameObject;
+            var equippedWeaponComponent =  weaponTransform.gameObject.GetComponent<EquippedWeaponComponent>();
+            if (equippedWeaponComponent != null)
+            {
+                return equippedWeaponComponent;
+            }
         }
 
         return null;
@@ -468,10 +512,10 @@ public class Client
     {
         var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(playerState.Id);
 
-        var equippedWeaponObject = GetEquippedWeaponObject(playerObjectComponent);
-        if (equippedWeaponObject != null)
+        var equippedWeaponComponent = GetEquippedWeaponComponent(playerObjectComponent);
+        if (equippedWeaponComponent != null)
         {
-            Object.Destroy(equippedWeaponObject);
+            Object.Destroy(equippedWeaponComponent.gameObject);
         }
 
         if (playerState.CurrentWeapon != null)
@@ -484,6 +528,9 @@ public class Client
             Object.DestroyImmediate(weaponComponent.Rigidbody);
             Object.DestroyImmediate(weaponComponent.Collider);
             Object.DestroyImmediate(weaponComponent);
+
+            equippedWeaponComponent = weaponObject.AddComponent<EquippedWeaponComponent>();
+            equippedWeaponComponent.State = playerState.CurrentWeapon;
         }
     }
     public void Reload(PlayerObjectState playerState)
@@ -811,53 +858,54 @@ public class Client
         var playerObject = OsFps.Instance.FindPlayerObject(updatedPlayerObjectState.Id);
 
         // Handle weapon pickup.
-        if (
-            (playerObject != null) &&
-            (updatedPlayerObjectState.CurrentWeaponIndex == currentPlayerObjectState.CurrentWeaponIndex) &&
-            (updatedPlayerObjectState.CurrentWeapon != null) &&
-            (currentPlayerObjectState.CurrentWeapon == null)
-        )
+        if (playerObject != null)
         {
-            EquipWeapon(updatedPlayerObjectState);
+            var playerObjectComponent = playerObject.GetComponent<PlayerObjectComponent>();
+            var equippedWeaponType = GetEquippedWeaponComponent(playerObjectComponent)?.State.Type;
+            var newWeaponType = updatedPlayerObjectState.CurrentWeapon?.Type;
+
+            if (newWeaponType != equippedWeaponType)
+            {
+                EquipWeapon(updatedPlayerObjectState);
+            }
         }
 
         // Update player object.
         if (playerObject != null)
         {
-            var playerComponent = playerObject.GetComponent<PlayerObjectComponent>();
+            var playerObjectComponent = playerObject.GetComponent<PlayerObjectComponent>();
 
             // Correct position.
             var correctedPosition = CorrectedPosition(
                 updatedPlayerObjectState.Position, updatedPlayerObjectState.Velocity,
-                roundTripTime, playerComponent.transform.position
+                roundTripTime, playerObjectComponent.transform.position
             );
-            playerComponent.transform.position = correctedPosition;
+            playerObjectComponent.transform.position = correctedPosition;
             updatedPlayerObjectState.Position = correctedPosition;
 
             // Correct velocity.
             var correctedVelocity = CorrectedVelocity(
-                updatedPlayerObjectState.Velocity, roundTripTime, playerComponent.Rigidbody.velocity
+                updatedPlayerObjectState.Velocity, roundTripTime, playerObjectComponent.Rigidbody.velocity
             );
-            playerComponent.Rigidbody.velocity = correctedVelocity;
+            playerObjectComponent.Rigidbody.velocity = correctedVelocity;
             updatedPlayerObjectState.Velocity = correctedVelocity;
 
             // Update look direction.
             if (isPlayerMe)
             {
-                updatedPlayerObjectState.LookDirAngles = OsFps.Instance.GetPlayerLookDirAngles(playerComponent);
+                updatedPlayerObjectState.LookDirAngles = OsFps.Instance.GetPlayerLookDirAngles(playerObjectComponent);
             }
 
-            OsFps.Instance.ApplyLookDirAnglesToPlayer(playerComponent, updatedPlayerObjectState.LookDirAngles);
+            OsFps.Instance.ApplyLookDirAnglesToPlayer(playerObjectComponent, updatedPlayerObjectState.LookDirAngles);
 
             // Update weapon if reloading.
-            var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(updatedPlayerObjectState.Id);
-            var weaponGameObject = GetEquippedWeaponObject(playerObjectComponent);
-            if ((weaponGameObject != null) && updatedPlayerObjectState.IsReloading)
+            var equippedWeaponComponent = GetEquippedWeaponComponent(playerObjectComponent);
+            if ((equippedWeaponComponent != null) && updatedPlayerObjectState.IsReloading)
             {
                 var percentDoneReloading = updatedPlayerObjectState.ReloadTimeLeft / updatedPlayerObjectState.CurrentWeapon.Definition.ReloadTime;
 
                 var y = -(1.0f - Mathf.Abs((2 * percentDoneReloading) - 1));
-                weaponGameObject.transform.localPosition = new Vector3(0, y, 0);
+                equippedWeaponComponent.transform.localPosition = new Vector3(0, y, 0);
             }
         }
 

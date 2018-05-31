@@ -68,52 +68,19 @@ public class PlayerSystem : ComponentSystem
 
         if (!playerObjectState.IsAlive)
         {
+            for (var i = 0; i < playerObjectComponent.State.Weapons.Length; i++)
+            {
+                ServerPlayerDropWeapon(server, playerObjectComponent, i);
+            }
+
+            for (var i = 0; i < playerObjectComponent.State.GrenadeSlots.Length; i++)
+            {
+                ServerPlayerDropGrenades(server, playerObjectComponent, i);
+            }
+
             // Destroy the player.
             Object.Destroy(playerObjectComponent.gameObject);
             playerState.RespawnTimeLeft = OsFps.RespawnTime;
-
-            // Drop weapons.
-            foreach (var weapon in playerObjectState.Weapons)
-            {
-                if ((weapon == null) || (weapon.BulletsLeft == 0)) break;
-
-                weapon.Id = server.GenerateNetworkId();
-                weapon.RigidBodyState = new RigidBodyState
-                {
-                    Position = playerObjectComponent.HandsPointObject.transform.position,
-                    EulerAngles = Vector3.zero,
-                    Velocity = Vector3.zero,
-                    AngularVelocity = Vector3.zero
-                };
-
-                OsFps.Instance.SpawnLocalWeaponObject(weapon);
-            }
-
-            // Drop grenades
-            foreach (var grenadeSlot in playerObjectState.GrenadeSlots)
-            {
-                if ((grenadeSlot == null) || (grenadeSlot.GrenadeCount == 0)) break;
-
-                for (var i = 0; i < grenadeSlot.GrenadeCount; i++)
-                {
-                    var grenadeState = new GrenadeState
-                    {
-                        Id = server.GenerateNetworkId(),
-                        Type = grenadeSlot.GrenadeType,
-                        RigidBodyState = new RigidBodyState
-                        {
-                            Position = playerObjectComponent.HandsPointObject.transform.position,
-                            EulerAngles = Vector3.zero,
-                            Velocity = Vector3.zero,
-                            AngularVelocity = Vector3.zero
-                        },
-                        IsActive = false,
-                        TimeUntilDetonation = null
-                    };
-
-                    OsFps.Instance.SpawnLocalGrenadeObject(grenadeState);
-                }
-            }
 
             // Update scores
             playerState.Deaths++;
@@ -134,6 +101,59 @@ public class PlayerSystem : ComponentSystem
         }
     }
 
+    public void ServerPlayerDropWeapon(Server server, PlayerObjectComponent playerObjectComponent, int weaponIndex)
+    {
+        var playerWeapons = playerObjectComponent.State.Weapons;
+        var equippedWeaponState = playerWeapons[weaponIndex];
+        if ((equippedWeaponState == null)) return;
+
+        var weaponObjectState = new WeaponObjectState
+        {
+            Id = server.GenerateNetworkId(),
+            Type = equippedWeaponState.Type,
+            BulletsLeftInMagazine = equippedWeaponState.BulletsLeftInMagazine,
+            BulletsLeftOutOfMagazine = equippedWeaponState.BulletsLeftOutOfMagazine,
+            RigidBodyState = new RigidBodyState
+            {
+                Position = playerObjectComponent.HandsPointObject.transform.position,
+                EulerAngles = Vector3.zero,
+                Velocity = Vector3.zero,
+                AngularVelocity = Vector3.zero
+            }
+        };
+        OsFps.Instance.SpawnLocalWeaponObject(weaponObjectState);
+
+        playerObjectComponent.State.Weapons[weaponIndex] = null;
+    }
+    public void ServerPlayerDropGrenades(Server server, PlayerObjectComponent playerObjectComponent, int grenadeSlotIndex)
+    {
+        var playerGrenadeSlots = playerObjectComponent.State.GrenadeSlots;
+        var grenadeSlot = playerGrenadeSlots[grenadeSlotIndex];
+        if ((grenadeSlot == null) || (grenadeSlot.GrenadeCount == 0)) return;
+
+        for (var i = 0; i < grenadeSlot.GrenadeCount; i++)
+        {
+            var grenadeState = new GrenadeState
+            {
+                Id = server.GenerateNetworkId(),
+                Type = grenadeSlot.GrenadeType,
+                RigidBodyState = new RigidBodyState
+                {
+                    Position = playerObjectComponent.HandsPointObject.transform.position,
+                    EulerAngles = Vector3.zero,
+                    Velocity = Vector3.zero,
+                    AngularVelocity = Vector3.zero
+                },
+                IsActive = false,
+                TimeUntilDetonation = null
+            };
+
+            OsFps.Instance.SpawnLocalGrenadeObject(grenadeState);
+        }
+
+        playerGrenadeSlots[grenadeSlotIndex] = null;
+    }
+
     public GameObject ServerSpawnPlayer(Server server, uint playerId)
     {
         var spawnPoint = server.GetNextSpawnPoint();
@@ -150,7 +170,7 @@ public class PlayerSystem : ComponentSystem
             Input = new PlayerInput(),
             Health = OsFps.MaxPlayerHealth,
             Shield = OsFps.MaxPlayerShield,
-            Weapons = new WeaponObjectState[OsFps.MaxWeaponCount],
+            Weapons = new EquippedWeaponState[OsFps.MaxWeaponCount],
             CurrentWeaponIndex = 0,
             TimeUntilCanThrowGrenade = 0,
             CurrentGrenadeSlotIndex = 0,
@@ -158,7 +178,7 @@ public class PlayerSystem : ComponentSystem
             ReloadTimeLeft = -1
         };
         var firstWeaponDefinition = OsFps.PistolDefinition;
-        playerObjectState.Weapons[0] = new WeaponObjectState
+        playerObjectState.Weapons[0] = new EquippedWeaponState
         {
             Type = firstWeaponDefinition.Type,
             BulletsLeftInMagazine = firstWeaponDefinition.BulletsPerMagazine,
@@ -291,19 +311,44 @@ public class PlayerSystem : ComponentSystem
 
     public void ServerOnPlayerCollidingWithWeapon(Server server, GameObject playerObject, GameObject weaponObject)
     {
-        var playerObjectComponent = playerObject.GetComponent<PlayerObjectComponent>();
-        var playerState = playerObjectComponent.State;
+        /*var playerObjectComponent = playerObject.GetComponent<PlayerObjectComponent>();
+        var weaponComponent = weaponObject.GetComponent<WeaponComponent>();
 
+        ServerPlayerTryToPickupWeapon(playerObjectComponent, weaponComponent);*/
+    }
+
+
+    private EquippedWeaponState ToEquippedWeaponState(WeaponObjectState weaponObjectState)
+    {
+        return new EquippedWeaponState
+        {
+            Type = weaponObjectState.Type,
+            BulletsLeftInMagazine = weaponObjectState.BulletsLeftInMagazine,
+            BulletsLeftOutOfMagazine = weaponObjectState.BulletsLeftOutOfMagazine,
+            TimeUntilCanShoot = 0
+        };
+    }
+    public void ServerPlayerTryToPickupWeapon(
+        Server server, PlayerObjectComponent playerObjectComponent, WeaponComponent weaponComponent
+    )
+    {
+        var playerState = playerObjectComponent.State;
         if (!playerState.IsAlive) return;
 
-        var weaponComponent = weaponObject.GetComponent<WeaponComponent>();
         var weaponObjectState = weaponComponent.State;
-
         var playersMatchingWeapon = playerState.Weapons.FirstOrDefault(
             w => (w != null) && (w.Type == weaponComponent.State.Type)
         );
 
-        if (playersMatchingWeapon != null)
+        if (playerState.HasEmptyWeapon)
+        {
+            var emptyWeaponIndex = System.Array.FindIndex(playerState.Weapons, w => w == null);
+            playerState.Weapons[emptyWeaponIndex] = ToEquippedWeaponState(weaponObjectState);
+            playerState.CurrentWeaponIndex = (byte)emptyWeaponIndex;
+
+            Object.Destroy(weaponComponent.gameObject);
+        }
+        else if (playersMatchingWeapon != null)
         {
             var numBulletsPickedUp = WeaponSystem.Instance.ServerAddBullets(
                 playersMatchingWeapon, weaponObjectState.BulletsLeft
@@ -315,11 +360,13 @@ public class PlayerSystem : ComponentSystem
                 Object.Destroy(weaponComponent.gameObject);
             }
         }
-        else if (playerState.HasEmptyWeapon)
+        else
         {
-            var emptyWeaponIndex = System.Array.FindIndex(playerState.Weapons, w => w == null);
-            playerState.Weapons[emptyWeaponIndex] = weaponObjectState;
+            // drop current weapon
+            ServerPlayerDropWeapon(server, playerObjectComponent, playerState.CurrentWeaponIndex);
 
+            // pick up other weapon
+            playerState.Weapons[playerState.CurrentWeaponIndex] = ToEquippedWeaponState(weaponObjectState);
             Object.Destroy(weaponComponent.gameObject);
         }
     }

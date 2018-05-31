@@ -22,6 +22,8 @@ public class OsFps : MonoBehaviour
     public const float MaxPlayerHealth = 30;
     public const float RespawnTime = 3;
 
+    public const float MaxWeaponPickUpDistance = 0.75f;
+
     public const float RocketSpeed = 15;
     public const float RocketExplosionRadius = 4;
     public const float RocketExplosionForce = 1000;
@@ -46,7 +48,7 @@ public class OsFps : MonoBehaviour
     public const KeyCode JumpKeyCode = KeyCode.Space;
     public const KeyCode ReloadKeyCode = KeyCode.R;
     public const KeyCode SwitchGrenadeTypeKeyCode = KeyCode.G;
-    public const KeyCode SwitchWeaponKeyCode = KeyCode.E;
+    public const KeyCode PickupWeaponKeyCode = KeyCode.E;
     public const KeyCode ShowScoreboardKeyCode = KeyCode.Tab;
     public const KeyCode ChatKeyCode = KeyCode.Return;
     public const KeyCode ToggleMenuKeyCode = KeyCode.Escape;
@@ -146,6 +148,13 @@ public class OsFps : MonoBehaviour
         get
         {
             return Server != null;
+        }
+    }
+    public bool IsRemoteClient
+    {
+        get
+        {
+            return (Server == null) && (Client != null);
         }
     }
 

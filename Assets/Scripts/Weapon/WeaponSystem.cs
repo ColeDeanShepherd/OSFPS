@@ -35,7 +35,7 @@ public class WeaponSystem : ComponentSystem
     }
 
 
-    public int ServerAddBullets(WeaponObjectState weaponState, int numBulletsToTryToAdd)
+    public int ServerAddBullets(EquippedWeaponState weaponState, int numBulletsToTryToAdd)
     {
         var numBulletsCanAdd = weaponState.Definition.MaxAmmo - weaponState.BulletsLeft;
         var bulletsToPickUp = Mathf.Min(numBulletsToTryToAdd, numBulletsCanAdd);

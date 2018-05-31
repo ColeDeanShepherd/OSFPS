@@ -18,7 +18,7 @@ public class PlayerObjectState : INetworkSerializable
     public float Health;
     public float TimeUntilShieldCanRegen;
 
-    public WeaponObjectState[] Weapons = new WeaponObjectState[OsFps.MaxWeaponCount];
+    public EquippedWeaponState[] Weapons = new EquippedWeaponState[OsFps.MaxWeaponCount];
     public byte CurrentWeaponIndex;
     public float ReloadTimeLeft;
 
@@ -34,7 +34,7 @@ public class PlayerObjectState : INetworkSerializable
             return Math.Round(Health, 2) > 0;
         }
     }
-    public WeaponObjectState CurrentWeapon
+    public EquippedWeaponState CurrentWeapon
     {
         get
         {
@@ -139,7 +139,7 @@ public class PlayerObjectState : INetworkSerializable
 
         for (var i = 0; i < Weapons.Length; i++)
         {
-            Weapons[i] = NetworkSerializationUtils.DeserializeNullable<WeaponObjectState>(reader);
+            Weapons[i] = NetworkSerializationUtils.DeserializeNullable<EquippedWeaponState>(reader);
         }
 
         CurrentWeaponIndex = reader.ReadByte();

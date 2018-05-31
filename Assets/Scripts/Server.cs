@@ -271,6 +271,29 @@ public class Server
     }
 
     [Rpc(ExecuteOn = NetworkPeerType.Server)]
+    public void ServerOnPlayerTryPickupWeapon(uint playerId, uint weaponId)
+    {
+        var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(playerId);
+
+        if (playerObjectComponent != null)
+        {
+            var playersClosestWeaponInfo = WeaponObjectSystem.Instance.ClosestWeaponInfoByPlayerId
+                .GetValueOrDefault(playerId);
+
+            if (playersClosestWeaponInfo != null)
+            {
+                var closestWeaponId = playersClosestWeaponInfo.Item1;
+
+                if (weaponId == closestWeaponId)
+                {
+                    var weaponComponent = OsFps.Instance.FindWeaponComponent(weaponId);
+                    PlayerSystem.Instance.ServerPlayerTryToPickupWeapon(this, playerObjectComponent, weaponComponent);
+                }
+            }
+        }
+    }
+
+    [Rpc(ExecuteOn = NetworkPeerType.Server)]
     public void ServerOnChatMessage(uint? playerId, string message)
     {
         OsFps.Instance.CallRpcOnAllClients("ClientOnReceiveChatMessage", reliableSequencedChannelId, new
