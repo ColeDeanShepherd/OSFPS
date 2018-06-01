@@ -143,6 +143,7 @@ public class OsFps : MonoBehaviour
     }
 
     public static OsFps Instance;
+    public static CustomLogger Logger = new CustomLogger(Debug.unityLogger.logHandler);
     
     public Server Server;
     public Client Client;
@@ -710,6 +711,16 @@ public class OsFps : MonoBehaviour
         var messageBytes = NetworkSerializationUtils.SerializeRpcCall(rpcInfo, argumentsObj);
         Server.SendMessageToAllClients(channelId, messageBytes);
     }
+    public void CallRpcOnAllClientsExcept(string name, int exceptClientConnectionId, int channelId, object argumentsObj)
+    {
+        var rpcId = rpcIdByName[name];
+        var rpcInfo = rpcInfoById[rpcId];
+
+        Assert.IsTrue(rpcInfo.ExecuteOn == NetworkPeerType.Client);
+
+        var messageBytes = NetworkSerializationUtils.SerializeRpcCall(rpcInfo, argumentsObj);
+        Server.SendMessageToAllClientsExcept(exceptClientConnectionId, channelId, messageBytes);
+    }
     public void CallRpcOnClient(string name, int clientConnectionId, int channelId, object argumentsObj)
     {
         var rpcId = rpcIdByName[name];
@@ -728,6 +739,8 @@ public class OsFps : MonoBehaviour
             ? (object)Server
             : (object)Client;
         rpcInfo.MethodInfo.Invoke(objContainingRpc, arguments);
+
+        OsFps.Logger.Log($"Executed RPC {rpcInfo.Name}");
     }
 
     public Dictionary<string, byte> rpcIdByName;

@@ -82,7 +82,7 @@ public class Server
         PlayerSystem.Instance.ServerSpawnPlayer(this, playerId);
 
         // Send out a chat message.
-        OsFps.Instance.CallRpcOnAllClients("ClientOnReceiveChatMessage", reliableSequencedChannelId, new
+        OsFps.Instance.CallRpcOnAllClientsExcept("ClientOnReceiveChatMessage", connectionId, reliableSequencedChannelId, new
         {
             playerId = (uint?)null,
             message = $"{playerId} joined."
@@ -112,10 +112,21 @@ public class Server
 
     public void SendMessageToAllClients(int channelId, byte[] serializedMessage)
     {
-        var connectionIds = playerIdsByConnectionId.Keys.Select(x => x).ToList();
+        var connectionIds = playerIdsByConnectionId.Keys.Select(x => x);
 
         foreach (var connectionId in connectionIds)
         {
+            SendMessageToClientHandleErrors(connectionId, channelId, serializedMessage);
+        }
+    }
+    public void SendMessageToAllClientsExcept(int exceptConnectionId, int channelId, byte[] serializedMessage)
+    {
+        var connectionIds = playerIdsByConnectionId.Keys.Select(x => x);
+
+        foreach (var connectionId in connectionIds)
+        {
+            if (connectionId == exceptConnectionId) continue;
+
             SendMessageToClientHandleErrors(connectionId, channelId, serializedMessage);
         }
     }
@@ -144,7 +155,7 @@ public class Server
     
     private void SendGameState()
     {
-        OsFps.Instance.CallRpcOnAllClients("ClientOnReceiveGameState", unreliableFragmentedChannelId, new
+        OsFps.Instance.CallRpcOnAllClients("ClientOnReceiveGameState", unreliableStateUpdateChannelId, new
         {
             gameState = gameStateScraperSystem.GetGameState()
         });
@@ -156,7 +167,7 @@ public class Server
         
         if (networkError != NetworkError.Ok)
         {
-            Debug.LogError(string.Format("Failed sending message to client. Error: {0}", networkError));
+            OsFps.Logger.LogError(string.Format("Failed sending message to client. Error: {0}", networkError));
         }
     }
 
@@ -190,6 +201,22 @@ public class Server
                 Orientation = Quaternion.identity
             };
         }
+    }
+
+    private int? GetConnectionIdByPlayerId(uint playerId)
+    {
+        foreach (var connectionIdPlayerIdPair in playerIdsByConnectionId)
+        {
+            var connectionId = connectionIdPlayerIdPair.Key;
+            var currentPlayerId = connectionIdPlayerIdPair.Value;
+
+            if (currentPlayerId == playerId)
+            {
+                return connectionId;
+            }
+        }
+
+        return null;
     }
     
     #region Message Handlers
@@ -232,7 +259,8 @@ public class Server
         var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(playerId);
         PlayerSystem.Instance.ServerPlayerPullTrigger(this, playerObjectComponent);
 
-        OsFps.Instance.CallRpcOnAllClients("ClientOnTriggerPulled", reliableSequencedChannelId, new
+        var connectionId = GetConnectionIdByPlayerId(playerId);
+        OsFps.Instance.CallRpcOnAllClientsExcept("ClientOnTriggerPulled", connectionId.Value, reliableSequencedChannelId, new
         {
             playerId
         });
@@ -296,21 +324,38 @@ public class Server
     [Rpc(ExecuteOn = NetworkPeerType.Server)]
     public void ServerOnChatMessage(uint? playerId, string message)
     {
-        OsFps.Instance.CallRpcOnAllClients("ClientOnReceiveChatMessage", reliableSequencedChannelId, new
+        var rpcChannelId = reliableSequencedChannelId;
+        var rpcArgs = new
         {
             playerId,
             message
-        });
+        };
+
+        if (!playerId.HasValue)
+        {
+            OsFps.Instance.CallRpcOnAllClients("ClientOnReceiveChatMessage", rpcChannelId, rpcArgs);
+        }
+        else
+        {
+            var connectionId = GetConnectionIdByPlayerId(playerId.Value);
+            OsFps.Instance.CallRpcOnAllClientsExcept(
+                "ClientOnReceiveChatMessage", connectionId.Value, rpcChannelId, rpcArgs
+            );
+        }
     }
 
     [Rpc(ExecuteOn = NetworkPeerType.Server)]
     public void ServerOnChangeWeapon(uint playerId, byte weaponIndex)
     {
-        OsFps.Instance.CallRpcOnAllClients("ClientOnChangeWeapon", reliableSequencedChannelId, new
+        var connectionId = GetConnectionIdByPlayerId(playerId);
+        var rpcArgs = new
         {
             playerId = playerId,
             weaponIndex = weaponIndex
-        });
+        };
+        OsFps.Instance.CallRpcOnAllClientsExcept(
+            "ClientOnChangeWeapon", connectionId.Value, reliableSequencedChannelId, rpcArgs
+        );
 
         var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(playerId);
 

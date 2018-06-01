@@ -56,7 +56,7 @@ public class Client
                 "Failed connecting to server {0}:{1}. Error: {2}",
                 serverIpv4Address, serverPortNumber, networkError
             );
-            Debug.LogError(errorMessage);
+            OsFps.Logger.LogError(errorMessage);
         }
     }
     public void DisconnectFromServer()
@@ -65,7 +65,7 @@ public class Client
 
         if (networkError != NetworkError.Ok)
         {
-            Debug.LogError(string.Format("Failed disconnecting from server. Error: {0}", networkError));
+            OsFps.Logger.LogError(string.Format("Failed disconnecting from server. Error: {0}", networkError));
         }
     }
 
@@ -569,14 +569,15 @@ public class Client
 
         Object.Destroy(explosionObject, OsFps.RocketExplosionDuration);
     }
-    public void Shoot(PlayerObjectComponent playerObjectComponent)
+    public void PlayerShoot(PlayerObjectComponent playerObjectComponent)
     {
-        ShowMuzzleFlash(playerObjectComponent);
-
         OsFps.Instance.CallRpcOnServer("ServerOnPlayerTriggerPulled", reliableChannelId, new
         {
             playerId = playerObjectComponent.State.Id
         });
+
+        // predict the shot
+        ShowMuzzleFlash(playerObjectComponent);
 
         playerObjectComponent.State.CurrentWeapon.TimeUntilCanShoot =
             playerObjectComponent.State.CurrentWeapon.Definition.ShotInterval;

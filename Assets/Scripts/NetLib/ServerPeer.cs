@@ -19,7 +19,7 @@ namespace NetLib
 
             if (!succeeded)
             {
-                Debug.Log("Failed stopping server.");
+                OsFps.Logger.LogError("Failed stopping server.");
             }
 
             return succeeded;
@@ -30,7 +30,7 @@ namespace NetLib
             var networkError = SendMessage(connectionId, channelId, messageBytes);
             if (networkError != NetworkError.Ok)
             {
-                Debug.LogError(string.Format("Failed sending message to client. Error: {0}", networkError));
+                OsFps.Logger.LogError(string.Format("Failed sending message to client. Error: {0}", networkError));
             }
 
             return networkError;
@@ -66,7 +66,7 @@ namespace NetLib
                 "Network error. Error: {0}. Event Type: {1}",
                 error, eventType
             );
-            Debug.LogError(errorMessage);
+            OsFps.Logger.LogError(errorMessage);
         }
 
     }

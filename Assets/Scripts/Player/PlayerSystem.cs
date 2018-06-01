@@ -336,8 +336,7 @@ public class PlayerSystem : ComponentSystem
 
         ServerPlayerTryToPickupWeapon(playerObjectComponent, weaponComponent);*/
     }
-
-
+    
     private EquippedWeaponState ToEquippedWeaponState(WeaponObjectState weaponObjectState)
     {
         return new EquippedWeaponState
@@ -525,7 +524,7 @@ public class PlayerSystem : ComponentSystem
                 (wasTriggerJustPulled || playerObjectState.CurrentWeapon.Definition.IsAutomatic)
             )
             {
-                client.Shoot(playerObjectComponent);
+                client.PlayerShoot(playerObjectComponent);
             }
         }
 

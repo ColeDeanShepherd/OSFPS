@@ -132,7 +132,7 @@ namespace NetLib
                     var errorMessage = string.Format(
                         "Unknown network message type: {0}", networkEventType
                     );
-                    Debug.LogError(errorMessage);
+                    OsFps.Logger.LogError(errorMessage);
 
                     break;
             }

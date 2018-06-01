@@ -179,7 +179,7 @@ public static class NetworkSerializationUtils
             }
             else if (objType.IsClass || objType.IsValueType)
             {
-                //Debug.Log($"Serializing type: {objType.AssemblyQualifiedName}");
+                OsFps.Logger.Log($"Serializing type: {objType.AssemblyQualifiedName}");
 
                 var objFields = objType.GetFields();
                 foreach (var objField in objFields)
@@ -300,7 +300,7 @@ public static class NetworkSerializationUtils
             }
             else if (type.IsClass || type.IsValueType)
             {
-                //Debug.Log($"Deserializing type: {type.AssemblyQualifiedName}");
+                OsFps.Logger.Log($"Deserializing type: {type.AssemblyQualifiedName}");
 
                 var result = Activator.CreateInstance(type);
 
