@@ -8,8 +8,8 @@
 * Fix bugs with multiply equipped weapons.
 * Add shotgun.
 * Add sniper rifle.
+* Add menu on server.
 * 
-* Fix mouse visibility.
 * Fix flashing weapon when changing weapons.
 * Handle message too long.
   - Compress game state?
