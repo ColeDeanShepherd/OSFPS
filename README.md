@@ -4,6 +4,11 @@
 
 #### Current
 
+* Save/load mouse sensitivity option.
+* Fix bugs with multiply equipped weapons.
+* Add shotgun.
+* Add sniper rifle.
+* 
 * Fix mouse visibility.
 * Fix flashing weapon when changing weapons.
 * Handle message too long.
@@ -24,8 +29,6 @@
 * Improve networked shot intervals (send time shot)
 * Add more weapons.
   - battle rifle?
-  - shotgun
-  - sniper rifle
   - plasma pistol?
   - needler?
   - sword?
@@ -33,7 +36,6 @@
 * Add sounds.
 * Create a cool map.
 * Add sanity checking for shot rays.
-* Add sanity checking for
 * Implement melee.
 * Implement radar.
 * Implement crouching.

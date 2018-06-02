@@ -18,6 +18,9 @@ public class OsFps : MonoBehaviour
     public const bool ShowLagCompensationOnServer = false;
     public const float HitScanShotDebugLineLifetime = 1;
 
+    public const float MinMouseSensitivity = 1;
+    public const float MaxMouseSensitivity = 10;
+
     public const float MaxPlayerMovementSpeed = 2.25f;
     public const float PlayerInitialJumpSpeed = 4;
     public const float TimeAfterDamageUntilShieldRegen = 2;
@@ -152,6 +155,9 @@ public class OsFps : MonoBehaviour
     
     public Server Server;
     public Client Client;
+    public string EnteredClientIpAddressAndPort;
+    public bool IsInOptionsScreen;
+    public float MouseSensitivity = 3;
 
     public bool IsServer
     {
@@ -617,6 +623,8 @@ public class OsFps : MonoBehaviour
     {
         // Initialize & configure network.
         NetworkTransport.Init();
+
+        EnteredClientIpAddressAndPort = LocalHostIpv4Address + ":" + Server.PortNumber;
     }
     private void OnDestroy()
     {
@@ -657,7 +665,14 @@ public class OsFps : MonoBehaviour
     {
         if((Server == null) && (Client == null))
         {
-            RenderMainMenu();
+            if (!IsInOptionsScreen)
+            {
+                RenderMainMenu();
+            }
+            else
+            {
+                RenderOptionsScreen();
+            }
         }
         else
         {
@@ -671,11 +686,12 @@ public class OsFps : MonoBehaviour
     private void RenderMainMenu()
     {
         Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
 
         const float buttonWidth = 200;
         const float buttonHeight = 30;
         const float buttonSpacing = 10;
-        const int buttonCount = 2;
+        const int buttonCount = 5;
         const float menuWidth = buttonWidth;
         const float menuHeight = (buttonCount * buttonHeight) + ((buttonCount - 1) * buttonSpacing);
 
@@ -684,12 +700,17 @@ public class OsFps : MonoBehaviour
             (Screen.height / 2) - (menuHeight / 2)
         );
 
+        EnteredClientIpAddressAndPort = GUI.TextField(
+            new Rect(position.x, position.y, buttonWidth, buttonHeight),
+            EnteredClientIpAddressAndPort
+        );
+        position.y += buttonHeight + buttonSpacing;
+
         if (GUI.Button(new Rect(position.x, position.y, buttonWidth, buttonHeight), "Connect To Server"))
         {
             SceneManager.sceneLoaded += OnMapLoadedAsClient;
             SceneManager.LoadScene("Test Map");
         }
-
         position.y += buttonHeight + buttonSpacing;
 
         if (GUI.Button(new Rect(position.x, position.y, buttonWidth, buttonHeight), "Start Server"))
@@ -697,6 +718,52 @@ public class OsFps : MonoBehaviour
             Server = new Server();
             Server.Start();
         }
+        position.y += buttonHeight + buttonSpacing;
+
+        if (GUI.Button(new Rect(position.x, position.y, buttonWidth, buttonHeight), "Options"))
+        {
+            IsInOptionsScreen = true;
+        }
+        position.y += buttonHeight + buttonSpacing;
+        
+        if (GUI.Button(new Rect(position.x, position.y, buttonWidth, buttonHeight), "Quit"))
+        {
+            Application.Quit();
+        }
+        position.y += buttonHeight + buttonSpacing;
+    }
+    public void RenderOptionsScreen()
+    {
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+
+        const float buttonWidth = 200;
+        const float buttonHeight = 30;
+        const float buttonSpacing = 10;
+        const int buttonCount = 2;
+        const float menuWidth = buttonWidth;
+        const float menuHeight = (buttonCount * buttonHeight) + ((buttonCount - 1) * buttonSpacing);
+
+        var buttonSize = new Vector2(buttonWidth, buttonHeight);
+        var position = new Vector2(
+            (Screen.width / 2) - (menuWidth / 2),
+            (Screen.height / 2) - (menuHeight / 2)
+        );
+
+        GUI.Label(
+            new Rect(position - new Vector2(0, 25), buttonSize),
+            $"Mouse Sensitivity: {OsFps.Instance.MouseSensitivity}"
+        );
+        MouseSensitivity = GUI.HorizontalSlider(
+            new Rect(position, buttonSize), MouseSensitivity, MinMouseSensitivity, MaxMouseSensitivity
+        );
+        position.y += buttonHeight + buttonSpacing;
+
+        if (GUI.Button(new Rect(position, buttonSize), "Ok"))
+        {
+            IsInOptionsScreen = false;
+        }
+        position.y += buttonHeight + buttonSpacing;
     }
 
     public void CallRpcOnServer(string name, int channelId, object argumentsObj)
@@ -830,6 +897,31 @@ public class OsFps : MonoBehaviour
         }
     }
 
+    private bool ParseIpAddressAndPort(
+        string ipAddressAndPort, ushort defaultPortNumber, out string ipAddress, out ushort portNumber
+    )
+    {
+        var splitIpAddressAndPort = ipAddressAndPort.Split(new[] { ':' });
+
+        if (splitIpAddressAndPort.Length == 1)
+        {
+            ipAddress = splitIpAddressAndPort[0];
+            portNumber = defaultPortNumber;
+            return true;
+
+        }
+        else if (splitIpAddressAndPort.Length == 2)
+        {
+            ipAddress = splitIpAddressAndPort[0];
+            return ushort.TryParse(splitIpAddressAndPort[1], out portNumber);
+        }
+        else
+        {
+            ipAddress = "";
+            portNumber = 0;
+            return false;
+        }
+    }
     private void OnMapLoadedAsClient(Scene scene, LoadSceneMode loadSceneMode)
     {
         SceneManager.sceneLoaded -= OnMapLoadedAsClient;
@@ -837,7 +929,17 @@ public class OsFps : MonoBehaviour
         Client = new Client();
         Client.OnDisconnectedFromServer += OnClientDisconnectedFromServer;
         Client.Start(true);
-        Client.StartConnectingToServer(LocalHostIpv4Address, Server.PortNumber);
+
+        string ipAddress;
+        ushort portNumber;
+        var succeededParsing = ParseIpAddressAndPort(
+            EnteredClientIpAddressAndPort, Server.PortNumber, out ipAddress, out portNumber
+        );
+
+        if (succeededParsing)
+        {
+            Client.StartConnectingToServer(ipAddress, portNumber);
+        }
     }
     private void OnClientDisconnectedFromServer()
     {

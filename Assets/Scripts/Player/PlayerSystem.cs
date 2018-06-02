@@ -614,8 +614,8 @@ public class PlayerSystem : ComponentSystem
         var playerObjectState = playerObjectComponent.State;
         playerObjectState.Input = OsFps.Instance.GetCurrentPlayersInput();
 
-        var mouseSensitivity = 3;
-        var deltaMouse = mouseSensitivity * new Vector2(Input.GetAxis("Mouse X"), Input.GetAxis("Mouse Y"));
+        var unscaledDeltaMouse = new Vector2(Input.GetAxis("Mouse X"), Input.GetAxis("Mouse Y"));
+        var deltaMouse = OsFps.Instance.MouseSensitivity * unscaledDeltaMouse;
 
         playerObjectState.LookDirAngles = new Vector2(
             Mathf.Clamp(MathfExtensions.ToSignedAngleDegrees(playerObjectState.LookDirAngles.x - deltaMouse.y), -90, 90),

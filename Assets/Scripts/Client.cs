@@ -37,8 +37,6 @@ public class Client
         Camera = Object.Instantiate(OsFps.Instance.CameraPrefab);
 
         CreateGui();
-
-        Cursor.lockState = CursorLockMode.Locked;
     }
     public void Stop()
     {
@@ -176,6 +174,7 @@ public class Client
                     _chatMessageBeingTyped = "";
 
                     Cursor.lockState = CursorLockMode.None;
+                    Cursor.visible = true;
                 }
                 else
                 {
@@ -183,22 +182,28 @@ public class Client
                 }
             }
 
-            SendInputPeriodicFunction.TryToCall();
-        }
-
-        if (Input.GetKeyDown(OsFps.ToggleMenuKeyCode))
-        {
-            if (!_isShowingMenu)
+            if (Input.GetKeyDown(OsFps.ToggleMenuKeyCode))
             {
-                Cursor.lockState = CursorLockMode.None;
+                if (!_isShowingMenu)
+                {
+                    Cursor.lockState = CursorLockMode.None;
+                    Cursor.visible = true;
+                }
+                else
+                {
+                    OsFps.Instance.IsInOptionsScreen = false;
+                }
+
+                _isShowingMenu = !_isShowingMenu;
             }
 
-            _isShowingMenu = !_isShowingMenu;
-        }
+            if (!_isShowingChatMessageInput && !_isShowingMenu)
+            {
+                Cursor.lockState = CursorLockMode.Locked;
+                Cursor.visible = false;
+            }
 
-        if (!_isShowingChatMessageInput && !_isShowingMenu)
-        {
-            Cursor.lockState = CursorLockMode.Locked;
+            SendInputPeriodicFunction.TryToCall();
         }
     }
     public void LateUpdate()
@@ -233,30 +238,44 @@ public class Client
 
     public void OnGui()
     {
-        DrawHud();
-
-        if (Input.GetKey(OsFps.ShowScoreboardKeyCode))
+        if (ClientPeer.IsConnectedToServer)
         {
-            DrawScoreBoard();
-        }
+            DrawHud();
 
-        if (_isShowingMenu)
-        {
-            DrawMenu();
-        }
-
-        DrawChatWindow();
-
-        if (PlayerId.HasValue)
-        {
-            var closestWeaponInfo = WeaponObjectSystem.Instance.ClosestWeaponInfoByPlayerId
-                .GetValueOrDefault(PlayerId.Value);
-
-            if (closestWeaponInfo != null)
+            if (Input.GetKey(OsFps.ShowScoreboardKeyCode))
             {
-                var weaponComponent = OsFps.Instance.FindWeaponComponent(closestWeaponInfo.Item1);
-                DrawWeaponPickupHud(weaponComponent);
+                DrawScoreBoard();
             }
+
+            if (_isShowingMenu)
+            {
+                if (!OsFps.Instance.IsInOptionsScreen)
+                {
+                    DrawMenu();
+                }
+                else
+                {
+                    OsFps.Instance.RenderOptionsScreen();
+                }
+            }
+
+            DrawChatWindow();
+
+            if (PlayerId.HasValue)
+            {
+                var closestWeaponInfo = WeaponObjectSystem.Instance.ClosestWeaponInfoByPlayerId
+                    .GetValueOrDefault(PlayerId.Value);
+
+                if (closestWeaponInfo != null)
+                {
+                    var weaponComponent = OsFps.Instance.FindWeaponComponent(closestWeaponInfo.Item1);
+                    DrawWeaponPickupHud(weaponComponent);
+                }
+            }
+        }
+        else
+        {
+            DrawConnectingScreen();
         }
     }
     private void DrawHud()
@@ -442,7 +461,7 @@ public class Client
         const float buttonWidth = 200;
         const float buttonHeight = 30;
         const float buttonSpacing = 10;
-        const int buttonCount = 2;
+        const int buttonCount = 3;
         const float menuWidth = buttonWidth;
         const float menuHeight = (buttonCount * buttonHeight) + ((buttonCount - 1) * buttonSpacing);
 
@@ -456,13 +475,51 @@ public class Client
         {
             _isShowingMenu = false;
         }
-
         position.y += buttonSize.y + buttonSpacing;
 
-        if (GUI.Button(new Rect(position, buttonSize), "Quit"))
+
+        if (GUI.Button(new Rect(position.x, position.y, buttonWidth, buttonHeight), "Options"))
         {
-            DisconnectFromServer();
+            OsFps.Instance.IsInOptionsScreen = true;
         }
+        position.y += buttonHeight + buttonSpacing;
+
+        if (GUI.Button(new Rect(position, buttonSize), "Leave Server"))
+        {
+            if (ClientPeer.IsConnectedToServer)
+            {
+                DisconnectFromServer();
+            }
+            else
+            {
+                InternalOnDisconnectedFromServer();
+            }
+        }
+        position.y += buttonHeight + buttonSpacing;
+    }
+    private void DrawConnectingScreen()
+    {
+        const float buttonWidth = 200;
+        const float buttonHeight = 30;
+        const float buttonSpacing = 10;
+        const int buttonCount = 2;
+        const float menuWidth = buttonWidth;
+        const float menuHeight = (buttonCount * buttonHeight) + ((buttonCount - 1) * buttonSpacing);
+
+        var buttonSize = new Vector2(buttonWidth, buttonHeight);
+        var position = new Vector2(
+            (Screen.width / 2) - (menuWidth / 2),
+            (Screen.height / 2) - (menuHeight / 2)
+        );
+
+        GUI.Label(new Rect(position, buttonSize), "Connecting...");
+        position.y += buttonSize.y + buttonSpacing;
+
+        if (GUI.Button(new Rect(position, buttonSize), "Cancel"))
+        {
+            InternalOnDisconnectedFromServer();
+        }
+        position.y += buttonHeight + buttonSpacing;
     }
     private void DrawWeaponPickupHud(WeaponComponent weaponComponent)
     {
