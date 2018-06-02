@@ -541,6 +541,8 @@ public class Client
 
             equippedWeaponComponent = weaponObject.AddComponent<EquippedWeaponComponent>();
             equippedWeaponComponent.State = playerState.CurrentWeapon;
+
+            playerState.CurrentWeapon.TimeSinceLastShot = playerState.CurrentWeapon.Definition.ShotInterval;
         }
     }
     public void Reload(PlayerObjectState playerState)
@@ -590,8 +592,7 @@ public class Client
         // predict the shot
         ShowMuzzleFlash(playerObjectComponent);
 
-        playerObjectComponent.State.CurrentWeapon.TimeUntilCanShoot =
-            playerObjectComponent.State.CurrentWeapon.Definition.ShotInterval;
+        playerObjectComponent.State.CurrentWeapon.TimeSinceLastShot = 0;
     }
 
     public void ThrowGrenade(PlayerObjectState playerObjectState)
@@ -917,7 +918,21 @@ public class Client
                 var percentDoneReloading = updatedPlayerObjectState.ReloadTimeLeft / updatedPlayerObjectState.CurrentWeapon.Definition.ReloadTime;
 
                 var y = -(1.0f - Mathf.Abs((2 * percentDoneReloading) - 1));
-                equippedWeaponComponent.transform.localPosition = new Vector3(0, y, 0);
+                var z = equippedWeaponComponent.transform.localPosition.z;
+                equippedWeaponComponent.transform.localPosition = new Vector3(0, y, z);
+            }
+
+            // Update weapon recoil.
+            if (equippedWeaponComponent != null)
+            {
+                var percentDoneWithRecoil = Mathf.Min(
+                    updatedPlayerObjectState.CurrentWeapon.TimeSinceLastShot /
+                    updatedPlayerObjectState.CurrentWeapon.Definition.RecoilTime,
+                    1
+                );
+                var y = equippedWeaponComponent.transform.localPosition.y;
+                var z = Mathf.Lerp(-0.1f, 0, percentDoneWithRecoil);
+                equippedWeaponComponent.transform.localPosition = new Vector3(0, y, z);
             }
         }
 
@@ -926,7 +941,8 @@ public class Client
         {
             if ((updatedPlayerObjectState.CurrentWeapon != null) && (currentPlayerObjectState.CurrentWeapon != null))
             {
-                updatedPlayerObjectState.CurrentWeapon.TimeUntilCanShoot = currentPlayerObjectState.CurrentWeapon.TimeUntilCanShoot;
+                updatedPlayerObjectState.CurrentWeapon.TimeSinceLastShot =
+                    currentPlayerObjectState.CurrentWeapon.TimeSinceLastShot;
             }
 
             updatedPlayerObjectState.TimeUntilCanThrowGrenade = currentPlayerObjectState.TimeUntilCanThrowGrenade;

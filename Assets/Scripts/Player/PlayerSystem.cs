@@ -261,7 +261,7 @@ public class PlayerSystem : ComponentSystem
         }
 
         weaponState.BulletsLeftInMagazine--;
-        weaponState.TimeUntilCanShoot = weaponState.Definition.ShotInterval;
+        weaponState.TimeSinceLastShot = 0;
     }
     public PlayerLagCompensationSnapshot InterpolateLagCompensationSnapshots(
         PlayerLagCompensationSnapshot snapshot1, PlayerLagCompensationSnapshot snapshot2, float rewoundTime
@@ -427,7 +427,7 @@ public class PlayerSystem : ComponentSystem
         if (weapon == null) return;
 
         playerObjectState.ReloadTimeLeft = weapon.Definition.ReloadTime;
-        weapon.TimeUntilCanShoot = 0;
+        weapon.TimeSinceLastShot = weapon.Definition.ShotInterval;
     }
     public void ServerPlayerFinishReload(PlayerObjectComponent playerObjectComponent)
     {
@@ -456,7 +456,7 @@ public class PlayerSystem : ComponentSystem
             Type = weaponObjectState.Type,
             BulletsLeftInMagazine = weaponObjectState.BulletsLeftInMagazine,
             BulletsLeftOutOfMagazine = weaponObjectState.BulletsLeftOutOfMagazine,
-            TimeUntilCanShoot = 0
+            TimeSinceLastShot = weaponObjectState.Definition.ShotInterval
         };
     }
     public void ServerPlayerTryToPickupWeapon(

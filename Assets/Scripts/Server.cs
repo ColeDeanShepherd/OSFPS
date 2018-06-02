@@ -362,6 +362,12 @@ public class Server
 
         playerObjectComponent.State.CurrentWeaponIndex = weaponIndex;
         playerObjectComponent.State.ReloadTimeLeft = -1;
+
+        var currentWeapon = playerObjectComponent.State.CurrentWeapon;
+        if (currentWeapon != null)
+        {
+            currentWeapon.TimeSinceLastShot = currentWeapon.Definition.ShotInterval;
+        }
     }
 
     [Rpc(ExecuteOn = NetworkPeerType.Server)]

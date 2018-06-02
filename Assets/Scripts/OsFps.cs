@@ -72,7 +72,8 @@ public class OsFps : MonoBehaviour
         ShotInterval = 0.4f,
         IsAutomatic = false,
         IsHitScan = true,
-        SpawnInterval = 10
+        SpawnInterval = 10,
+        RecoilTime = 1
     };
     public static WeaponDefinition SmgDefinition = new WeaponDefinition
     {
@@ -85,7 +86,8 @@ public class OsFps : MonoBehaviour
         ShotInterval = 0.1f,
         IsAutomatic = true,
         IsHitScan = true,
-        SpawnInterval = 20
+        SpawnInterval = 20,
+        RecoilTime = 0.2f
     };
     public static WeaponDefinition RocketLauncherDefinition = new WeaponDefinition
     {
@@ -98,7 +100,8 @@ public class OsFps : MonoBehaviour
         ShotInterval = 0.75f,
         IsAutomatic = false,
         IsHitScan = false,
-        SpawnInterval = 40
+        SpawnInterval = 40,
+        RecoilTime = 2
     };
     public static WeaponDefinition GetWeaponDefinitionByType(WeaponType type)
     {
@@ -512,7 +515,7 @@ public class OsFps : MonoBehaviour
         // shot interval
         if ((playerObjectState.CurrentWeapon != null) && (playerObjectState.CurrentWeapon.TimeUntilCanShoot > 0))
         {
-            playerObjectState.CurrentWeapon.TimeUntilCanShoot -= Time.deltaTime;
+            playerObjectState.CurrentWeapon.TimeSinceLastShot += Time.deltaTime;
         }
 
         // grenade throw interval

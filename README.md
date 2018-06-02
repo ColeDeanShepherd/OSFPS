@@ -4,35 +4,34 @@
 
 #### Current
 
-* Auto pickup weapon if empty or matches type
-* Improve networked shot intervals (send time shot)
 * Fix mouse visibility.
-* Fix "InvalidOperationException: The NativeArray has been deallocated, it is not allowed to access it"
 * Fix flashing weapon when changing weapons.
 * Handle message too long.
-  * Compress game state?
-  * Delta compression?
-    * number packets
-    * client send acks
-    * server tracks latest ack for each client
-    * server & client cache previous snapshots
-    * server delta encodes current state relative to each client's latest ack'ed snapshot
-      * only send changed properties?
-      * compress entire delta?
-* Add gun recoil.
-* Add more weapons.
-  * battle rifle?
-  * shotgun
-  * sniper rifle
-  * plasma pistol?
-  * needler?
-  * sword?
-  * plasma rifle?
-* Add sounds.
-* Create a cool map.
+  - Compress game state?
+  - Delta compression?
+    - number packets
+    - client send acks
+    - server tracks latest ack for each client
+    - server & client cache previous snapshots
+    - server delta encodes current state relative to each client's latest ack'ed snapshot
+      - only send changed properties?
+      - compress entire delta?
+* Fix "InvalidOperationException: The NativeArray has been deallocated, it is not allowed to access it"
 
 #### High-Priority
 
+* Auto pickup weapon if empty or matches type
+* Improve networked shot intervals (send time shot)
+* Add more weapons.
+  - battle rifle?
+  - shotgun
+  - sniper rifle
+  - plasma pistol?
+  - needler?
+  - sword?
+  - plasma rifle?
+* Add sounds.
+* Create a cool map.
 * Add sanity checking for shot rays.
 * Add sanity checking for
 * Implement melee.

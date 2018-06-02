@@ -1,4 +1,5 @@
 ﻿using System.IO;
+using UnityEngine;
 
 [System.Serializable]
 public class EquippedWeaponState : INetworkSerializable
@@ -6,7 +7,14 @@ public class EquippedWeaponState : INetworkSerializable
     public WeaponType Type = WeaponType.Pistol;
     public ushort BulletsLeftInMagazine;
     public ushort BulletsLeftOutOfMagazine;
-    public float TimeUntilCanShoot;
+    public float TimeUntilCanShoot
+    {
+        get
+        {
+            return Mathf.Max(Definition.ShotInterval - TimeSinceLastShot, 0);
+        }
+    }
+    public float TimeSinceLastShot;
 
     public ushort BulletsLeft
     {
@@ -35,7 +43,7 @@ public class EquippedWeaponState : INetworkSerializable
         Type = (WeaponType)reader.ReadByte();
         BulletsLeftInMagazine = reader.ReadUInt16();
         BulletsLeftOutOfMagazine = reader.ReadUInt16();
-        TimeUntilCanShoot = reader.ReadSingle();
+        TimeSinceLastShot = reader.ReadSingle();
     }
 
     public void Serialize(BinaryWriter writer)
@@ -43,6 +51,6 @@ public class EquippedWeaponState : INetworkSerializable
         writer.Write((byte)Type);
         writer.Write(BulletsLeftInMagazine);
         writer.Write(BulletsLeftOutOfMagazine);
-        writer.Write(TimeUntilCanShoot);
+        writer.Write(TimeSinceLastShot);
     }
 }

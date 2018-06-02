@@ -10,6 +10,7 @@
     public bool IsAutomatic;
     public bool IsHitScan;
     public float SpawnInterval;
+    public float RecoilTime;
 
     public ushort MaxAmmoOutOfMagazine
     {
