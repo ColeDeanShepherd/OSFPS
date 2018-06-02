@@ -157,7 +157,7 @@ public class OsFps : MonoBehaviour
     public Client Client;
     public string EnteredClientIpAddressAndPort;
     public bool IsInOptionsScreen;
-    public float MouseSensitivity = 3;
+    public Settings Settings;
 
     public bool IsServer
     {
@@ -618,6 +618,8 @@ public class OsFps : MonoBehaviour
         CanvasObject = guiContainer.FindDescendant("Canvas");
 
         SetupRpcs();
+
+        LoadSettings();
     }
     private void Start()
     {
@@ -681,6 +683,31 @@ public class OsFps : MonoBehaviour
                 Client.OnGui();
             }
         }
+    }
+
+    public string SettingsFilePath
+    {
+        get
+        {
+            return Application.persistentDataPath + "/settings.json";
+        }
+    }
+
+    private void LoadSettings()
+    {
+        if (System.IO.File.Exists(SettingsFilePath))
+        {
+            var settingsJsonString = System.IO.File.ReadAllText(SettingsFilePath, System.Text.Encoding.UTF8);
+            Settings = JsonUtility.FromJson<Settings>(settingsJsonString);
+        }
+        else
+        {
+            Settings = new Settings();
+        }
+    }
+    private void SaveSettings()
+    {
+        System.IO.File.WriteAllText(SettingsFilePath, JsonUtility.ToJson(Settings));
     }
 
     private void RenderMainMenu()
@@ -752,15 +779,16 @@ public class OsFps : MonoBehaviour
 
         GUI.Label(
             new Rect(position - new Vector2(0, 25), buttonSize),
-            $"Mouse Sensitivity: {OsFps.Instance.MouseSensitivity}"
+            $"Mouse Sensitivity: {OsFps.Instance.Settings.MouseSensitivity}"
         );
-        MouseSensitivity = GUI.HorizontalSlider(
-            new Rect(position, buttonSize), MouseSensitivity, MinMouseSensitivity, MaxMouseSensitivity
+        Settings.MouseSensitivity = GUI.HorizontalSlider(
+            new Rect(position, buttonSize), Settings.MouseSensitivity, MinMouseSensitivity, MaxMouseSensitivity
         );
         position.y += buttonHeight + buttonSpacing;
 
         if (GUI.Button(new Rect(position, buttonSize), "Ok"))
         {
+            SaveSettings();
             IsInOptionsScreen = false;
         }
         position.y += buttonHeight + buttonSpacing;

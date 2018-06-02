@@ -4,7 +4,6 @@
 
 #### Current
 
-* Save/load mouse sensitivity option.
 * Fix bugs with multiply equipped weapons.
 * Add shotgun.
 * Add sniper rifle.

@@ -476,8 +476,7 @@ public class Client
             _isShowingMenu = false;
         }
         position.y += buttonSize.y + buttonSpacing;
-
-
+        
         if (GUI.Button(new Rect(position.x, position.y, buttonWidth, buttonHeight), "Options"))
         {
             OsFps.Instance.IsInOptionsScreen = true;
