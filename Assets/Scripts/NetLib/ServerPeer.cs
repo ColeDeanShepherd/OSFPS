@@ -36,6 +36,18 @@ namespace NetLib
             return networkError;
         }
 
+
+        public float? GetRoundTripTimeToClient(int clientConnectionId)
+        {
+            if (!socketId.HasValue) return null;
+
+            byte networkErrorAsByte;
+            var rttInMs = NetworkTransport.GetCurrentRTT(socketId.Value, clientConnectionId, out networkErrorAsByte);
+
+            var networkError = (NetworkError)networkErrorAsByte;
+            return (networkError == NetworkError.Ok) ? ((float)rttInMs / 1000) : (float?)null;
+        }
+
         protected override void OnPeerConnected(int connectionId)
         {
             if(OnClientConnected != null)

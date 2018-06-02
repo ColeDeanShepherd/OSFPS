@@ -328,9 +328,10 @@ public class Client
     private void DrawScoreBoard()
     {
         const float playerIdColumnWidth = 50;
+        const float pingColumnWidth = 100;
         const float killsColumnWidth = 100;
         const float deathsColumnWidth = 100;
-        const float scoreBoardWidth = playerIdColumnWidth + killsColumnWidth + deathsColumnWidth;
+        const float scoreBoardWidth = playerIdColumnWidth + pingColumnWidth + killsColumnWidth + deathsColumnWidth;
         const float scoreBoardPadding = 10;
         const float rowHeight = 30;
 
@@ -355,11 +356,13 @@ public class Client
             (Screen.height / 2) - (scoreBoardHeight / 2)
         );
         var idColumnX = position.x;
-        var killsColumnX = idColumnX + playerIdColumnWidth;
+        var pingColumnX = idColumnX + pingColumnWidth;
+        var killsColumnX = pingColumnX + playerIdColumnWidth;
         var deathsColumnX = killsColumnX + killsColumnWidth;
 
         // Draw table header.
         GUI.Label(new Rect(idColumnX, position.y, playerIdColumnWidth, rowHeight), "ID");
+        GUI.Label(new Rect(pingColumnX, position.y, pingColumnWidth, rowHeight), "Ping");
         GUI.Label(new Rect(killsColumnX, position.y, killsColumnWidth, rowHeight), "Kills");
         GUI.Label(new Rect(deathsColumnX, position.y, deathsColumnWidth, rowHeight), "Deaths");
         position.y += rowHeight;
@@ -368,7 +371,14 @@ public class Client
         foreach (var playerComponent in playerComponents)
         {
             var playerState = playerComponent.State;
+            var pingInSeconds = (playerState.Id == PlayerId) ? ClientPeer.RoundTripTime : null;
+            var pingInMilliseconds = (pingInSeconds != null) ? (1000 * pingInSeconds) : null;
+            var pingString = (pingInMilliseconds != null)
+                ? Mathf.RoundToInt(pingInMilliseconds.Value).ToString()
+                : "";
+
             GUI.Label(new Rect(idColumnX, position.y, playerIdColumnWidth, rowHeight), playerState.Id.ToString());
+            GUI.Label(new Rect(pingColumnX, position.y, pingColumnWidth, rowHeight), pingString);
             GUI.Label(new Rect(killsColumnX, position.y, killsColumnWidth, rowHeight), playerState.Kills.ToString());
             GUI.Label(new Rect(deathsColumnX, position.y, deathsColumnWidth, rowHeight), playerState.Deaths.ToString());
             position.y += rowHeight;

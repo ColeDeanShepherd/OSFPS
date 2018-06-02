@@ -48,6 +48,34 @@ public class PlayerSystem : ComponentSystem
             }
         }
     }
+    public void ServerOnLateUpdate(Server server)
+    {
+        foreach (var entity in GetEntities<Group>())
+        {
+            var playerObjectComponent = entity.PlayerObjectComponent;
+            var currentTime = Time.realtimeSinceStartup;
+
+            // Remove old snapshots.
+            playerObjectComponent.LagCompensationSnapshots = playerObjectComponent.LagCompensationSnapshots
+                .Where(snapshot => (currentTime - snapshot.Time) <= OsFps.LagCompensationBufferTime)
+                .ToList();
+
+            playerObjectComponent.LagCompensationSnapshots.Add(
+                GetLagCompensationSnapshot(playerObjectComponent, currentTime)
+            );
+
+            //OsFps.Logger.Log(playerObjectComponent.LagCompensationSnapshots.Count);
+        }
+    }
+    private PlayerLagCompensationSnapshot GetLagCompensationSnapshot(PlayerObjectComponent playerObjectComponent, float currentTime)
+    {
+        return new PlayerLagCompensationSnapshot
+        {
+            Time = currentTime,
+            Position = playerObjectComponent.transform.position,
+            LookDirAngles = OsFps.Instance.GetPlayerLookDirAngles(playerObjectComponent)
+        };
+    }
 
     public void ServerDamagePlayer(Server server, PlayerObjectComponent playerObjectComponent, float damage, PlayerObjectComponent attackingPlayerObjectComponent)
     {
@@ -207,7 +235,9 @@ public class PlayerSystem : ComponentSystem
             playerObjectComponent.CameraPointObject.transform.forward
         );
     }
-    public void ServerShoot(Server server, PlayerObjectComponent shootingPlayerObjectComponent, Ray shotRay)
+    public void ServerShoot(
+        Server server, PlayerObjectComponent shootingPlayerObjectComponent, Ray shotRay, float secondsToRewind
+    )
     {
         var shootingPlayerObjectState = shootingPlayerObjectComponent.State;
         if (!shootingPlayerObjectState.CanShoot) return;
@@ -220,7 +250,7 @@ public class PlayerSystem : ComponentSystem
         var weaponDefinition = weaponState.Definition;
         if (weaponState.Definition.IsHitScan)
         {
-            ServerFireHitscanWeapon(server, shootingPlayerObjectComponent, weaponDefinition, shotRay);
+            ServerFireHitscanWeapon(server, shootingPlayerObjectComponent, weaponDefinition, shotRay, secondsToRewind);
         }
         else
         {
@@ -233,13 +263,110 @@ public class PlayerSystem : ComponentSystem
         weaponState.BulletsLeftInMagazine--;
         weaponState.TimeUntilCanShoot = weaponState.Definition.ShotInterval;
     }
+    public PlayerLagCompensationSnapshot InterpolateLagCompensationSnapshots(
+        PlayerLagCompensationSnapshot snapshot1, PlayerLagCompensationSnapshot snapshot2, float rewoundTime
+    )
+    {
+        var interpolationPercent = (rewoundTime - snapshot1.Time) / (snapshot2.Time - snapshot1.Time);
+
+        return new PlayerLagCompensationSnapshot
+        {
+            Time = Mathf.Lerp(snapshot1.Time, snapshot2.Time, interpolationPercent),
+            Position = Vector3.Lerp(snapshot1.Position, snapshot2.Position, interpolationPercent),
+            LookDirAngles = Vector3.Lerp(snapshot1.LookDirAngles, snapshot2.LookDirAngles, interpolationPercent)
+        };
+    }
+    public void ApplyLagCompensationSnapshot(
+        PlayerObjectComponent playerObjectComponent, PlayerLagCompensationSnapshot snapshot
+    )
+    {
+        playerObjectComponent.transform.position = snapshot.Position;
+        OsFps.Instance.ApplyLookDirAnglesToPlayer(playerObjectComponent, snapshot.LookDirAngles);
+        
+        if (OsFps.ShowLagCompensationOnServer)
+        {
+            var tmpCube = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            tmpCube.transform.position = snapshot.Position + (2 * Vector3.up);
+            tmpCube.transform.localScale = 0.25f * Vector3.one;
+            tmpCube.transform.eulerAngles = snapshot.LookDirAngles;
+
+            Object.DestroyImmediate(tmpCube.GetComponent<BoxCollider>());
+            Object.Destroy(tmpCube, 2);
+        }
+    }
+    public PlayerLagCompensationSnapshot GetInterpolatedLagCompensationSnapshot(
+        PlayerObjectComponent playerObjectComponent, float rewoundTime
+    )
+    {
+        var snapshots = playerObjectComponent.LagCompensationSnapshots;
+        var indexOfFirstSnapshotBeforeRewoundTime = snapshots.FindLastIndex(s => s.Time < rewoundTime);
+        var indexOfFirstSnapshotAfterRewoundTime = snapshots.FindIndex(s => s.Time >= rewoundTime);
+
+        if ((indexOfFirstSnapshotBeforeRewoundTime < 0) && (indexOfFirstSnapshotAfterRewoundTime < 0))
+        {
+            var playerId = playerObjectComponent.State.Id;
+            OsFps.Logger.LogWarning($"Could not find any snapshot to rewind to for player {playerId}.");
+            return GetLagCompensationSnapshot(playerObjectComponent, Time.realtimeSinceStartup);
+        }
+
+        PlayerLagCompensationSnapshot rewoundSnapshot;
+        if (indexOfFirstSnapshotBeforeRewoundTime < 0)
+        {
+            rewoundSnapshot = snapshots[indexOfFirstSnapshotAfterRewoundTime];
+        }
+        else if (indexOfFirstSnapshotAfterRewoundTime < 0)
+        {
+            rewoundSnapshot = snapshots[indexOfFirstSnapshotBeforeRewoundTime];
+        }
+        else
+        {
+            rewoundSnapshot = InterpolateLagCompensationSnapshots(
+                snapshots[indexOfFirstSnapshotBeforeRewoundTime],
+                snapshots[indexOfFirstSnapshotAfterRewoundTime],
+                rewoundTime
+            );
+        }
+
+        return rewoundSnapshot;
+    }
+    public void ServerRewindPlayers(float secondsToRewind)
+    {
+        var curTime = Time.realtimeSinceStartup;
+        var rewoundTime = curTime - secondsToRewind;
+        foreach (var entity in GetEntities<Group>())
+        {
+            // Add a current snapshot for un-rewinding later.
+            entity.PlayerObjectComponent.LagCompensationSnapshots.Add(
+                GetInterpolatedLagCompensationSnapshot(entity.PlayerObjectComponent, curTime)
+            );
+
+            var rewoundSnapshot = GetInterpolatedLagCompensationSnapshot(entity.PlayerObjectComponent, rewoundTime);
+            ApplyLagCompensationSnapshot(entity.PlayerObjectComponent, rewoundSnapshot);
+        }
+    }
+    public void ServerUnRewindPlayers()
+    {
+        foreach (var entity in GetEntities<Group>())
+        {
+            if (entity.PlayerObjectComponent == null)
+            {
+                continue;
+            }
+
+            var snapshots = entity.PlayerObjectComponent.LagCompensationSnapshots;
+            var currentSnapshot = snapshots[snapshots.Count - 1];
+            ApplyLagCompensationSnapshot(entity.PlayerObjectComponent, currentSnapshot);
+        }
+    }
     public void ServerFireHitscanWeapon(
         Server server, PlayerObjectComponent shootingPlayerObjectComponent,
-        WeaponDefinition weaponDefinition, Ray shotRay
+        WeaponDefinition weaponDefinition, Ray shotRay, float secondsToRewind
     )
     {
         var shootingPlayerObjectState = shootingPlayerObjectComponent.State;
         var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(shootingPlayerObjectState.Id);
+
+        ServerRewindPlayers(secondsToRewind);
 
         var raycastHits = Physics.RaycastAll(shotRay);
 
@@ -266,6 +393,8 @@ public class PlayerSystem : ComponentSystem
             }
         }
 
+        ServerUnRewindPlayers();
+
         if (OsFps.ShowHitScanShotsOnServer)
         {
             OsFps.Instance.CreateHitScanShotDebugLine(shotRay, OsFps.Instance.ServerShotRayMaterial);
@@ -288,10 +417,6 @@ public class PlayerSystem : ComponentSystem
             ShooterPlayerId = shootingPlayerObjectComponent.State.Id
         };
         var rocket = OsFps.Instance.SpawnLocalRocketObject(rocketState);
-    }
-    public void ServerPlayerPullTrigger(Server server, PlayerObjectComponent playerObjectComponent, Ray shotRay)
-    {
-        ServerShoot(server, playerObjectComponent, shotRay);
     }
     public void ServerPlayerStartReload(PlayerObjectComponent playerObjectComponent)
     {

@@ -8,10 +8,6 @@
 * Improve networked shot intervals (send time shot)
 * Fix mouse visibility.
 * Fix "InvalidOperationException: The NativeArray has been deallocated, it is not allowed to access it"
-* Add lag compensation.
-  * Track player positions over time
-  * Add function to move player backwards by seconds.
-  * Raycast shots against rewound players.
 * Fix flashing weapon when changing weapons.
 * Handle message too long.
   * Compress game state?

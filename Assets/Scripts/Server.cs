@@ -10,6 +10,7 @@ public class Server
 {
     public const int PortNumber = 32321;
     public const int MaxPlayerCount = 4;
+    public const float SendGameStateInterval = 1.0f / 30;
 
     public delegate void ServerStartedHandler();
     public event ServerStartedHandler OnServerStarted;
@@ -54,6 +55,8 @@ public class Server
         {
             SendGameStatePeriodicFunction.TryToCall();
         }
+
+        PlayerSystem.Instance.ServerOnLateUpdate(this);
     }
 
     public void OnClientConnected(int connectionId)
@@ -148,7 +151,7 @@ public class Server
     {
         SceneManager.sceneLoaded -= OnMapLoaded;
         
-        SendGameStatePeriodicFunction = new ThrottledAction(SendGameState, 1.0f / 30);
+        SendGameStatePeriodicFunction = new ThrottledAction(SendGameState, SendGameStateInterval);
 
         OnServerStarted?.Invoke();
     }
@@ -257,9 +260,10 @@ public class Server
     {
         // TODO: Make sure the player ID is correct.
         var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(playerId);
-        PlayerSystem.Instance.ServerPlayerPullTrigger(this, playerObjectComponent, shotRay);
-
         var connectionId = GetConnectionIdByPlayerId(playerId);
+        var secondsToRewind = 50 * (ServerPeer.GetRoundTripTimeToClient(connectionId.Value) ?? 0);
+        PlayerSystem.Instance.ServerShoot(this, playerObjectComponent, shotRay, secondsToRewind);
+
         OsFps.Instance.CallRpcOnAllClientsExcept("ClientOnTriggerPulled", connectionId.Value, reliableSequencedChannelId, new
         {
             playerId

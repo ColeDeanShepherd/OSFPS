@@ -15,6 +15,7 @@ public class OsFps : MonoBehaviour
     public const string PlayerHeadColliderName = "Head";
 
     public const bool ShowHitScanShotsOnServer = true;
+    public const bool ShowLagCompensationOnServer = false;
     public const float HitScanShotDebugLineLifetime = 1;
 
     public const float MaxPlayerMovementSpeed = 2.25f;
@@ -24,6 +25,7 @@ public class OsFps : MonoBehaviour
     public const float MaxPlayerShield = 70;
     public const float MaxPlayerHealth = 30;
     public const float RespawnTime = 3;
+    public const float LagCompensationBufferTime = 1;
 
     public const float MaxWeaponPickUpDistance = 0.75f;
 
@@ -540,17 +542,17 @@ public class OsFps : MonoBehaviour
         PlayerSystem.Instance.UpdatePlayerMovement(playerObjectState);
     }
 
-    public Vector2 GetPlayerLookDirAngles(PlayerObjectComponent playerComponent)
+    public Vector2 GetPlayerLookDirAngles(PlayerObjectComponent playerObjectComponent)
     {
         return new Vector2(
-            playerComponent.CameraPointObject.transform.localEulerAngles.x,
-            playerComponent.transform.eulerAngles.y
+            playerObjectComponent.CameraPointObject.transform.localEulerAngles.x,
+            playerObjectComponent.transform.eulerAngles.y
         );
     }
-    public void ApplyLookDirAnglesToPlayer(PlayerObjectComponent playerComponent, Vector2 LookDirAngles)
+    public void ApplyLookDirAnglesToPlayer(PlayerObjectComponent playerObjectComponent, Vector2 LookDirAngles)
     {
-        playerComponent.transform.localEulerAngles = new Vector3(0, LookDirAngles.y, 0);
-        playerComponent.CameraPointObject.transform.localEulerAngles = new Vector3(LookDirAngles.x, 0, 0);
+        playerObjectComponent.transform.localEulerAngles = new Vector3(0, LookDirAngles.y, 0);
+        playerObjectComponent.CameraPointObject.transform.localEulerAngles = new Vector3(LookDirAngles.x, 0, 0);
     }
 
     // probably too much boilerplate here

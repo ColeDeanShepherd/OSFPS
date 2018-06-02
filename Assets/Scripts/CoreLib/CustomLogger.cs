@@ -6,6 +6,10 @@ public class CustomLogger : Logger
     {
     }
 
+    public void LogWarning(string message)
+    {
+        LogWarning("Warning", message);
+    }
     public void LogError(string message)
     {
         LogError("Error", message);
