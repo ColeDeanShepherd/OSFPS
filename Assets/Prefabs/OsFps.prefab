@@ -79,3 +79,7 @@ MonoBehaviour:
     type: 2}
   CrosshairPrefab: {fileID: 1079905431263802, guid: d696d05410e7ca643ba8c20978d1f17e,
     type: 2}
+  ClientShotRayMaterial: {fileID: 2100000, guid: 0458343530cd5444fb80fa26aac437f0,
+    type: 2}
+  ServerShotRayMaterial: {fileID: 2100000, guid: ca092e9ffd3c441418e8094157d11e10,
+    type: 2}

@@ -253,17 +253,23 @@ public class Server
     }
 
     [Rpc(ExecuteOn = NetworkPeerType.Server)]
-    public void ServerOnPlayerTriggerPulled(uint playerId)
+    public void ServerOnPlayerTriggerPulled(uint playerId, Ray shotRay)
     {
         // TODO: Make sure the player ID is correct.
         var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(playerId);
-        PlayerSystem.Instance.ServerPlayerPullTrigger(this, playerObjectComponent);
+        PlayerSystem.Instance.ServerPlayerPullTrigger(this, playerObjectComponent, shotRay);
 
         var connectionId = GetConnectionIdByPlayerId(playerId);
         OsFps.Instance.CallRpcOnAllClientsExcept("ClientOnTriggerPulled", connectionId.Value, reliableSequencedChannelId, new
         {
             playerId
         });
+
+        if (OsFps.ShowHitScanShotsOnServer)
+        {
+            var serverShotRay = PlayerSystem.Instance.GetShotRay(playerObjectComponent);
+            OsFps.Instance.CreateHitScanShotDebugLine(serverShotRay, OsFps.Instance.ClientShotRayMaterial);
+        }
     }
 
     [Rpc(ExecuteOn = NetworkPeerType.Server)]
@@ -330,18 +336,7 @@ public class Server
             playerId,
             message
         };
-
-        if (!playerId.HasValue)
-        {
-            OsFps.Instance.CallRpcOnAllClients("ClientOnReceiveChatMessage", rpcChannelId, rpcArgs);
-        }
-        else
-        {
-            var connectionId = GetConnectionIdByPlayerId(playerId.Value);
-            OsFps.Instance.CallRpcOnAllClientsExcept(
-                "ClientOnReceiveChatMessage", connectionId.Value, rpcChannelId, rpcArgs
-            );
-        }
+        OsFps.Instance.CallRpcOnAllClients("ClientOnReceiveChatMessage", rpcChannelId, rpcArgs);
     }
 
     [Rpc(ExecuteOn = NetworkPeerType.Server)]

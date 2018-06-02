@@ -200,7 +200,14 @@ public class PlayerSystem : ComponentSystem
         return playerObject;
     }
 
-    public void ServerShoot(Server server, PlayerObjectComponent shootingPlayerObjectComponent)
+    public Ray GetShotRay(PlayerObjectComponent playerObjectComponent)
+    {
+        return new Ray(
+            playerObjectComponent.CameraPointObject.transform.position,
+            playerObjectComponent.CameraPointObject.transform.forward
+        );
+    }
+    public void ServerShoot(Server server, PlayerObjectComponent shootingPlayerObjectComponent, Ray shotRay)
     {
         var shootingPlayerObjectState = shootingPlayerObjectComponent.State;
         if (!shootingPlayerObjectState.CanShoot) return;
@@ -209,11 +216,6 @@ public class PlayerSystem : ComponentSystem
         if (playerObjectComponent == null) return;
 
         var weaponState = shootingPlayerObjectState.CurrentWeapon;
-
-        var shotRay = new Ray(
-            playerObjectComponent.CameraPointObject.transform.position,
-            playerObjectComponent.CameraPointObject.transform.forward
-        );
 
         var weaponDefinition = weaponState.Definition;
         if (weaponState.Definition.IsHitScan)
@@ -266,23 +268,8 @@ public class PlayerSystem : ComponentSystem
 
         if (OsFps.ShowHitScanShotsOnServer)
         {
-            CreateHitScanShotDebugLine(shotRay);
+            OsFps.Instance.CreateHitScanShotDebugLine(shotRay, OsFps.Instance.ServerShotRayMaterial);
         }
-    }
-    public void CreateHitScanShotDebugLine(Ray ray)
-    {
-        var hitScanShotObject = new GameObject("Hit Scan Shot");
-
-        var lineRenderer = hitScanShotObject.AddComponent<LineRenderer>();
-        var lineWidth = 0.05f;
-        lineRenderer.startWidth = lineWidth;
-        lineRenderer.endWidth = lineWidth;
-        lineRenderer.SetPositions(new Vector3[] {
-            ray.origin,
-            ray.origin + (1000 * ray.direction)
-        });
-
-        Object.Destroy(hitScanShotObject, OsFps.HitScanShotDebugLineLifetime);
     }
     public void ServerFireRocketLauncher(
         Server server, PlayerObjectComponent shootingPlayerObjectComponent, Ray shotRay
@@ -302,9 +289,9 @@ public class PlayerSystem : ComponentSystem
         };
         var rocket = OsFps.Instance.SpawnLocalRocketObject(rocketState);
     }
-    public void ServerPlayerPullTrigger(Server server, PlayerObjectComponent playerObjectComponent)
+    public void ServerPlayerPullTrigger(Server server, PlayerObjectComponent playerObjectComponent, Ray shotRay)
     {
-        ServerShoot(server, playerObjectComponent);
+        ServerShoot(server, playerObjectComponent, shotRay);
     }
     public void ServerPlayerStartReload(PlayerObjectComponent playerObjectComponent)
     {

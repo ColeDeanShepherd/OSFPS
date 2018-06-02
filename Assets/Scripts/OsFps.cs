@@ -187,6 +187,9 @@ public class OsFps : MonoBehaviour
 
     public GameObject GUIContainerPrefab;
     public GameObject CrosshairPrefab;
+
+    public Material ClientShotRayMaterial;
+    public Material ServerShotRayMaterial;
     #endregion
 
     public ConnectionConfig CreateConnectionConfig(
@@ -741,6 +744,23 @@ public class OsFps : MonoBehaviour
         rpcInfo.MethodInfo.Invoke(objContainingRpc, arguments);
 
         OsFps.Logger.Log($"Executed RPC {rpcInfo.Name}");
+    }
+
+    public void CreateHitScanShotDebugLine(Ray ray, Material material)
+    {
+        var hitScanShotObject = new GameObject("Hit Scan Shot");
+
+        var lineRenderer = hitScanShotObject.AddComponent<LineRenderer>();
+        var lineWidth = 0.05f;
+        lineRenderer.startWidth = lineWidth;
+        lineRenderer.endWidth = lineWidth;
+        lineRenderer.SetPositions(new Vector3[] {
+            ray.origin,
+            ray.origin + (1000 * ray.direction)
+        });
+        lineRenderer.sharedMaterial = material;
+
+        Object.Destroy(hitScanShotObject, OsFps.HitScanShotDebugLineLifetime);
     }
 
     public Dictionary<string, byte> rpcIdByName;

@@ -573,7 +573,8 @@ public class Client
     {
         OsFps.Instance.CallRpcOnServer("ServerOnPlayerTriggerPulled", reliableChannelId, new
         {
-            playerId = playerObjectComponent.State.Id
+            playerId = playerObjectComponent.State.Id,
+            shotRay = PlayerSystem.Instance.GetShotRay(playerObjectComponent)
         });
 
         // predict the shot
