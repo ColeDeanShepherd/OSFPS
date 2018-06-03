@@ -576,7 +576,6 @@ public class Client
     }
     private void VisualEquipWeapon(PlayerObjectState playerObjectState)
     {
-        OsFps.Logger.Log("VEW");
         var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(playerObjectState.Id);
 
         var equippedWeaponComponent = GetEquippedWeaponComponent(playerObjectComponent);
@@ -608,11 +607,6 @@ public class Client
         foreach (Transform weaponTransform in playerObjectComponent.HandsPointObject.transform)
         {
             weaponCount++;
-        }
-
-        if (weaponCount > 1)
-        {
-            var lskjdflksdjf = 3;
         }
     }
     public void Reload(PlayerObjectState playerState)

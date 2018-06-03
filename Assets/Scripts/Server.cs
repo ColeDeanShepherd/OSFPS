@@ -141,7 +141,6 @@ public class Server
 
     public void SendMessageToAllClients(int channelId, byte[] serializedMessage)
     {
-        OsFps.Logger.Log(serializedMessage.Length);
         var connectionIds = playerIdsByConnectionId.Keys.Select(x => x);
 
         foreach (var connectionId in connectionIds)
