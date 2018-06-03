@@ -64,6 +64,8 @@ public class OsFps : MonoBehaviour
 
     public const float KillPlaneY = -100;
 
+    public const string ShieldDownMaterialAlphaParameterName = "Vector1_14FF3C92";
+
     public static WeaponDefinition PistolDefinition = new WeaponDefinition
     {
         Type = WeaponType.Pistol,
@@ -201,6 +203,7 @@ public class OsFps : MonoBehaviour
 
     public Material ClientShotRayMaterial;
     public Material ServerShotRayMaterial;
+    public Material ShieldDownMaterial;
     #endregion
 
     public ConnectionConfig CreateConnectionConfig(
@@ -272,15 +275,29 @@ public class OsFps : MonoBehaviour
         return playerDataObject;
     }
 
+    public void SetShieldAlpha(PlayerObjectComponent playerObjectComponent, float alpha)
+    {
+        foreach (var meshRenderer in playerObjectComponent.GetComponentsInChildren<MeshRenderer>())
+        {
+            var shieldDownMaterial = meshRenderer.materials
+                .FirstOrDefault(m => m.name.Contains(OsFps.Instance.ShieldDownMaterial.name));
+            if (shieldDownMaterial != null)
+            {
+                shieldDownMaterial.SetFloat(ShieldDownMaterialAlphaParameterName, alpha);
+            }
+        }
+    }
     public GameObject SpawnLocalPlayer(PlayerObjectState playerObjectState)
     {
         var playerObject = Instantiate(
             PlayerPrefab, playerObjectState.Position, Quaternion.Euler(playerObjectState.LookDirAngles)
         );
 
-        var playerComponent = playerObject.GetComponent<PlayerObjectComponent>();
-        playerComponent.State = playerObjectState;
-        playerComponent.Rigidbody.velocity = playerObjectState.Velocity;
+        var playerObjectComponent = playerObject.GetComponent<PlayerObjectComponent>();
+        playerObjectComponent.State = playerObjectState;
+        playerObjectComponent.Rigidbody.velocity = playerObjectState.Velocity;
+
+        SetShieldAlpha(playerObjectComponent, 0);
 
         return playerObject;
     }

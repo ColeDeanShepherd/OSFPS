@@ -297,7 +297,7 @@ MeshRenderer:
   m_ReflectionProbeUsage: 1
   m_RenderingLayerMask: 4294967295
   m_Materials:
-  - {fileID: 10303, guid: 0000000000000000f000000000000000, type: 0}
+  - {fileID: 2100000, guid: eedb5b2591cc94643bce8232a1976bfd, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -332,7 +332,7 @@ MeshRenderer:
   m_ReflectionProbeUsage: 1
   m_RenderingLayerMask: 4294967295
   m_Materials:
-  - {fileID: 10303, guid: 0000000000000000f000000000000000, type: 0}
+  - {fileID: 2100000, guid: eedb5b2591cc94643bce8232a1976bfd, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -367,7 +367,7 @@ MeshRenderer:
   m_ReflectionProbeUsage: 1
   m_RenderingLayerMask: 4294967295
   m_Materials:
-  - {fileID: 10303, guid: 0000000000000000f000000000000000, type: 0}
+  - {fileID: 2100000, guid: eedb5b2591cc94643bce8232a1976bfd, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -457,9 +457,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 444c9c04cf62c2e4ea8a96a95078aa2c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  Type: 2
-  BulletsLeftInMagazine: 0
-  BulletsLeftOutOfMagazine: 0
+  State:
+    Id: 0
+    Type: 0
+    BulletsLeftInMagazine: 0
+    BulletsLeftOutOfMagazine: 0
+    RigidBodyState:
+      Position: {x: 0, y: 0, z: 0}
+      EulerAngles: {x: 0, y: 0, z: 0}
+      Velocity: {x: 0, y: 0, z: 0}
+      AngularVelocity: {x: 0, y: 0, z: 0}
   Rigidbody: {fileID: 0}
   Collider: {fileID: 0}
 --- !u!136 &136162452542309396

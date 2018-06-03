@@ -4,8 +4,10 @@
 
 #### Current
 
+* Improve player movement.
 * Add shotgun.
 * Add sniper rifle.
+* Add sounds.
 
 #### High-Priority
 
@@ -27,7 +29,6 @@
   - needler?
   - sword?
   - plasma rifle?
-* Add sounds.
 * Create a cool map.
 * Add sanity checking for shot rays.
 * Implement melee.

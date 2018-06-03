@@ -51,6 +51,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 85d9bf97959ff2f4aa6473ce13eca90d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  EnteredClientIpAddressAndPort: 
+  IsInOptionsScreen: 0
+  Settings:
+    MouseSensitivity: 3
   CanvasObject: {fileID: 0}
   PlayerPrefab: {fileID: 1884725033880392, guid: dfcdd0cce8eced1418b0e59689f81abf,
     type: 2}
@@ -83,3 +87,4 @@ MonoBehaviour:
     type: 2}
   ServerShotRayMaterial: {fileID: 2100000, guid: ca092e9ffd3c441418e8094157d11e10,
     type: 2}
+  ShieldDownMaterial: {fileID: 2100000, guid: 2ada08ed2571bfc47a259dc51dbfc69e, type: 2}

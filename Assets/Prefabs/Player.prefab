@@ -295,7 +295,8 @@ MeshRenderer:
   m_ReflectionProbeUsage: 1
   m_RenderingLayerMask: 4294967295
   m_Materials:
-  - {fileID: 10303, guid: 0000000000000000f000000000000000, type: 0}
+  - {fileID: 2100000, guid: 38b1ddbf9ad286544a3db265a217ad83, type: 2}
+  - {fileID: 2100000, guid: 2ada08ed2571bfc47a259dc51dbfc69e, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -330,7 +331,8 @@ MeshRenderer:
   m_ReflectionProbeUsage: 1
   m_RenderingLayerMask: 4294967295
   m_Materials:
-  - {fileID: 10303, guid: 0000000000000000f000000000000000, type: 0}
+  - {fileID: 2100000, guid: 38b1ddbf9ad286544a3db265a217ad83, type: 2}
+  - {fileID: 2100000, guid: 2ada08ed2571bfc47a259dc51dbfc69e, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -390,6 +392,32 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 12d3ae7274a313346af3594936e4d697, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  State:
+    Id: 0
+    Position: {x: 0, y: 0, z: 0}
+    Velocity: {x: 0, y: 0, z: 0}
+    LookDirAngles: {x: 0, y: 0}
+    Shield: 0
+    Health: 0
+    TimeUntilShieldCanRegen: 0
+    Weapons:
+    - Type: 0
+      BulletsLeftInMagazine: 0
+      BulletsLeftOutOfMagazine: 0
+      TimeSinceLastShot: 0
+    - Type: 0
+      BulletsLeftInMagazine: 0
+      BulletsLeftOutOfMagazine: 0
+      TimeSinceLastShot: 0
+    CurrentWeaponIndex: 0
+    ReloadTimeLeft: 0
+    TimeUntilCanThrowGrenade: 0
+    CurrentGrenadeSlotIndex: 0
+    GrenadeSlots:
+    - GrenadeType: 0
+      GrenadeCount: 0
+    - GrenadeType: 0
+      GrenadeCount: 0
   Rigidbody: {fileID: 0}
   CameraPointObject: {fileID: 0}
   HandsPointObject: {fileID: 0}

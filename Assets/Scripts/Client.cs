@@ -983,6 +983,10 @@ public class Client
                 var z = Mathf.Lerp(-0.1f, 0, percentDoneWithRecoil);
                 equippedWeaponComponent.transform.localPosition = new Vector3(0, y, z);
             }
+
+            // Update shields.
+            var shieldAlpha = 1.0f - (playerObjectComponent.State.Shield / OsFps.MaxPlayerShield);
+            OsFps.Instance.SetShieldAlpha(playerObjectComponent, shieldAlpha);
         }
 
         // Update state.
