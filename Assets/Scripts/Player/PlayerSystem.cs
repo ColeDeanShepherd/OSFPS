@@ -210,7 +210,8 @@ public class PlayerSystem : ComponentSystem
         {
             Type = firstWeaponDefinition.Type,
             BulletsLeftInMagazine = firstWeaponDefinition.BulletsPerMagazine,
-            BulletsLeftOutOfMagazine = firstWeaponDefinition.MaxAmmoOutOfMagazine
+            BulletsLeftOutOfMagazine = firstWeaponDefinition.MaxAmmoOutOfMagazine,
+            TimeSinceLastShot = firstWeaponDefinition.ShotInterval
         };
 
         playerObjectState.GrenadeSlots[0] = new GrenadeSlot

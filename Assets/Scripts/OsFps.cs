@@ -678,11 +678,24 @@ public class OsFps : MonoBehaviour
         }
         else
         {
+            if (Server != null)
+            {
+                Server.OnGui();
+            }
+
             if (Client != null)
             {
                 Client.OnGui();
             }
         }
+    }
+
+    public void StopServer()
+    {
+        if (Server == null) return;
+
+        Server.Stop();
+        Server = null;
     }
 
     public string SettingsFilePath

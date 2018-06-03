@@ -574,19 +574,21 @@ public class Client
 
         return null;
     }
-    private void EquipWeapon(PlayerObjectState playerState)
+    private void VisualEquipWeapon(PlayerObjectState playerObjectState)
     {
-        var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(playerState.Id);
+        OsFps.Logger.Log("VEW");
+        var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(playerObjectState.Id);
 
         var equippedWeaponComponent = GetEquippedWeaponComponent(playerObjectComponent);
+        var wasEQCNull = equippedWeaponComponent == null;
         if (equippedWeaponComponent != null)
         {
-            Object.Destroy(equippedWeaponComponent.gameObject);
+            Object.DestroyImmediate(equippedWeaponComponent.gameObject);
         }
 
-        if (playerState.CurrentWeapon != null)
+        if (playerObjectState.CurrentWeapon != null)
         {
-            var weaponPrefab = OsFps.Instance.GetWeaponPrefab(playerState.CurrentWeapon.Type);
+            var weaponPrefab = OsFps.Instance.GetWeaponPrefab(playerObjectState.CurrentWeapon.Type);
             GameObject weaponObject = Object.Instantiate(weaponPrefab, Vector3.zero, Quaternion.identity);
             weaponObject.transform.SetParent(playerObjectComponent.HandsPointObject.transform, false);
 
@@ -596,9 +598,21 @@ public class Client
             Object.DestroyImmediate(weaponComponent);
 
             equippedWeaponComponent = weaponObject.AddComponent<EquippedWeaponComponent>();
-            equippedWeaponComponent.State = playerState.CurrentWeapon;
+            equippedWeaponComponent.State = playerObjectState.CurrentWeapon;
+            equippedWeaponComponent.State.TimeSinceLastShot = equippedWeaponComponent.State.Definition.ShotInterval;
 
-            playerState.CurrentWeapon.TimeSinceLastShot = playerState.CurrentWeapon.Definition.ShotInterval;
+            playerObjectState.CurrentWeapon.TimeSinceLastShot = playerObjectState.CurrentWeapon.Definition.ShotInterval;
+        }
+
+        var weaponCount = 0;
+        foreach (Transform weaponTransform in playerObjectComponent.HandsPointObject.transform)
+        {
+            weaponCount++;
+        }
+
+        if (weaponCount > 1)
+        {
+            var lskjdflksdjf = 3;
         }
     }
     public void Reload(PlayerObjectState playerState)
@@ -674,21 +688,6 @@ public class Client
         var playerObjectState = playerObjectComponent.State;
 
         if (weaponIndex == playerObjectState.CurrentWeaponIndex) return;
-
-        // destroy weapon obj
-        if (playerObjectState.CurrentWeapon != null)
-        {
-            var weaponComponent = playerObjectComponent.HandsPointObject.GetComponentInChildren<WeaponComponent>();
-
-            if (weaponComponent != null)
-            {
-                Object.Destroy(weaponComponent.gameObject);
-            }
-        }
-
-        playerObjectState.CurrentWeaponIndex = (byte)weaponIndex;
-
-        EquipWeapon(playerObjectState);
 
         // Send message to server.
         OsFps.Instance.CallRpcOnServer("ServerOnChangeWeapon", reliableSequencedChannelId, new
@@ -935,7 +934,7 @@ public class Client
 
             if (newWeaponType != equippedWeaponType)
             {
-                EquipWeapon(updatedPlayerObjectState);
+                VisualEquipWeapon(updatedPlayerObjectState);
             }
         }
 
@@ -979,7 +978,7 @@ public class Client
             }
 
             // Update weapon recoil.
-            if (equippedWeaponComponent != null)
+            if ((equippedWeaponComponent != null) && (updatedPlayerObjectState.CurrentWeapon != null))
             {
                 var percentDoneWithRecoil = Mathf.Min(
                     updatedPlayerObjectState.CurrentWeapon.TimeSinceLastShot /
@@ -1136,7 +1135,7 @@ public class Client
     private void SpawnPlayer(PlayerObjectState playerState)
     {
         OsFps.Instance.SpawnLocalPlayer(playerState);
-        EquipWeapon(playerState);
+        //VisualEquipWeapon(playerState);
 
         if (playerState.Id == PlayerId)
         {

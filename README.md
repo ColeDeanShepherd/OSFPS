@@ -4,13 +4,12 @@
 
 #### Current
 
-* Fix bugs with multiply equipped weapons.
 * Add shotgun.
 * Add sniper rifle.
-* Add menu on server.
-* 
-* Fix flashing weapon when changing weapons.
-* Handle message too long.
+
+#### High-Priority
+
+* Rethink state compression.
   - Compress game state?
   - Delta compression?
     - number packets
@@ -20,10 +19,6 @@
     - server delta encodes current state relative to each client's latest ack'ed snapshot
       - only send changed properties?
       - compress entire delta?
-* Fix "InvalidOperationException: The NativeArray has been deallocated, it is not allowed to access it"
-
-#### High-Priority
-
 * Auto pickup weapon if empty or matches type
 * Improve networked shot intervals (send time shot)
 * Add more weapons.
