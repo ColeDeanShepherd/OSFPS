@@ -627,6 +627,17 @@ public class Client
 
         Object.Destroy(muzzleFlashObject, OsFps.MuzzleFlashDuration);
     }
+    public void ShowWeaponFireEffects(PlayerObjectComponent playerObjectComponent)
+    {
+        ShowMuzzleFlash(playerObjectComponent);
+
+        var weapon = playerObjectComponent.State.CurrentWeapon;
+        if ((weapon != null) && (weapon.Type == WeaponType.SniperRifle))
+        {
+            var shotRay = PlayerSystem.Instance.GetShotRay(playerObjectComponent);
+            OsFps.Instance.CreateSniperBulletTrail(shotRay);
+        }
+    }
     public void ShowGrenadeExplosion(Vector3 position, GrenadeType grenadeType)
     {
         var explosionPrefab = OsFps.Instance.GetGrenadeExplosionPrefab(grenadeType);
@@ -654,7 +665,7 @@ public class Client
         });
 
         // predict the shot
-        ShowMuzzleFlash(playerObjectComponent);
+        ShowWeaponFireEffects(playerObjectComponent);
 
         playerObjectComponent.State.CurrentWeapon.TimeSinceLastShot = 0;
     }
@@ -1182,7 +1193,7 @@ public class Client
         }
 
         var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(playerId);
-        ShowMuzzleFlash(playerObjectComponent);
+        ShowWeaponFireEffects(playerObjectComponent);
     }
 
     [Rpc(ExecuteOn = NetworkPeerType.Client)]

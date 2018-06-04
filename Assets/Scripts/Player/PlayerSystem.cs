@@ -365,17 +365,49 @@ public class PlayerSystem : ComponentSystem
     )
     {
         var shootingPlayerObjectState = shootingPlayerObjectComponent.State;
-        var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(shootingPlayerObjectState.Id);
 
         ServerRewindPlayers(secondsToRewind);
 
+        if (weaponDefinition.Type == WeaponType.Shotgun)
+        {
+            for (var i = 0; i < OsFps.ShotgunBulletsPerShot; i++)
+            {
+                var currentShotRay = GetRandomRayInCone(shotRay, OsFps.ShotgunShotConeAngleInDegrees);
+                ServerApplyHitscanShot(server, shootingPlayerObjectComponent, weaponDefinition, currentShotRay);
+            }
+        }
+        else
+        {
+            ServerApplyHitscanShot(server, shootingPlayerObjectComponent, weaponDefinition, shotRay);
+        }
+
+        ServerUnRewindPlayers();
+    }
+    public Ray GetRandomRayInCone(Ray centerRay, float coneAngleInDegrees)
+    {
+        var angleFromCenterInDegrees = coneAngleInDegrees * Random.value;
+        var angleFromHorizontalInDegrees = 360 * Random.value;
+
+        var localRotation =
+            Quaternion.AngleAxis(angleFromHorizontalInDegrees, Vector3.forward) *
+            Quaternion.AngleAxis(angleFromCenterInDegrees, Vector3.up);
+        var localDirection = localRotation * Vector3.forward;
+        var globalDirection = Quaternion.LookRotation(centerRay.direction, Vector3.up) * localDirection;
+
+        return new Ray(centerRay.origin, globalDirection);
+    }
+    public void ServerApplyHitscanShot(
+        Server server, PlayerObjectComponent shootingPlayerObjectComponent,
+        WeaponDefinition weaponDefinition, Ray shotRay
+    )
+    {
         var raycastHits = Physics.RaycastAll(shotRay);
 
         foreach (var hit in raycastHits)
         {
             var hitPlayerObject = hit.collider.gameObject.FindObjectOrAncestorWithTag(OsFps.PlayerTag);
 
-            if ((hitPlayerObject != null) && (hitPlayerObject != playerObjectComponent.gameObject))
+            if ((hitPlayerObject != null) && (hitPlayerObject != shootingPlayerObjectComponent.gameObject))
             {
                 var hitPlayerObjectComponent = hitPlayerObject.GetComponent<PlayerObjectComponent>();
 
@@ -393,8 +425,6 @@ public class PlayerSystem : ComponentSystem
                 hit.rigidbody.AddForceAtPosition(5 * shotRay.direction, hit.point, ForceMode.Impulse);
             }
         }
-
-        ServerUnRewindPlayers();
 
         if (OsFps.ShowHitScanShotsOnServer)
         {

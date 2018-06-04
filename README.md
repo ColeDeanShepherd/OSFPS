@@ -4,10 +4,8 @@
 
 #### Current
 
+* Add sniper rifle zoom.
 * Improve player movement.
-* Add shotgun.
-* Add sniper rifle.
-* Add sounds.
 
 #### High-Priority
 
@@ -42,10 +40,10 @@
 * Show dead/alive players in scoreboard.
 * Show player names above head.
 * Add listen servers.
+* Add sounds.
 
 #### Low-Priority
 
-* Allow cancelling connecting to server.
 * Add customizable key bindings.
 * Add bullet holes.
 * Improve server-side verification (use round trip time).

@@ -32,6 +32,9 @@ public class OsFps : MonoBehaviour
 
     public const float MaxWeaponPickUpDistance = 0.75f;
 
+    public const int ShotgunBulletsPerShot = 15;
+    public const float ShotgunShotConeAngleInDegrees = 15;
+
     public const float RocketSpeed = 15;
     public const float RocketExplosionRadius = 4;
     public const float RocketExplosionForce = 1000;
@@ -94,13 +97,41 @@ public class OsFps : MonoBehaviour
         SpawnInterval = 20,
         RecoilTime = 0.2f
     };
+    public static WeaponDefinition ShotgunDefinition = new WeaponDefinition
+    {
+        Type = WeaponType.Shotgun,
+        MaxAmmo = 64,
+        BulletsPerMagazine = 8,
+        DamagePerBullet = 10,
+        HeadShotDamagePerBullet = 30,
+        ReloadTime = 1,
+        ShotInterval = 0.75f,
+        IsAutomatic = false,
+        IsHitScan = true,
+        SpawnInterval = 40,
+        RecoilTime = 0.6f
+    };
+    public static WeaponDefinition SniperRifleDefinition = new WeaponDefinition
+    {
+        Type = WeaponType.SniperRifle,
+        MaxAmmo = 16,
+        BulletsPerMagazine = 4,
+        DamagePerBullet = MaxPlayerShield,
+        HeadShotDamagePerBullet = 150,
+        ReloadTime = 1,
+        ShotInterval = 0.75f,
+        IsAutomatic = false,
+        IsHitScan = true,
+        SpawnInterval = 60,
+        RecoilTime = 1
+    };
     public static WeaponDefinition RocketLauncherDefinition = new WeaponDefinition
     {
         Type = WeaponType.RocketLauncher,
         MaxAmmo = 8,
         BulletsPerMagazine = 2,
-        DamagePerBullet = 100,
-        HeadShotDamagePerBullet = 100,
+        DamagePerBullet = 200,
+        HeadShotDamagePerBullet = 200,
         ReloadTime = 2,
         ShotInterval = 0.75f,
         IsAutomatic = false,
@@ -118,6 +149,10 @@ public class OsFps : MonoBehaviour
                 return SmgDefinition;
             case WeaponType.RocketLauncher:
                 return RocketLauncherDefinition;
+            case WeaponType.Shotgun:
+                return ShotgunDefinition;
+            case WeaponType.SniperRifle:
+                return SniperRifleDefinition;
             default:
                 throw new System.NotImplementedException();
         }
@@ -190,6 +225,11 @@ public class OsFps : MonoBehaviour
     public GameObject RocketPrefab;
     public GameObject RocketExplosionPrefab;
 
+    public GameObject ShotgunPrefab;
+
+    public GameObject SniperRiflePrefab;
+    public Material SniperBulletTrailMaterial;
+
     public GameObject MuzzleFlashPrefab;
 
     public GameObject FragmentationGrenadePrefab;
@@ -234,6 +274,10 @@ public class OsFps : MonoBehaviour
                 return SmgPrefab;
             case WeaponType.RocketLauncher:
                 return RocketLauncherPrefab;
+            case WeaponType.Shotgun:
+                return ShotgunPrefab;
+            case WeaponType.SniperRifle:
+                return SniperRiflePrefab;
             default:
                 throw new System.NotImplementedException("Unknown weapon type: " + weaponType);
         }
@@ -611,6 +655,26 @@ public class OsFps : MonoBehaviour
         {
             RocketSystem.Instance.ServerRocketOnCollisionEnter(Server, rocketComponent, collision);
         }
+    }
+
+    public GameObject CreateSniperBulletTrail(Ray ray)
+    {
+        var sniperBulletTrail = new GameObject("sniperBulletTrail");
+        var lineRenderer = sniperBulletTrail.AddComponent<LineRenderer>();
+        lineRenderer.SetPositions(new []
+        {
+            ray.origin,
+            ray.origin + (2000 * ray.direction)
+        });
+        lineRenderer.material = SniperBulletTrailMaterial;
+
+        var lineWidth = 0.1f;
+        lineRenderer.startWidth = lineWidth;
+        lineRenderer.endWidth = lineWidth;
+
+        Object.Destroy(sniperBulletTrail, 1);
+
+        return sniperBulletTrail;
     }
 
     private void Awake()

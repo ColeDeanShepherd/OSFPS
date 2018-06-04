@@ -69,6 +69,12 @@ MonoBehaviour:
     type: 2}
   RocketExplosionPrefab: {fileID: 1612869826966746, guid: 5937abced5d654442aaea2c2c8a39f52,
     type: 2}
+  ShotgunPrefab: {fileID: 1277544913490836, guid: 1bc9ace3960ddfa4c8a4d6958f23a879,
+    type: 2}
+  SniperRiflePrefab: {fileID: 1223679684188120, guid: f4fc670d7eb81d14eb325d3613490dc5,
+    type: 2}
+  SniperBulletTrailMaterial: {fileID: 2100000, guid: 961ba09c2adff5e49a9f0d8778353eab,
+    type: 2}
   MuzzleFlashPrefab: {fileID: 1354871173001656, guid: 1855e5917da52b84ab776dd490c388c5,
     type: 2}
   FragmentationGrenadePrefab: {fileID: 1864906674804262, guid: 3832104089c964b41820ab8af630b631,

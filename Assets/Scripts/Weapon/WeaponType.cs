@@ -2,5 +2,7 @@
 {
     Pistol,
     Smg,
-    RocketLauncher
+    RocketLauncher,
+    Shotgun,
+    SniperRifle
 }
