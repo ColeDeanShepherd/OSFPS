@@ -4,9 +4,6 @@
 
 #### Current
 
-* Add sniper rifle zoom.
-* Improve player movement.
-
 #### High-Priority
 
 * Rethink state compression.
@@ -27,7 +24,6 @@
   - needler?
   - sword?
   - plasma rifle?
-* Create a cool map.
 * Add sanity checking for shot rays.
 * Implement melee.
 * Implement radar.

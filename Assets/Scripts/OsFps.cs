@@ -28,7 +28,7 @@ public class OsFps : MonoBehaviour
     public const float MaxFieldOfViewY = 110;
 
     public const float MaxPlayerMovementSpeed = 4;
-    public const float PlayerInitialJumpSpeed = 4;
+    public const float PlayerInitialJumpSpeed = 5;
     public const float TimeAfterDamageUntilShieldRegen = 2;
     public const float ShieldRegenPerSecond = MaxPlayerShield / 2;
     public const float MaxPlayerShield = 70;
