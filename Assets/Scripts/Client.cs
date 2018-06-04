@@ -12,6 +12,7 @@ public class Client
     public uint? PlayerId;
     public GameObject Camera;
     public GameObject GuiContainer;
+    public int ZoomLevel;
 
     public event ClientPeer.ServerConnectionChangeEventHandler OnDisconnectedFromServer;
 
@@ -69,6 +70,8 @@ public class Client
 
     public void Update()
     {
+        Camera.GetComponent<Camera>().fieldOfView = GetCurrentFieldOfViewY();
+
         ClientPeer.ReceiveAndHandleNetworkEvents();
 
         if (ClientPeer.IsConnectedToServer)
@@ -162,6 +165,11 @@ public class Client
                             });
                         }
                     }
+                }
+
+                if (Input.GetKeyDown(OsFps.ZoomInKeyCode))
+                {
+                    ChangeZoomLevel();
                 }
             }
 
@@ -546,7 +554,49 @@ public class Client
     private Vector2 chatMessageScrollPosition = new Vector2();
 
     public bool _isShowingMenu;
-    
+
+    private float GetCurrentFieldOfViewY()
+    {
+        switch (ZoomLevel)
+        {
+            case 0:
+                return OsFps.Instance.Settings.FieldOfViewY;
+            case 1:
+                return 30;
+            case 2:
+                return 15;
+            default:
+                throw new System.NotImplementedException("Unimplemented zoom level.");
+        }
+    }
+    private bool CanZoomIn()
+    {
+        //if (ZoomLevel == 0) return true;
+        if (ZoomLevel == 2) return false;
+
+        if (PlayerId == null) return false;
+
+        var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(PlayerId.Value);
+        if (playerObjectComponent == null) return false;
+
+        var currentWeapon = playerObjectComponent.State.CurrentWeapon;
+        if (currentWeapon == null) return false;
+
+        return currentWeapon.Type == WeaponType.SniperRifle;
+    }
+    private void ChangeZoomLevel()
+    {
+        if (PlayerId == null) return;
+
+        if (CanZoomIn())
+        {
+            ZoomLevel++;
+        }
+        else
+        {
+            ZoomLevel = 0;
+        }
+    }
     private void AttachCameraToPlayer(uint playerId)
     {
         var playerObject = OsFps.Instance.FindPlayerObject(playerId);
@@ -608,6 +658,8 @@ public class Client
         {
             weaponCount++;
         }
+
+        ZoomLevel = 0;
     }
     public void Reload(PlayerObjectState playerState)
     {
@@ -615,6 +667,8 @@ public class Client
         {
             playerId = playerState.Id
         });
+
+        ZoomLevel = 0;
     }
 
     public void ShowMuzzleFlash(PlayerObjectComponent playerObjectComponent)

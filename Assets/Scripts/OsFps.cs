@@ -21,6 +21,9 @@ public class OsFps : MonoBehaviour
     public const float MinMouseSensitivity = 1;
     public const float MaxMouseSensitivity = 10;
 
+    public const float MinFieldOfViewY = 60;
+    public const float MaxFieldOfViewY = 110;
+
     public const float MaxPlayerMovementSpeed = 2.25f;
     public const float PlayerInitialJumpSpeed = 4;
     public const float TimeAfterDamageUntilShieldRegen = 2;
@@ -61,6 +64,7 @@ public class OsFps : MonoBehaviour
     public const KeyCode ReloadKeyCode = KeyCode.R;
     public const KeyCode SwitchGrenadeTypeKeyCode = KeyCode.G;
     public const KeyCode PickupWeaponKeyCode = KeyCode.E;
+    public const KeyCode ZoomInKeyCode = KeyCode.Z;
     public const KeyCode ShowScoreboardKeyCode = KeyCode.Tab;
     public const KeyCode ChatKeyCode = KeyCode.Return;
     public const KeyCode ToggleMenuKeyCode = KeyCode.Escape;
@@ -861,7 +865,7 @@ public class OsFps : MonoBehaviour
         const float buttonWidth = 200;
         const float buttonHeight = 30;
         const float buttonSpacing = 10;
-        const int buttonCount = 2;
+        const int buttonCount = 3;
         const float menuWidth = buttonWidth;
         const float menuHeight = (buttonCount * buttonHeight) + ((buttonCount - 1) * buttonSpacing);
 
@@ -877,6 +881,15 @@ public class OsFps : MonoBehaviour
         );
         Settings.MouseSensitivity = GUI.HorizontalSlider(
             new Rect(position, buttonSize), Settings.MouseSensitivity, MinMouseSensitivity, MaxMouseSensitivity
+        );
+        position.y += buttonHeight + buttonSpacing;
+
+        GUI.Label(
+            new Rect(position - new Vector2(0, 25), buttonSize),
+            $"Field Of View: {OsFps.Instance.Settings.FieldOfViewY}"
+        );
+        Settings.FieldOfViewY = GUI.HorizontalSlider(
+            new Rect(position, buttonSize), Settings.FieldOfViewY, MinFieldOfViewY, MaxFieldOfViewY
         );
         position.y += buttonHeight + buttonSpacing;
 
