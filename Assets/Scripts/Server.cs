@@ -39,7 +39,7 @@ public class Server
         ServerPeer.Start(PortNumber, hostTopology);
 
         SceneManager.sceneLoaded += OnMapLoaded;
-        SceneManager.LoadScene("Test Map");
+        SceneManager.LoadScene(OsFps.SmallMapSceneName);
     }
     public void Stop()
     {

@@ -10,6 +10,9 @@ public class OsFps : MonoBehaviour
 {
     public const string LocalHostIpv4Address = "127.0.0.1";
 
+    public const string StartSceneName = "Start";
+    public const string SmallMapSceneName = "Small Map";
+
     public const string PlayerTag = "Player";
     public const string SpawnPointTag = "Respawn";
     public const string PlayerHeadColliderName = "Head";
@@ -24,7 +27,7 @@ public class OsFps : MonoBehaviour
     public const float MinFieldOfViewY = 60;
     public const float MaxFieldOfViewY = 110;
 
-    public const float MaxPlayerMovementSpeed = 2.25f;
+    public const float MaxPlayerMovementSpeed = 4;
     public const float PlayerInitialJumpSpeed = 4;
     public const float TimeAfterDamageUntilShieldRegen = 2;
     public const float ShieldRegenPerSecond = MaxPlayerShield / 2;
@@ -834,7 +837,7 @@ public class OsFps : MonoBehaviour
         if (GUI.Button(new Rect(position.x, position.y, buttonWidth, buttonHeight), "Connect To Server"))
         {
             SceneManager.sceneLoaded += OnMapLoadedAsClient;
-            SceneManager.LoadScene("Test Map");
+            SceneManager.LoadScene(SmallMapSceneName);
         }
         position.y += buttonHeight + buttonSpacing;
 
@@ -1079,6 +1082,6 @@ public class OsFps : MonoBehaviour
     private void OnClientDisconnectedFromServer()
     {
         ShutdownNetworkPeers();
-        SceneManager.LoadScene("Start");
+        SceneManager.LoadScene(StartSceneName);
     }
 }

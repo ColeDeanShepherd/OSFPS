@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using UnityEditor;
+using UnityEngine;
 
 public class GrenadeSpawnerComponent : MonoBehaviour
 {
@@ -12,8 +13,12 @@ public class GrenadeSpawnerComponent : MonoBehaviour
             State.TimeUntilNextSpawn = 0;
         }
     }
-    private void Start()
+
+#if UNITY_EDITOR
+    private void OnDrawGizmos()
     {
-        gameObject.GetComponent<MeshRenderer>().enabled = false;
+        Gizmos.DrawWireSphere(transform.position, 0.25f);
+        Handles.Label(transform.position, State.Type.ToString());
     }
+#endif
 }
