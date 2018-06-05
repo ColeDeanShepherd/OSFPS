@@ -81,8 +81,14 @@ public class OsFps : MonoBehaviour
     
     public Server Server;
     public Client Client;
-    public string EnteredClientIpAddressAndPort;
-    public bool IsInOptionsScreen;
+    public Stack<MonoBehaviour> MenuStack;
+    public bool IsInOptionsScreen
+    {
+        get
+        {
+            return MenuStack.Any() && (MenuStack.Peek() is OptionsScreenComponent);
+        }
+    }
     public Settings Settings;
 
     public bool IsServer
@@ -109,6 +115,11 @@ public class OsFps : MonoBehaviour
     public List<GrenadeDefinitionComponent> GrenadeDefinitionComponents;
 
     #region Inspector-set Variables
+    public GameObject MainMenuPrefab;
+    public GameObject OptionsScreenPrefab;
+    public GameObject PauseScreenPrefab;
+    public GameObject ConnectingScreenPrefab;
+
     public GameObject PlayerPrefab;
     public GameObject CameraPrefab;
 
@@ -536,6 +547,17 @@ public class OsFps : MonoBehaviour
         return sniperBulletTrail;
     }
 
+    public MainMenuComponent CreateMainMenu()
+    {
+        var mainMenuObject = Instantiate(MainMenuPrefab, CanvasObject.transform);
+        return mainMenuObject.GetComponent<MainMenuComponent>();
+    }
+    public OptionsScreenComponent CreateOptionsScreen()
+    {
+        var optionsScreenObject = Instantiate(OptionsScreenPrefab, CanvasObject.transform);
+        return optionsScreenObject.GetComponent<OptionsScreenComponent>();
+    }
+
     private void Awake()
     {
         Assert.raiseExceptions = true;
@@ -585,7 +607,8 @@ public class OsFps : MonoBehaviour
         // Initialize & configure network.
         NetworkTransport.Init();
 
-        EnteredClientIpAddressAndPort = LocalHostIpv4Address + ":" + Server.PortNumber;
+        MenuStack = new Stack<MonoBehaviour>();
+        PushMenu(CreateMainMenu());
     }
     private void OnDestroy()
     {
@@ -624,28 +647,35 @@ public class OsFps : MonoBehaviour
     }
     private void OnGUI()
     {
-        if((Server == null) && (Client == null))
+        if(!((Server == null) && (Client == null)))
         {
-            if (!IsInOptionsScreen)
-            {
-                RenderMainMenu();
-            }
-            else
-            {
-                RenderOptionsScreen();
-            }
-        }
-        else
-        {
-            if (Server != null)
-            {
-                Server.OnGui();
-            }
-
             if (Client != null)
             {
                 Client.OnGui();
             }
+        }
+    }
+
+    public void PushMenu(MonoBehaviour menuComponent)
+    {
+        if (MenuStack.Any())
+        {
+            MenuStack.Peek().gameObject.SetActive(false);
+        }
+
+        MenuStack.Push(menuComponent);
+    }
+    public void PopMenu()
+    {
+        if (MenuStack.Any())
+        {
+            Destroy(MenuStack.Peek().gameObject);
+            MenuStack.Pop();
+        }
+        
+        if (MenuStack.Any())
+        {
+            MenuStack.Peek().gameObject.SetActive(true);
         }
     }
 
@@ -677,104 +707,11 @@ public class OsFps : MonoBehaviour
             Settings = new Settings();
         }
     }
-    private void SaveSettings()
+    public void SaveSettings()
     {
         System.IO.File.WriteAllText(SettingsFilePath, JsonUtility.ToJson(Settings));
     }
-
-    private void RenderMainMenu()
-    {
-        Cursor.lockState = CursorLockMode.None;
-        Cursor.visible = true;
-
-        const float buttonWidth = 200;
-        const float buttonHeight = 30;
-        const float buttonSpacing = 10;
-        const int buttonCount = 5;
-        const float menuWidth = buttonWidth;
-        const float menuHeight = (buttonCount * buttonHeight) + ((buttonCount - 1) * buttonSpacing);
-
-        var position = new Vector2(
-            (Screen.width / 2) - (menuWidth / 2),
-            (Screen.height / 2) - (menuHeight / 2)
-        );
-
-        EnteredClientIpAddressAndPort = GUI.TextField(
-            new Rect(position.x, position.y, buttonWidth, buttonHeight),
-            EnteredClientIpAddressAndPort
-        );
-        position.y += buttonHeight + buttonSpacing;
-
-        if (GUI.Button(new Rect(position.x, position.y, buttonWidth, buttonHeight), "Connect To Server"))
-        {
-            SceneManager.sceneLoaded += OnMapLoadedAsClient;
-            SceneManager.LoadScene(SmallMapSceneName);
-        }
-        position.y += buttonHeight + buttonSpacing;
-
-        if (GUI.Button(new Rect(position.x, position.y, buttonWidth, buttonHeight), "Start Server"))
-        {
-            Server = new Server();
-            Server.Start();
-        }
-        position.y += buttonHeight + buttonSpacing;
-
-        if (GUI.Button(new Rect(position.x, position.y, buttonWidth, buttonHeight), "Options"))
-        {
-            IsInOptionsScreen = true;
-        }
-        position.y += buttonHeight + buttonSpacing;
-        
-        if (GUI.Button(new Rect(position.x, position.y, buttonWidth, buttonHeight), "Quit"))
-        {
-            Application.Quit();
-        }
-        position.y += buttonHeight + buttonSpacing;
-    }
-    public void RenderOptionsScreen()
-    {
-        Cursor.lockState = CursorLockMode.None;
-        Cursor.visible = true;
-
-        const float buttonWidth = 200;
-        const float buttonHeight = 30;
-        const float buttonSpacing = 10;
-        const int buttonCount = 3;
-        const float menuWidth = buttonWidth;
-        const float menuHeight = (buttonCount * buttonHeight) + ((buttonCount - 1) * buttonSpacing);
-
-        var buttonSize = new Vector2(buttonWidth, buttonHeight);
-        var position = new Vector2(
-            (Screen.width / 2) - (menuWidth / 2),
-            (Screen.height / 2) - (menuHeight / 2)
-        );
-
-        GUI.Label(
-            new Rect(position - new Vector2(0, 25), buttonSize),
-            $"Mouse Sensitivity: {OsFps.Instance.Settings.MouseSensitivity}"
-        );
-        Settings.MouseSensitivity = GUI.HorizontalSlider(
-            new Rect(position, buttonSize), Settings.MouseSensitivity, MinMouseSensitivity, MaxMouseSensitivity
-        );
-        position.y += buttonHeight + buttonSpacing;
-
-        GUI.Label(
-            new Rect(position - new Vector2(0, 25), buttonSize),
-            $"Field Of View: {OsFps.Instance.Settings.FieldOfViewY}"
-        );
-        Settings.FieldOfViewY = GUI.HorizontalSlider(
-            new Rect(position, buttonSize), Settings.FieldOfViewY, MinFieldOfViewY, MaxFieldOfViewY
-        );
-        position.y += buttonHeight + buttonSpacing;
-
-        if (GUI.Button(new Rect(position, buttonSize), "Ok"))
-        {
-            SaveSettings();
-            IsInOptionsScreen = false;
-        }
-        position.y += buttonHeight + buttonSpacing;
-    }
-
+    
     public void CallRpcOnServer(string name, int channelId, object argumentsObj)
     {
         var rpcId = rpcIdByName[name];
@@ -931,7 +868,9 @@ public class OsFps : MonoBehaviour
             return false;
         }
     }
-    private void OnMapLoadedAsClient(Scene scene, LoadSceneMode loadSceneMode)
+
+    public string EnteredClientIpAddressAndPort;
+    public void OnMapLoadedAsClient(Scene scene, LoadSceneMode loadSceneMode)
     {
         SceneManager.sceneLoaded -= OnMapLoadedAsClient;
 
@@ -953,6 +892,8 @@ public class OsFps : MonoBehaviour
     private void OnClientDisconnectedFromServer()
     {
         ShutdownNetworkPeers();
+
         SceneManager.LoadScene(StartSceneName);
+        PushMenu(CreateMainMenu());
     }
 }

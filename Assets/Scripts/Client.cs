@@ -194,15 +194,18 @@ public class Client
             {
                 if (!_isShowingMenu)
                 {
+                    var pauseScreenComponent = GameObject.Instantiate(
+                        OsFps.Instance.PauseScreenPrefab, OsFps.Instance.CanvasObject.transform
+                    ).GetComponent<PauseScreenComponent>();
+                    OsFps.Instance.PushMenu(pauseScreenComponent);
+
                     Cursor.lockState = CursorLockMode.None;
                     Cursor.visible = true;
                 }
                 else
                 {
-                    OsFps.Instance.IsInOptionsScreen = false;
+                    OsFps.Instance.PopMenu();
                 }
-
-                _isShowingMenu = !_isShowingMenu;
             }
 
             if (!_isShowingChatMessageInput && !_isShowingMenu)
@@ -230,6 +233,18 @@ public class Client
         }
     }
 
+    public void LeaveServer()
+    {
+        if (ClientPeer.IsConnectedToServer)
+        {
+            DisconnectFromServer();
+        }
+        else
+        {
+            InternalOnDisconnectedFromServer();
+        }
+    }
+
     #region GUI
     private void CreateGui()
     {
@@ -248,23 +263,16 @@ public class Client
     {
         if (ClientPeer.IsConnectedToServer)
         {
+            if (_isShowingConnectingScreen)
+            {
+                OsFps.Instance.PopMenu();
+            }
+
             DrawHud();
 
             if (Input.GetKey(OsFps.ShowScoreboardKeyCode))
             {
                 DrawScoreBoard();
-            }
-
-            if (_isShowingMenu)
-            {
-                if (!OsFps.Instance.IsInOptionsScreen)
-                {
-                    DrawMenu();
-                }
-                else
-                {
-                    OsFps.Instance.RenderOptionsScreen();
-                }
             }
 
             DrawChatWindow();
@@ -283,7 +291,13 @@ public class Client
         }
         else
         {
-            DrawConnectingScreen();
+            if (!_isShowingConnectingScreen)
+            {
+                var connectingScreenComponent = GameObject.Instantiate(
+                    OsFps.Instance.ConnectingScreenPrefab, OsFps.Instance.CanvasObject.transform
+                ).GetComponent<ConnectingScreenComponent>();
+                OsFps.Instance.PushMenu(connectingScreenComponent);
+            }
         }
     }
     private void DrawHud()
@@ -464,70 +478,6 @@ public class Client
             _justOpenedChatMessageInput = false;
         }
     }
-    private void DrawMenu()
-    {
-        const float buttonWidth = 200;
-        const float buttonHeight = 30;
-        const float buttonSpacing = 10;
-        const int buttonCount = 3;
-        const float menuWidth = buttonWidth;
-        const float menuHeight = (buttonCount * buttonHeight) + ((buttonCount - 1) * buttonSpacing);
-
-        var buttonSize = new Vector2(buttonWidth, buttonHeight);
-        var position = new Vector2(
-            (Screen.width / 2) - (menuWidth / 2),
-            (Screen.height / 2) - (menuHeight / 2)
-        );
-
-        if (GUI.Button(new Rect(position, buttonSize), "Exit Menu"))
-        {
-            _isShowingMenu = false;
-        }
-        position.y += buttonSize.y + buttonSpacing;
-        
-        if (GUI.Button(new Rect(position.x, position.y, buttonWidth, buttonHeight), "Options"))
-        {
-            OsFps.Instance.IsInOptionsScreen = true;
-        }
-        position.y += buttonHeight + buttonSpacing;
-
-        if (GUI.Button(new Rect(position, buttonSize), "Leave Server"))
-        {
-            if (ClientPeer.IsConnectedToServer)
-            {
-                DisconnectFromServer();
-            }
-            else
-            {
-                InternalOnDisconnectedFromServer();
-            }
-        }
-        position.y += buttonHeight + buttonSpacing;
-    }
-    private void DrawConnectingScreen()
-    {
-        const float buttonWidth = 200;
-        const float buttonHeight = 30;
-        const float buttonSpacing = 10;
-        const int buttonCount = 2;
-        const float menuWidth = buttonWidth;
-        const float menuHeight = (buttonCount * buttonHeight) + ((buttonCount - 1) * buttonSpacing);
-
-        var buttonSize = new Vector2(buttonWidth, buttonHeight);
-        var position = new Vector2(
-            (Screen.width / 2) - (menuWidth / 2),
-            (Screen.height / 2) - (menuHeight / 2)
-        );
-
-        GUI.Label(new Rect(position, buttonSize), "Connecting...");
-        position.y += buttonSize.y + buttonSpacing;
-
-        if (GUI.Button(new Rect(position, buttonSize), "Cancel"))
-        {
-            InternalOnDisconnectedFromServer();
-        }
-        position.y += buttonHeight + buttonSpacing;
-    }
     private void DrawWeaponPickupHud(WeaponComponent weaponComponent)
     {
         const float margin = 10;
@@ -553,7 +503,24 @@ public class Client
     public List<string> _chatMessages = new List<string>();
     private Vector2 chatMessageScrollPosition = new Vector2();
 
-    public bool _isShowingMenu;
+    public bool _isShowingMenu
+    {
+        get
+        {
+            return
+                OsFps.Instance.MenuStack.Any() &&
+                (OsFps.Instance.MenuStack.Any(mc => mc is PauseScreenComponent));
+        }
+    }
+    public bool _isShowingConnectingScreen
+    {
+        get
+        {
+            return
+                OsFps.Instance.MenuStack.Any() &&
+                (OsFps.Instance.MenuStack.Any(mc => mc is ConnectingScreenComponent));
+        }
+    }
 
     private float GetCurrentFieldOfViewY()
     {
@@ -1308,7 +1275,7 @@ public class Client
     }
     #endregion
 
-    private void InternalOnDisconnectedFromServer()
+    public void InternalOnDisconnectedFromServer()
     {
         OnDisconnectedFromServer?.Invoke();
     }

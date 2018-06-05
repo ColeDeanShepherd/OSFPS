@@ -51,14 +51,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 85d9bf97959ff2f4aa6473ce13eca90d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  EnteredClientIpAddressAndPort: 
-  IsInOptionsScreen: 0
   Settings:
     MouseSensitivity: 3
     FieldOfViewY: 60
   CanvasObject: {fileID: 0}
   WeaponDefinitionComponents: []
   GrenadeDefinitionComponents: []
+  MainMenuPrefab: {fileID: 1309457823639204, guid: 8fdc856a9a4d4cb4cbb3f158cd11d0fe,
+    type: 2}
+  OptionsScreenPrefab: {fileID: 1707398595919452, guid: 9fa143c374ab9d541ba1ced8ec6ce3fc,
+    type: 2}
+  PauseScreenPrefab: {fileID: 1263305745693990, guid: 55632bdcd0a5b7a4c96d36b493a8ce0e,
+    type: 2}
+  ConnectingScreenPrefab: {fileID: 1292784967840450, guid: 9f747fcf3ae8f4a4eb1e29f758f0a896,
+    type: 2}
   PlayerPrefab: {fileID: 1884725033880392, guid: dfcdd0cce8eced1418b0e59689f81abf,
     type: 2}
   CameraPrefab: {fileID: 1878530499864850, guid: 0ff536ec9b5a64a44ace81754935e61b,
@@ -94,3 +100,4 @@ MonoBehaviour:
   ServerShotRayMaterial: {fileID: 2100000, guid: ca092e9ffd3c441418e8094157d11e10,
     type: 2}
   ShieldDownMaterial: {fileID: 2100000, guid: 2ada08ed2571bfc47a259dc51dbfc69e, type: 2}
+  EnteredClientIpAddressAndPort: 

@@ -58,32 +58,6 @@ public class Server
 
         PlayerSystem.Instance.ServerOnLateUpdate(this);
     }
-    public void OnGui()
-    {
-        //DrawMenu();
-    }
-
-    private void DrawMenu()
-    {
-        const float buttonWidth = 200;
-        const float buttonHeight = 30;
-        const float buttonSpacing = 10;
-        const int buttonCount = 1;
-        const float menuWidth = buttonWidth;
-        const float menuHeight = (buttonCount * buttonHeight) + ((buttonCount - 1) * buttonSpacing);
-
-        var buttonSize = new Vector2(buttonWidth, buttonHeight);
-        var position = new Vector2(
-            (Screen.width / 2) - (menuWidth / 2),
-            (Screen.height / 2) - (menuHeight / 2)
-        );
-
-        if (GUI.Button(new Rect(position, buttonSize), "Exit Menu"))
-        {
-            OsFps.Instance.StopServer();
-        }
-        position.y += buttonSize.y + buttonSpacing;
-    }
 
     public void OnClientConnected(int connectionId)
     {
