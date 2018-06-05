@@ -9,6 +9,10 @@ public class ProceduralAnimationExperiment : MonoBehaviour
     public const double FeetInMeter = CentimetersInMeter / CentimetersInInch / InchesInFoot;
     public const double InchesInMeter = CentimetersInMeter / CentimetersInInch;
 
+    Bone humanSkeleton;
+    GameObject humanSkeletonObject;
+    GameObject target;
+
     public struct Bone
     {
         public string Name;
@@ -26,11 +30,24 @@ public class ProceduralAnimationExperiment : MonoBehaviour
         }
     }
 
+    private Bone? FindBoneByName(Bone skeleton, string boneName)
+    {
+        if (skeleton.Name == boneName) return skeleton;
+
+        foreach (var child in skeleton.Children)
+        {
+            var foundBone = FindBoneByName(child, boneName);
+            if (foundBone != null) return foundBone;
+        }
+
+        return null;
+    }
+
     private void Start()
     {
         var boneThickness = 0.1f;
 
-        var humanSkeleton = new Bone
+        humanSkeleton = new Bone
         {
             Name = "root",
             Length = 0,
@@ -75,7 +92,143 @@ public class ProceduralAnimationExperiment : MonoBehaviour
         var rightLegBoneChain = CreateHumanLegBoneChain(isLeft: false);
         humanSkeleton.Children.Add(rightLegBoneChain);
 
-        CreateSkeletonObject(humanSkeleton, Vector3.zero, boneThickness);
+        humanSkeletonObject = CreateSkeletonObject(humanSkeleton, Vector3.zero, boneThickness);
+
+        target = new GameObject("target");
+        target.transform.position = new Vector3(0, -0.6f, 0.4f);
+
+        RunIk();
+    }
+    private void Update()
+    {
+        RunIk();
+    }
+
+    private void RunIk()
+    {
+        var rightUpperLegBone = FindBoneByName(humanSkeleton, "rightUpperLeg");
+        var rightUpperLegObject = humanSkeletonObject.FindDescendant("rightUpperLeg");
+        var rightLowerLegBone = FindBoneByName(humanSkeleton, "rightLowerLeg");
+        var rightLowerLegObject = humanSkeletonObject.FindDescendant("rightLowerLeg");
+        var rightFootBone = FindBoneByName(humanSkeleton, "rightFoot");
+        var rightFootObject = humanSkeletonObject.FindDescendant("rightFoot");
+
+        var targetRightFootPosition = new Vector3(rightUpperLegObject.transform.position.x, target.transform.position.y, target.transform.position.z);
+        var bone1Forward = rightUpperLegObject.transform.parent.forward;
+        Quaternion bone1Orientation, bone2Orientation;
+        TwoBoneIk(
+            rightUpperLegObject.transform.position, bone1Forward, rightUpperLegBone.Value.Length,
+            rightLowerLegBone.Value.Length, targetRightFootPosition, Vector3.up, true,
+            out bone1Orientation, out bone2Orientation
+        );
+
+        rightUpperLegObject.transform.localRotation = bone1Orientation;
+        rightLowerLegObject.transform.localRotation = bone2Orientation;
+    }
+
+    private float LawOfCosinesSolveForAGivenThreeSideLengths(float a, float b, float c)
+    {
+        return Mathf.Acos((-(a * a) + (b * b) + (c * c)) / (2 * b * c));
+    }
+    private float LawOfCosinesSolveForBGivenThreeSideLengths(float a, float b, float c)
+    {
+        return Mathf.Acos(((a * a) + -(b * b) + (c * c)) / (2 * a * c));
+    }
+    private float LawOfCosinesSolveForCGivenThreeSideLengths(float a, float b, float c)
+    {
+        return Mathf.Acos(((a * a) + (b * b) + -(c * c)) / (2 * a * b));
+    }
+
+    private void GetTwoBoneIkAngles(
+        float bone1Length, float bone2Length, float targetDistance, bool getPositiveAngleSolution,
+        out float theta1InRadians, out float theta2InRadians)
+    {
+        if ((bone1Length + bone2Length) < targetDistance)
+        {
+            theta1InRadians = 0;
+            theta2InRadians = 0;
+        }
+        else if (Mathf.Abs(bone1Length - bone2Length) > targetDistance)
+        {
+            theta1InRadians = 0;
+            theta2InRadians = Mathf.PI;
+        }
+        else
+        {
+            var a = bone2Length;
+            var b = bone1Length;
+            var c = targetDistance;
+            var A = LawOfCosinesSolveForAGivenThreeSideLengths(a, b, c);
+            var C = LawOfCosinesSolveForCGivenThreeSideLengths(a, b, c);
+
+            if (getPositiveAngleSolution)
+            {
+                theta1InRadians = A;
+                theta2InRadians = -(Mathf.PI - C);
+            }
+            else
+            {
+                theta1InRadians = -A;
+                theta2InRadians = Mathf.PI - C;
+            }
+        }
+    }
+    private void ApplyTwoBoneIkThetas(
+        float theta1InRadians, float theta2InRadians, bool usePositiveAngleSolution,
+        Vector3 bone1Position, Vector3 bone1Forward,
+        Vector3 targetPosition, Vector3 upDirection,
+        out Quaternion bone1Orientation, out Quaternion bone2Orientation
+    )
+    {
+        var targetOffset = targetPosition - bone1Position;
+        var ikPlane = new Plane(
+            bone1Position,
+            bone1Position + upDirection,
+            targetPosition
+        );
+        var xAxisOnIkPlane = targetOffset.normalized;
+        var yAxisOnIkPlane = Vector3Extensions.Reject(upDirection, xAxisOnIkPlane);
+        var zAxisOnIkPlane = Vector3.Cross(xAxisOnIkPlane, yAxisOnIkPlane);
+        var bone1ForwardOnIkPlane = Vector3.ProjectOnPlane(bone1Forward, ikPlane.normal);
+        var bone1ForwardInIkBasis = new Vector2(
+            Vector3Extensions.ScalarProject(bone1ForwardOnIkPlane, xAxisOnIkPlane),
+            Vector3Extensions.ScalarProject(bone1ForwardOnIkPlane, yAxisOnIkPlane)
+        );
+        Debug.DrawLine(bone1Position, bone1Position + xAxisOnIkPlane);
+        Debug.DrawLine(bone1Position, bone1Position + yAxisOnIkPlane);
+        Debug.DrawLine(bone1Position, bone1Position + zAxisOnIkPlane);
+        Debug.DrawLine(bone1Position, bone1Position + bone1ForwardOnIkPlane);
+
+        var baseThetaInRadians = -Mathf.Atan2(bone1ForwardInIkBasis.y, bone1ForwardInIkBasis.x);
+
+        var bone1AngleInRadians = baseThetaInRadians + theta1InRadians;
+        var bone2AngleInRadians = theta2InRadians;
+
+        bone1Orientation = Quaternion.AngleAxis(
+            Mathf.Rad2Deg * bone1AngleInRadians, zAxisOnIkPlane
+        );
+        bone2Orientation = Quaternion.AngleAxis(
+            Mathf.Rad2Deg * bone2AngleInRadians, zAxisOnIkPlane
+        );
+    }
+    private void TwoBoneIk(
+        Vector3 bone1Position, Vector3 bone1Forward, float bone1Length, float bone2Length,
+        Vector3 targetPosition, Vector3 upDirection, bool getPositiveAngleSolution,
+        out Quaternion bone1Orientation, out Quaternion bone2Orientation
+    )
+    {
+        var targetDistance = Vector3.Distance(bone1Position, targetPosition);
+        float theta1InRadians, theta2InRadians;
+        GetTwoBoneIkAngles(
+            bone1Length, bone2Length, targetDistance, getPositiveAngleSolution,
+            out theta1InRadians, out theta2InRadians
+        );
+
+        ApplyTwoBoneIkThetas(
+            theta1InRadians, theta2InRadians, getPositiveAngleSolution,
+            bone1Position, bone1Forward, targetPosition, upDirection,
+            out bone1Orientation, out bone2Orientation  
+        );
     }
 
     public const double HumanHeight = 1.9;
