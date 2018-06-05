@@ -20,6 +20,7 @@
 * Improve networked shot intervals (send time shot)
 * Add more weapons.
   - battle rifle?
+  - assault rifle
   - plasma pistol?
   - needler?
   - sword?

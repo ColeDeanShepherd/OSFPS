@@ -8,7 +8,7 @@ public class GrenadeComponent : MonoBehaviour
     {
         get
         {
-            return OsFps.GetGrenadeDefinitionByType(State.Type);
+            return OsFps.Instance.GetGrenadeDefinitionByType(State.Type);
         }
     }
 
@@ -42,7 +42,7 @@ public class GrenadeComponent : MonoBehaviour
 
             if (grenadeSpawnerComponent != null)
             {
-                grenadeSpawnerComponent.State.TimeUntilNextSpawn = OsFps.GetGrenadeDefinitionByType(grenadeSpawnerComponent.State.Type).SpawnInterval;
+                grenadeSpawnerComponent.State.TimeUntilNextSpawn = OsFps.Instance.GetGrenadeDefinitionByType(grenadeSpawnerComponent.State.Type).SpawnInterval;
             }
         }
     }

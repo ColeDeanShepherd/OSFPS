@@ -40,7 +40,7 @@ public class WeaponSpawnerSystem : ComponentSystem
     {
         if (weaponSpawnerState.TimeUntilNextSpawn > 0) return;
 
-        var weaponDefinition = OsFps.GetWeaponDefinitionByType(weaponSpawnerState.Type);
+        var weaponDefinition = OsFps.Instance.GetWeaponDefinitionByType(weaponSpawnerState.Type);
         var bulletsLeft = weaponDefinition.MaxAmmo / 2;
         var bulletsLeftInMagazine = Mathf.Min(weaponDefinition.BulletsPerMagazine, bulletsLeft);
         var weaponSpawnerComponent = OsFps.Instance.FindWeaponSpawnerComponent(weaponSpawnerState.Id);

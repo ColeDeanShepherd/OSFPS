@@ -55,35 +55,35 @@ MonoBehaviour:
   IsInOptionsScreen: 0
   Settings:
     MouseSensitivity: 3
+    FieldOfViewY: 60
   CanvasObject: {fileID: 0}
+  WeaponDefinitionComponents: []
+  GrenadeDefinitionComponents: []
   PlayerPrefab: {fileID: 1884725033880392, guid: dfcdd0cce8eced1418b0e59689f81abf,
     type: 2}
   CameraPrefab: {fileID: 1878530499864850, guid: 0ff536ec9b5a64a44ace81754935e61b,
     type: 2}
-  PistolPrefab: {fileID: 1010797790457592, guid: 5d87d3b5c75bc3949a4c736ad3313d75,
-    type: 2}
-  SmgPrefab: {fileID: 1585401937717724, guid: e02fc32f11ad4a049a208260ad83e80a, type: 2}
-  RocketLauncherPrefab: {fileID: 1757310994202714, guid: bb27c9736e8d3da45a783fa78ee90de2,
-    type: 2}
+  WeaponDefinitionPrefabs:
+  - {fileID: 1718773968841972, guid: 8de2822a496da0641a4aa43f94f970c1, type: 2}
+  - {fileID: 1054049577261738, guid: 342913b4a8290e142bdf23fdd7876e6d, type: 2}
+  - {fileID: 1166234133293192, guid: 2eac096525f4264489567183dc38b53f, type: 2}
+  - {fileID: 1287177587395792, guid: 29982d1034a570942a8bc502dc6b2015, type: 2}
+  - {fileID: 1598785561678136, guid: 81007f8ee0801a54089d8391a59cdb85, type: 2}
+  GrenadeDefinitionPrefabs:
+  - {fileID: 1945579007054130, guid: 1e1791f6157394c40b36b1bd2c2cf52a, type: 2}
+  - {fileID: 1507198703594746, guid: 069ce0f66301ddd46974a414fe50d65d, type: 2}
+  ReloadSound: {fileID: 8300000, guid: 4798a30e1e2a66d47a27c83e6ef63bb1, type: 3}
   RocketPrefab: {fileID: 1194062123376506, guid: f6cbc1b0090d9784584f0e47bf443a0b,
     type: 2}
   RocketExplosionPrefab: {fileID: 1612869826966746, guid: 5937abced5d654442aaea2c2c8a39f52,
     type: 2}
-  ShotgunPrefab: {fileID: 1277544913490836, guid: 1bc9ace3960ddfa4c8a4d6958f23a879,
-    type: 2}
-  SniperRiflePrefab: {fileID: 1223679684188120, guid: f4fc670d7eb81d14eb325d3613490dc5,
-    type: 2}
+  RocketExplosionSound: {fileID: 8300000, guid: 36c36706bd5241e4daa533e92f48e99f,
+    type: 3}
+  FragGrenadeBounceSound: {fileID: 8300000, guid: a95fbd73dc9b8b24ca9fd08dac7075c6,
+    type: 3}
   SniperBulletTrailMaterial: {fileID: 2100000, guid: 961ba09c2adff5e49a9f0d8778353eab,
     type: 2}
   MuzzleFlashPrefab: {fileID: 1354871173001656, guid: 1855e5917da52b84ab776dd490c388c5,
-    type: 2}
-  FragmentationGrenadePrefab: {fileID: 1864906674804262, guid: 3832104089c964b41820ab8af630b631,
-    type: 2}
-  FragmentationGrenadeExplosionPrefab: {fileID: 1930225476758076, guid: b4dd5db17d4f7204d9708e752e0fe852,
-    type: 2}
-  StickyGrenadePrefab: {fileID: 1422879523502568, guid: c8fee2f0538553643a559d7f91cd1b0f,
-    type: 2}
-  StickyGrenadeExplosionPrefab: {fileID: 1878559953589122, guid: 74b2126465b584d479f3bae9a23f7b93,
     type: 2}
   GUIContainerPrefab: {fileID: 1410910292466234, guid: a291db3f081f57f4885188377b67d40d,
     type: 2}

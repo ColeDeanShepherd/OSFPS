@@ -205,7 +205,7 @@ public class PlayerSystem : ComponentSystem
             GrenadeSlots = new GrenadeSlot[OsFps.MaxGrenadeSlotCount],
             ReloadTimeLeft = -1
         };
-        var firstWeaponDefinition = OsFps.PistolDefinition;
+        var firstWeaponDefinition = OsFps.Instance.GetWeaponDefinitionByType(WeaponType.Pistol);
         playerObjectState.Weapons[0] = new EquippedWeaponState
         {
             Type = firstWeaponDefinition.Type,
@@ -655,7 +655,7 @@ public class PlayerSystem : ComponentSystem
 
         if (Input.GetKeyDown(OsFps.ReloadKeyCode) && playerObjectState.CanReload)
         {
-            client.Reload(playerObjectState);
+            client.Reload(playerObjectComponent);
         }
 
         if (playerObjectState.Input.IsFirePressed)

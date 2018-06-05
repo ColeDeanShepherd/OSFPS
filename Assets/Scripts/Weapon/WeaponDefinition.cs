@@ -1,4 +1,7 @@
-﻿public class WeaponDefinition
+﻿using UnityEngine;
+
+[System.Serializable]
+public class WeaponDefinition
 {
     public WeaponType Type;
     public ushort MaxAmmo;
@@ -11,6 +14,8 @@
     public bool IsHitScan;
     public float SpawnInterval;
     public float RecoilTime;
+    public GameObject Prefab;
+    public AudioClip ShotSound;
 
     public ushort MaxAmmoOutOfMagazine
     {

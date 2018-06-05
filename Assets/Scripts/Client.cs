@@ -637,7 +637,7 @@ public class Client
 
         if (playerObjectState.CurrentWeapon != null)
         {
-            var weaponPrefab = OsFps.Instance.GetWeaponPrefab(playerObjectState.CurrentWeapon.Type);
+            var weaponPrefab = OsFps.Instance.GetWeaponDefinitionByType(playerObjectState.CurrentWeapon.Type).Prefab;
             GameObject weaponObject = Object.Instantiate(weaponPrefab, Vector3.zero, Quaternion.identity);
             weaponObject.transform.SetParent(playerObjectComponent.HandsPointObject.transform, false);
 
@@ -661,14 +661,16 @@ public class Client
 
         ZoomLevel = 0;
     }
-    public void Reload(PlayerObjectState playerState)
+    public void Reload(PlayerObjectComponent playerObjectComponent)
     {
         OsFps.Instance.CallRpcOnServer("ServerOnPlayerReloadPressed", reliableChannelId, new
         {
-            playerId = playerState.Id
+            playerId = playerObjectComponent.State.Id
         });
 
-        ZoomLevel = 0;
+        var equippedWeaponComponent = GetEquippedWeaponComponent(playerObjectComponent);
+        var audioSource = equippedWeaponComponent?.GetComponent<AudioSource>();
+        audioSource?.PlayOneShot(OsFps.Instance.ReloadSound);
     }
 
     public void ShowMuzzleFlash(PlayerObjectComponent playerObjectComponent)
@@ -686,18 +688,31 @@ public class Client
         ShowMuzzleFlash(playerObjectComponent);
 
         var weapon = playerObjectComponent.State.CurrentWeapon;
-        if ((weapon != null) && (weapon.Type == WeaponType.SniperRifle))
+        if (weapon != null)
         {
-            var shotRay = PlayerSystem.Instance.GetShotRay(playerObjectComponent);
-            OsFps.Instance.CreateSniperBulletTrail(shotRay);
+            if (weapon.Type == WeaponType.SniperRifle)
+            {
+                var shotRay = PlayerSystem.Instance.GetShotRay(playerObjectComponent);
+                OsFps.Instance.CreateSniperBulletTrail(shotRay);
+            }
+
+            var equippedWeaponComponent = GetEquippedWeaponComponent(playerObjectComponent);
+            if (equippedWeaponComponent != null)
+            {
+                var weaponAudioSource = equippedWeaponComponent.GetComponent<AudioSource>();
+                weaponAudioSource?.PlayOneShot(weapon.Definition.ShotSound);
+            }
         }
     }
     public void ShowGrenadeExplosion(Vector3 position, GrenadeType grenadeType)
     {
-        var explosionPrefab = OsFps.Instance.GetGrenadeExplosionPrefab(grenadeType);
+        var explosionPrefab = OsFps.Instance.GetGrenadeDefinitionByType(grenadeType).ExplosionPrefab;
         GameObject grenadeExplosionObject = Object.Instantiate(
             explosionPrefab, position, Quaternion.identity
         );
+
+        var audioSource = grenadeExplosionObject.GetComponent<AudioSource>();
+        audioSource?.Play();
 
         Object.Destroy(grenadeExplosionObject, OsFps.GrenadeExplosionDuration);
     }
@@ -707,6 +722,9 @@ public class Client
         GameObject explosionObject = Object.Instantiate(
             explosionPrefab, position, Quaternion.identity
         );
+
+        var audioSource = explosionObject.GetComponent<AudioSource>();
+        audioSource?.Play();
 
         Object.Destroy(explosionObject, OsFps.RocketExplosionDuration);
     }

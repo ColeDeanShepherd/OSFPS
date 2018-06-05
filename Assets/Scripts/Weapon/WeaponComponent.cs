@@ -7,7 +7,7 @@ public class WeaponComponent : MonoBehaviour
     {
         get
         {
-            return OsFps.GetWeaponDefinitionByType(State.Type);
+            return OsFps.Instance.GetWeaponDefinitionByType(State.Type);
         }
     }
 
@@ -37,7 +37,7 @@ public class WeaponComponent : MonoBehaviour
 
             if (weaponSpawnerComponent != null)
             {
-                weaponSpawnerComponent.State.TimeUntilNextSpawn = OsFps.GetWeaponDefinitionByType(weaponSpawnerComponent.State.Type).SpawnInterval;
+                weaponSpawnerComponent.State.TimeUntilNextSpawn = OsFps.Instance.GetWeaponDefinitionByType(weaponSpawnerComponent.State.Type).SpawnInterval;
             }
         }
     }

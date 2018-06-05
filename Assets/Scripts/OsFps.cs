@@ -76,124 +76,6 @@ public class OsFps : MonoBehaviour
 
     public const string ShieldDownMaterialAlphaParameterName = "Vector1_14FF3C92";
 
-    public static WeaponDefinition PistolDefinition = new WeaponDefinition
-    {
-        Type = WeaponType.Pistol,
-        MaxAmmo = 100,
-        BulletsPerMagazine = 10,
-        DamagePerBullet = 10,
-        HeadShotDamagePerBullet = 25,
-        ReloadTime = 1,
-        ShotInterval = 0.4f,
-        IsAutomatic = false,
-        IsHitScan = true,
-        SpawnInterval = 10,
-        RecoilTime = 1
-    };
-    public static WeaponDefinition SmgDefinition = new WeaponDefinition
-    {
-        Type = WeaponType.Smg,
-        MaxAmmo = 100,
-        BulletsPerMagazine = 10,
-        DamagePerBullet = 10,
-        HeadShotDamagePerBullet = 20,
-        ReloadTime = 1,
-        ShotInterval = 0.1f,
-        IsAutomatic = true,
-        IsHitScan = true,
-        SpawnInterval = 20,
-        RecoilTime = 0.2f
-    };
-    public static WeaponDefinition ShotgunDefinition = new WeaponDefinition
-    {
-        Type = WeaponType.Shotgun,
-        MaxAmmo = 64,
-        BulletsPerMagazine = 8,
-        DamagePerBullet = 10,
-        HeadShotDamagePerBullet = 30,
-        ReloadTime = 1,
-        ShotInterval = 0.75f,
-        IsAutomatic = false,
-        IsHitScan = true,
-        SpawnInterval = 40,
-        RecoilTime = 0.6f
-    };
-    public static WeaponDefinition SniperRifleDefinition = new WeaponDefinition
-    {
-        Type = WeaponType.SniperRifle,
-        MaxAmmo = 16,
-        BulletsPerMagazine = 4,
-        DamagePerBullet = MaxPlayerShield,
-        HeadShotDamagePerBullet = 150,
-        ReloadTime = 1,
-        ShotInterval = 0.75f,
-        IsAutomatic = false,
-        IsHitScan = true,
-        SpawnInterval = 60,
-        RecoilTime = 1
-    };
-    public static WeaponDefinition RocketLauncherDefinition = new WeaponDefinition
-    {
-        Type = WeaponType.RocketLauncher,
-        MaxAmmo = 8,
-        BulletsPerMagazine = 2,
-        DamagePerBullet = 200,
-        HeadShotDamagePerBullet = 200,
-        ReloadTime = 2,
-        ShotInterval = 0.75f,
-        IsAutomatic = false,
-        IsHitScan = false,
-        SpawnInterval = 40,
-        RecoilTime = 2
-    };
-    public static WeaponDefinition GetWeaponDefinitionByType(WeaponType type)
-    {
-        switch (type)
-        {
-            case WeaponType.Pistol:
-                return PistolDefinition;
-            case WeaponType.Smg:
-                return SmgDefinition;
-            case WeaponType.RocketLauncher:
-                return RocketLauncherDefinition;
-            case WeaponType.Shotgun:
-                return ShotgunDefinition;
-            case WeaponType.SniperRifle:
-                return SniperRifleDefinition;
-            default:
-                throw new System.NotImplementedException();
-        }
-    }
-
-    public static GrenadeDefinition FragmentationGrenadeDefinition = new GrenadeDefinition
-    {
-        Type = GrenadeType.Fragmentation,
-        Damage = 90,
-        TimeAfterHitUntilDetonation = 1,
-        ExplosionRadius = 4,
-        SpawnInterval = 20
-    };
-    public static GrenadeDefinition StickyGrenadeDefinition = new GrenadeDefinition
-    {
-        Type = GrenadeType.Sticky,
-        Damage = 130,
-        TimeAfterHitUntilDetonation = 1,
-        ExplosionRadius = 4,
-        SpawnInterval = 20
-    };
-    public static GrenadeDefinition GetGrenadeDefinitionByType(GrenadeType type)
-    {
-        switch (type)
-        {
-            case GrenadeType.Fragmentation:
-                return FragmentationGrenadeDefinition;
-            case GrenadeType.Sticky:
-                return StickyGrenadeDefinition;
-            default:
-                throw new System.NotImplementedException();
-        }
-    }
-
     public static OsFps Instance;
     public static CustomLogger Logger = new CustomLogger(Debug.unityLogger.logHandler);
     
@@ -221,29 +103,29 @@ public class OsFps : MonoBehaviour
     [HideInInspector]
     public GameObject CanvasObject;
 
+    [HideInInspector]
+    public List<WeaponDefinitionComponent> WeaponDefinitionComponents;
+    [HideInInspector]
+    public List<GrenadeDefinitionComponent> GrenadeDefinitionComponents;
+
     #region Inspector-set Variables
     public GameObject PlayerPrefab;
     public GameObject CameraPrefab;
 
-    public GameObject PistolPrefab;
-    public GameObject SmgPrefab;
+    public GameObject[] WeaponDefinitionPrefabs;
+    public GameObject[] GrenadeDefinitionPrefabs;
 
-    public GameObject RocketLauncherPrefab;
+    public AudioClip ReloadSound;
+
     public GameObject RocketPrefab;
     public GameObject RocketExplosionPrefab;
+    public AudioClip RocketExplosionSound;
 
-    public GameObject ShotgunPrefab;
+    public AudioClip FragGrenadeBounceSound;
 
-    public GameObject SniperRiflePrefab;
     public Material SniperBulletTrailMaterial;
 
     public GameObject MuzzleFlashPrefab;
-
-    public GameObject FragmentationGrenadePrefab;
-    public GameObject FragmentationGrenadeExplosionPrefab;
-
-    public GameObject StickyGrenadePrefab;
-    public GameObject StickyGrenadeExplosionPrefab;
 
     public GameObject GUIContainerPrefab;
     public GameObject CrosshairPrefab;
@@ -270,50 +152,7 @@ public class OsFps : MonoBehaviour
 
         return connectionConfig;
     }
-
-    public GameObject GetWeaponPrefab(WeaponType weaponType)
-    {
-        switch (weaponType)
-        {
-            case WeaponType.Pistol:
-                return PistolPrefab;
-            case WeaponType.Smg:
-                return SmgPrefab;
-            case WeaponType.RocketLauncher:
-                return RocketLauncherPrefab;
-            case WeaponType.Shotgun:
-                return ShotgunPrefab;
-            case WeaponType.SniperRifle:
-                return SniperRiflePrefab;
-            default:
-                throw new System.NotImplementedException("Unknown weapon type: " + weaponType);
-        }
-    }
-    public GameObject GetGrenadePrefab(GrenadeType grenadeType)
-    {
-        switch (grenadeType)
-        {
-            case GrenadeType.Fragmentation:
-                return FragmentationGrenadePrefab;
-            case GrenadeType.Sticky:
-                return StickyGrenadePrefab;
-            default:
-                throw new System.NotImplementedException("Unknown grenade type: " + grenadeType);
-        }
-    }
-    public GameObject GetGrenadeExplosionPrefab(GrenadeType grenadeType)
-    {
-        switch (grenadeType)
-        {
-            case GrenadeType.Fragmentation:
-                return FragmentationGrenadeExplosionPrefab;
-            case GrenadeType.Sticky:
-                return StickyGrenadeExplosionPrefab;
-            default:
-                throw new System.NotImplementedException("Unknown grenade type: " + grenadeType);
-        }
-    }
-
+    
     public GameObject CreateLocalPlayerDataObject(PlayerState playerState)
     {
         var playerDataObject = new GameObject($"Player {playerState.Id}");
@@ -354,7 +193,7 @@ public class OsFps : MonoBehaviour
     }
     public GameObject SpawnLocalWeaponObject(WeaponObjectState weaponObjectState)
     {
-        var weaponPrefab = GetWeaponPrefab(weaponObjectState.Type);
+        var weaponPrefab = GetWeaponDefinitionByType(weaponObjectState.Type).Prefab;
         var weaponObject = Instantiate(
             weaponPrefab,
             weaponObjectState.RigidBodyState.Position,
@@ -372,7 +211,7 @@ public class OsFps : MonoBehaviour
     }
     public GameObject SpawnLocalGrenadeObject(GrenadeState grenadeState)
     {
-        var grenadePrefab = GetGrenadePrefab(grenadeState.Type);
+        var grenadePrefab = GetGrenadeDefinitionByType(grenadeState.Type).Prefab;
         var grenadeObject = Instantiate(
             grenadePrefab,
             grenadeState.RigidBodyState.Position,
@@ -404,6 +243,19 @@ public class OsFps : MonoBehaviour
         rigidbody.angularVelocity = rocketState.RigidBodyState.AngularVelocity;
 
         return rocketObject;
+    }
+
+    public WeaponDefinition GetWeaponDefinitionByType(WeaponType type)
+    {
+        return Instance.WeaponDefinitionComponents
+            .FirstOrDefault(wdc => wdc.Definition.Type == type)
+            ?.Definition;
+    }
+    public GrenadeDefinition GetGrenadeDefinitionByType(GrenadeType type)
+    {
+        return Instance.GrenadeDefinitionComponents
+            .FirstOrDefault(gdc => gdc.Definition.Type == type)
+            ?.Definition;
     }
 
     public void ApplyExplosionDamageAndForces(
@@ -703,11 +555,30 @@ public class OsFps : MonoBehaviour
         GameObject guiContainer = Instantiate(GUIContainerPrefab);
         DontDestroyOnLoad(guiContainer);
 
+        CreateDataObject();
         CanvasObject = guiContainer.FindDescendant("Canvas");
 
         SetupRpcs();
 
         LoadSettings();
+    }
+    private GameObject CreateDataObject()
+    {
+        var dataObject = new GameObject("data");
+        DontDestroyOnLoad(dataObject);
+
+        foreach (var weaponDefinitionPrefab in WeaponDefinitionPrefabs)
+        {
+            GameObject weaponDefinitionObject = Instantiate(weaponDefinitionPrefab, dataObject.transform);
+            WeaponDefinitionComponents.Add(weaponDefinitionObject.GetComponent<WeaponDefinitionComponent>());
+        }
+        foreach (var grenadeDefinitionPrefab in GrenadeDefinitionPrefabs)
+        {
+            GameObject grenadeDefinitionObject = Instantiate(grenadeDefinitionPrefab, dataObject.transform);
+            GrenadeDefinitionComponents.Add(grenadeDefinitionObject.GetComponent<GrenadeDefinitionComponent>());
+        }
+
+        return dataObject;
     }
     private void Start()
     {

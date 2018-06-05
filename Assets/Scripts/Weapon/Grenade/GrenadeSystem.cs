@@ -60,7 +60,7 @@ public class GrenadeSystem : ComponentSystem
     private void ServerDetonateGrenade(Server server, GrenadeComponent grenadeComponent)
     {
         var grenade = grenadeComponent.State;
-        var grenadeDefinition = OsFps.GetGrenadeDefinitionByType(grenade.Type);
+        var grenadeDefinition = OsFps.Instance.GetGrenadeDefinitionByType(grenade.Type);
         var grenadePosition = grenadeComponent.transform.position;
 
         // apply damage & forces to players within range
@@ -122,9 +122,14 @@ public class GrenadeSystem : ComponentSystem
 
         if (grenadeState.IsActive)
         {
-            grenadeState.TimeUntilDetonation = OsFps.GetGrenadeDefinitionByType(grenadeState.Type).TimeAfterHitUntilDetonation;
+            grenadeState.TimeUntilDetonation = OsFps.Instance.GetGrenadeDefinitionByType(grenadeState.Type).TimeAfterHitUntilDetonation;
 
-            if (grenadeComponent.State.Type == GrenadeType.Sticky)
+            if (grenadeComponent.State.Type == GrenadeType.Fragmentation)
+            {
+                var audioSource = grenadeComponent.GetComponent<AudioSource>();
+                audioSource.PlayOneShot(OsFps.Instance.FragGrenadeBounceSound);
+            }
+            else if (grenadeComponent.State.Type == GrenadeType.Sticky)
             {
                 StickStickyGrenadeToObject(grenadeComponent, collision.gameObject);
             }

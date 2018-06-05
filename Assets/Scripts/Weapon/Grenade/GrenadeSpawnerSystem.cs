@@ -40,7 +40,7 @@ public class GrenadeSpawnerSystem : ComponentSystem
     {
         if (grenadeSpawnerState.TimeUntilNextSpawn > 0) return;
 
-        var weaponDefinition = OsFps.GetGrenadeDefinitionByType(grenadeSpawnerState.Type);
+        var weaponDefinition = OsFps.Instance.GetGrenadeDefinitionByType(grenadeSpawnerState.Type);
         var weaponSpawnerComponent = OsFps.Instance.FindGrenadeSpawnerComponent(grenadeSpawnerState.Id);
 
         var weaponObjectState = new GrenadeState
