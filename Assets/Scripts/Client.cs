@@ -651,7 +651,7 @@ public class Client
 
         Object.Destroy(muzzleFlashObject, OsFps.MuzzleFlashDuration);
     }
-    public void ShowWeaponFireEffects(PlayerObjectComponent playerObjectComponent)
+    public void ShowWeaponFireEffects(PlayerObjectComponent playerObjectComponent, Ray shotRay)
     {
         ShowMuzzleFlash(playerObjectComponent);
 
@@ -660,7 +660,6 @@ public class Client
         {
             if (weapon.Type == WeaponType.SniperRifle)
             {
-                var shotRay = PlayerSystem.Instance.GetShotRay(playerObjectComponent);
                 OsFps.Instance.CreateSniperBulletTrail(shotRay);
             }
 
@@ -670,6 +669,24 @@ public class Client
                 var weaponAudioSource = equippedWeaponComponent.GetComponent<AudioSource>();
                 weaponAudioSource?.PlayOneShot(weapon.Definition.ShotSound);
             }
+
+            if (weapon.Definition.IsHitScan)
+            {
+                CreateBulletHole(shotRay);
+            }
+        }
+    }
+    private void CreateBulletHole(Ray shotRay)
+    {
+        RaycastHit raycastHit;
+        if (Physics.Raycast(shotRay, out raycastHit))
+        {
+            var bulletHolePosition = raycastHit.point + (0.01f * raycastHit.normal);
+            var bulletHoleOrientation = Quaternion.LookRotation(-raycastHit.normal);
+            var bulletHole = GameObject.Instantiate(
+                OsFps.Instance.BulletHolePrefab, bulletHolePosition, bulletHoleOrientation, raycastHit.transform
+            );
+            Object.Destroy(bulletHole, 5);
         }
     }
     public void ShowGrenadeExplosion(Vector3 position, GrenadeType grenadeType)
@@ -705,7 +722,7 @@ public class Client
         });
 
         // predict the shot
-        ShowWeaponFireEffects(playerObjectComponent);
+        ShowWeaponFireEffects(playerObjectComponent, PlayerSystem.Instance.GetShotRay(playerObjectComponent));
 
         playerObjectComponent.State.CurrentWeapon.TimeSinceLastShot = 0;
     }
@@ -1224,7 +1241,7 @@ public class Client
     }
 
     [Rpc(ExecuteOn = NetworkPeerType.Client)]
-    public void ClientOnTriggerPulled(uint playerId)
+    public void ClientOnTriggerPulled(uint playerId, Ray shotRay)
     {
         // Don't do anything if we pulled the trigger.
         if (playerId == PlayerId)
@@ -1233,7 +1250,7 @@ public class Client
         }
 
         var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(playerId);
-        ShowWeaponFireEffects(playerObjectComponent);
+        ShowWeaponFireEffects(playerObjectComponent, shotRay);
     }
 
     [Rpc(ExecuteOn = NetworkPeerType.Client)]

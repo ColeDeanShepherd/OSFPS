@@ -4,8 +4,11 @@
 
 #### Current
 
+* Add customizable key bindings.
+
 #### High-Priority
 
+* Implement winning/losing, and game restarts.
 * Rethink state compression.
   - Compress game state?
   - Delta compression?
@@ -30,19 +33,14 @@
 * Implement radar.
 * Implement crouching.
 * Implement assists.
-* Implement winning/losing, and game restarts.
 * Implement assassinations.
 * Auto-reload when no bullets in mag.
 * Implement FFA/teams.
 * Show dead/alive players in scoreboard.
-* Show player names above head.
 * Add listen servers.
-* Add sounds.
 
 #### Low-Priority
 
-* Add customizable key bindings.
-* Add bullet holes.
 * Improve server-side verification (use round trip time).
 * Set is fire pressed to false when switching weapons.
 * Improve throwing grenade straight down.

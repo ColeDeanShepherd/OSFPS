@@ -144,6 +144,8 @@ public class OsFps : MonoBehaviour
     public Material ClientShotRayMaterial;
     public Material ServerShotRayMaterial;
     public Material ShieldDownMaterial;
+
+    public GameObject BulletHolePrefab;
     #endregion
 
     public ConnectionConfig CreateConnectionConfig(

@@ -276,7 +276,8 @@ public class Server
 
         OsFps.Instance.CallRpcOnAllClientsExcept("ClientOnTriggerPulled", connectionId.Value, reliableSequencedChannelId, new
         {
-            playerId
+            playerId,
+            shotRay
         });
 
         if (OsFps.ShowHitScanShotsOnServer)
