@@ -43,4 +43,28 @@ public static class GameObjectExtensions
         var velocity = rigidbody.velocity;
         return new Vector3(velocity.x, 0, velocity.z);
     }
+
+    public static void TwoBoneIk(
+        Transform bone1Transform, float bone1Length, Transform bone2Transform, float bone2Length,
+        Vector3 targetPosition, Vector3 elbowTargetPosition, bool getPositiveAngleSolution
+    )
+    {
+        // Get thetas.
+        var targetOffsetFromBone1 = targetPosition - bone1Transform.position;
+        var targetDistanceFromBone1 = targetOffsetFromBone1.magnitude;
+        float theta1InRadians, theta2InRadians;
+        MathfExtensions.GetTwoBoneIkAngles(
+            bone1Length, bone2Length, targetDistanceFromBone1, getPositiveAngleSolution,
+            out theta1InRadians, out theta2InRadians
+        );
+
+        // Rotate bone1 to point to the target, and point the up vector towards the elbow target.
+        var elbowTargetOffsetFromBone1 = elbowTargetPosition - bone1Transform.position;
+        var lookAtUpDirection = Vector3Extensions.Reject(elbowTargetOffsetFromBone1, targetOffsetFromBone1);
+        bone1Transform.LookAt(targetPosition, lookAtUpDirection);
+
+        // Apply thetas.
+        bone1Transform.Rotate(-Vector3.right, Mathf.Rad2Deg * theta1InRadians, Space.Self);
+        bone2Transform.localRotation = Quaternion.AngleAxis(Mathf.Rad2Deg * theta2InRadians, -Vector3.right);
+    }
 }
