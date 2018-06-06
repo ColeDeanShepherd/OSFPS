@@ -61,35 +61,6 @@ public class Server
 
     public void OnClientConnected(int connectionId)
     {
-        var playerId = GenerateNetworkId();
-
-        // Store information about the client.
-        playerIdsByConnectionId.Add(connectionId, playerId);
-
-        // create player data object
-        var playerState = new PlayerState
-        {
-            Id = playerId,
-            Kills = 0,
-            Deaths = 0
-        };
-        OsFps.Instance.CreateLocalPlayerDataObject(playerState);
-
-        // Let the client know its player ID.
-        OsFps.Instance.CallRpcOnClient("ClientOnSetPlayerId", connectionId, reliableSequencedChannelId, new
-        {
-            playerId = playerId
-        });
-
-        // Spawn the player.
-        PlayerSystem.Instance.ServerSpawnPlayer(this, playerId);
-
-        // Send out a chat message.
-        OsFps.Instance.CallRpcOnAllClientsExcept("ClientOnReceiveChatMessage", connectionId, reliableSequencedChannelId, new
-        {
-            playerId = (uint?)null,
-            message = $"{playerId} joined."
-        });
     }
     public void OnClientDisconnected(int connectionId)
     {
@@ -109,7 +80,7 @@ public class Server
         OsFps.Instance.CallRpcOnAllClients("ClientOnReceiveChatMessage", reliableSequencedChannelId, new
         {
             playerId = (uint?)null,
-            message = $"{playerId} left."
+            message = $"{playerComponent.State.Name} left."
         });
     }
 
@@ -221,8 +192,9 @@ public class Server
 
         return null;
     }
-    
+
     #region Message Handlers
+    private int TEMPORARY_HACK_CURRENT_CONNECTION_ID;
     private void OnReceiveDataFromClient(int connectionId, int channelId, byte[] bytesReceived)
     {
         var reader = new BinaryReader(new MemoryStream(bytesReceived));
@@ -233,12 +205,50 @@ public class Server
         if (OsFps.Instance.rpcInfoById.TryGetValue(messageTypeAsByte, out rpcInfo))
         {
             var rpcArguments = NetworkSerializationUtils.DeserializeRpcCallArguments(rpcInfo, reader);
+
+            TEMPORARY_HACK_CURRENT_CONNECTION_ID = connectionId;
             OsFps.Instance.ExecuteRpc(rpcInfo.Id, rpcArguments);
         }
         else
         {
             throw new System.NotImplementedException("Unknown message type: " + messageTypeAsByte);
         }
+    }
+
+    [Rpc(ExecuteOn = NetworkPeerType.Server)]
+    public void ServerOnReceivePlayerInfo(string playerName)
+    {
+        var connectionId = TEMPORARY_HACK_CURRENT_CONNECTION_ID;
+        var playerId = GenerateNetworkId();
+
+        // Store information about the client.
+        playerIdsByConnectionId.Add(connectionId, playerId);
+
+        // create player data object
+        var playerState = new PlayerState
+        {
+            Id = playerId,
+            Name = playerName,
+            Kills = 0,
+            Deaths = 0
+        };
+        OsFps.Instance.CreateLocalPlayerDataObject(playerState);
+
+        // Let the client know its player ID.
+        OsFps.Instance.CallRpcOnClient("ClientOnSetPlayerId", connectionId, reliableSequencedChannelId, new
+        {
+            playerId = playerId
+        });
+
+        // Spawn the player.
+        PlayerSystem.Instance.ServerSpawnPlayer(this, playerId);
+
+        // Send out a chat message.
+        OsFps.Instance.CallRpcOnAllClientsExcept("ClientOnReceiveChatMessage", connectionId, reliableSequencedChannelId, new
+        {
+            playerId = (uint?)null,
+            message = $"{playerName} joined."
+        });
     }
 
     [Rpc(ExecuteOn = NetworkPeerType.Server)]

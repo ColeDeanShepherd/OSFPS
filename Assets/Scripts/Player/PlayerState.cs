@@ -8,6 +8,7 @@ using UnityEngine;
 public class PlayerState : INetworkSerializable
 {
     public uint Id;
+    public string Name;
     public short Kills;
     public ushort Deaths;
     public float RespawnTimeLeft;
@@ -15,6 +16,7 @@ public class PlayerState : INetworkSerializable
     public void Serialize(BinaryWriter writer)
     {
         writer.Write(Id);
+        writer.Write(Name);
         writer.Write(Kills);
         writer.Write(Deaths);
         writer.Write(RespawnTimeLeft);
@@ -22,6 +24,7 @@ public class PlayerState : INetworkSerializable
     public void Deserialize(BinaryReader reader)
     {
         Id = reader.ReadUInt32();
+        Name = reader.ReadString();
         Kills = reader.ReadInt16();
         Deaths = reader.ReadUInt16();
         RespawnTimeLeft = reader.ReadSingle();

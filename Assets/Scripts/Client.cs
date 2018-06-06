@@ -22,6 +22,7 @@ public class Client
     {
         ClientPeer = new ClientPeer();
         ClientPeer.OnReceiveDataFromServer += OnReceiveDataFromServer;
+        ClientPeer.OnConnectedToServer += InternalOnConnectedToServer;
         ClientPeer.OnDisconnectedFromServer += InternalOnDisconnectedFromServer;
 
         var connectionConfig = OsFps.Instance.CreateConnectionConfig(
@@ -402,7 +403,7 @@ public class Client
         var deathsColumnX = killsColumnX + killsColumnWidth;
 
         // Draw table header.
-        GUI.Label(new Rect(idColumnX, position.y, playerIdColumnWidth, rowHeight), "ID");
+        GUI.Label(new Rect(idColumnX, position.y, playerIdColumnWidth, rowHeight), "Player");
         GUI.Label(new Rect(pingColumnX, position.y, pingColumnWidth, rowHeight), "Ping");
         GUI.Label(new Rect(killsColumnX, position.y, killsColumnWidth, rowHeight), "Kills");
         GUI.Label(new Rect(deathsColumnX, position.y, deathsColumnWidth, rowHeight), "Deaths");
@@ -418,7 +419,7 @@ public class Client
                 ? Mathf.RoundToInt(pingInMilliseconds.Value).ToString()
                 : "";
 
-            GUI.Label(new Rect(idColumnX, position.y, playerIdColumnWidth, rowHeight), playerState.Id.ToString());
+            GUI.Label(new Rect(idColumnX, position.y, playerIdColumnWidth, rowHeight), playerState.Name.ToString());
             GUI.Label(new Rect(pingColumnX, position.y, pingColumnWidth, rowHeight), pingString);
             GUI.Label(new Rect(killsColumnX, position.y, killsColumnWidth, rowHeight), playerState.Kills.ToString());
             GUI.Label(new Rect(deathsColumnX, position.y, deathsColumnWidth, rowHeight), playerState.Deaths.ToString());
@@ -1252,6 +1253,7 @@ public class Client
     {
         if (playerId.HasValue)
         {
+            var playerName = OsFps.Instance.FindPlayerComponent(playerId.Value)?.State.Name;
             _chatMessages.Add(string.Format("{0}: {1}", playerId, message));
         }
         else
@@ -1275,6 +1277,13 @@ public class Client
     }
     #endregion
 
+    public void InternalOnConnectedToServer()
+    {
+        OsFps.Instance.CallRpcOnServer("ServerOnReceivePlayerInfo", reliableSequencedChannelId, new
+        {
+            playerName = OsFps.Instance.Settings.PlayerName
+        });
+    }
     public void InternalOnDisconnectedFromServer()
     {
         OnDisconnectedFromServer?.Invoke();

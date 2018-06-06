@@ -623,6 +623,8 @@ public class OsFps : MonoBehaviour
     }
     private void Update()
     {
+        AudioListener.volume = Settings.Volume;
+
         if (Server != null)
         {
             Server.Update();
