@@ -3,80 +3,93 @@ using UnityEngine;
 
 public class ProceduralAnimationExperiment : MonoBehaviour
 {
+    public const float StrideLength = 0.5f;
+    public bool IsRightFootPlanted = false;
+
+    public Vector3 LeftFootTargetPosition;
+    public Vector3 RightFootTargetPosition;
+
     Bone humanSkeleton;
+    GameObject humanSkeletonParentObject;
     GameObject humanSkeletonObject;
+    GameObject leftFootObject;
+    GameObject rightFootObject;
     GameObject leftHandTarget;
     GameObject rightHandTarget;
     GameObject leftFootTarget;
     GameObject rightFootTarget;
 
+    float walkSpeed = 0.5f;
+
     private void Start()
     {
         var boneThickness = 0.1f;
-
+        
         humanSkeleton = CreateHumanSkeleton();
         humanSkeletonObject = Bone.CreateSkeletonObject(humanSkeleton, Vector3.zero, boneThickness);
 
-        humanSkeletonObject.transform.Translate(Vector3.up);
+        var rootObject = humanSkeletonObject;
+        rootObject.transform.position += 1.12f * Vector3.up;
+
+        humanSkeletonParentObject = new GameObject();
+        humanSkeletonObject.transform.parent = humanSkeletonParentObject.transform;
 
         var leftUpperArmObject = humanSkeletonObject.FindDescendant("leftUpperArm");
         leftHandTarget = new GameObject("leftHandTarget");
-        leftHandTarget.transform.position = new Vector3(leftUpperArmObject.transform.position.x, -0.6f, 0.4f);
 
         var rightUpperArmObject = humanSkeletonObject.FindDescendant("rightUpperArm");
         rightHandTarget = new GameObject("rightHandTarget");
-        rightHandTarget.transform.position = new Vector3(rightUpperArmObject.transform.position.x, -0.6f, 0.4f);
 
         var leftUpperLegObject = humanSkeletonObject.FindDescendant("leftUpperLeg");
+        leftFootObject = humanSkeletonObject.FindDescendant("leftFoot");
         leftFootTarget = new GameObject("leftFootTarget");
-        leftFootTarget.transform.position = new Vector3(leftUpperLegObject.transform.position.x, -0.6f, 0.4f);
 
         var rightUpperLegObject = humanSkeletonObject.FindDescendant("rightUpperLeg");
+        rightFootObject = humanSkeletonObject.FindDescendant("rightFoot");
         rightFootTarget = new GameObject("rightFootTarget");
-        rightFootTarget.transform.position = new Vector3(rightUpperLegObject.transform.position.x, -0.6f, 0.4f);
 
-        var torsoObject = humanSkeletonObject.FindDescendant("torso");
-        torsoObject.transform.Translate(0.15f * Vector3.down);
+        IsRightFootPlanted = false;
+        LeftFootTargetPosition = leftFootObject.transform.position;
+        RightFootTargetPosition = rightFootObject.transform.position + new Vector3(0, 0, StrideLength);
 
-        RunIk();
+        leftFootTarget.transform.position = LeftFootTargetPosition;
+        rightFootTarget.transform.position = RightFootTargetPosition;
     }
     private void Update()
     {
-        humanSkeletonObject.transform.position += Time.deltaTime * Vector3.forward;
+        humanSkeletonParentObject.transform.position += Time.deltaTime * (walkSpeed * Vector3.forward);
 
-        leftHandTarget.transform.position = new Vector3(
-            leftHandTarget.transform.position.x,
-            leftHandTarget.transform.position.y,
-            humanSkeletonObject.transform.position.z
-        );
-        rightHandTarget.transform.position = new Vector3(
-            rightHandTarget.transform.position.x,
-            rightHandTarget.transform.position.y,
-            humanSkeletonObject.transform.position.z
-        );
+        if (!IsRightFootPlanted)
+        {
+            if (Vector3.Distance(rightFootObject.transform.position, RightFootTargetPosition) < 0.01f)
+            {
+                IsRightFootPlanted = !IsRightFootPlanted;
+                LeftFootTargetPosition += 2 * StrideLength * Vector3.forward;
+            }
+        }
+        else
+        {
+            if (Vector3.Distance(leftFootObject.transform.position, LeftFootTargetPosition) < 0.01f)
+            {
+                IsRightFootPlanted = !IsRightFootPlanted;
+                RightFootTargetPosition += 2 * StrideLength * Vector3.forward;
+            }
+        }
 
-        leftFootTarget.transform.position = new Vector3(
-            leftFootTarget.transform.position.x,
-            leftFootTarget.transform.position.y,
-            humanSkeletonObject.transform.position.z
-        );
-        rightFootTarget.transform.position = new Vector3(
-            rightFootTarget.transform.position.x,
-            rightFootTarget.transform.position.y,
-            humanSkeletonObject.transform.position.z
-        );
+        var leftFootDirection = (LeftFootTargetPosition - leftFootTarget.transform.position).normalized;
+        var leftFootVelocity = 2.5f * walkSpeed * leftFootDirection;
+        leftFootTarget.transform.position += Time.deltaTime * leftFootVelocity;
+
+        var rightFootDirection = (RightFootTargetPosition - rightFootTarget.transform.position).normalized;
+        var rightFootVelocity = 2.5f * walkSpeed * rightFootDirection;
+        rightFootTarget.transform.position += Time.deltaTime * rightFootVelocity;
 
         RunIk();
     }
 
     private void RunIk()
     {
-        /*elbowTarget.transform.position = Quaternion.AngleAxis(-90, Vector3.right) * (
-            (targetRightFootPosition - rightUpperLegObject.transform.position).normalized +
-            new Vector3(rightUpperLegObject.transform.position.x, 0, 0)
-        );*/
-
-        var elbowTargetOffset = new Vector3(0, -1, -1);
+        /*var elbowTargetOffset = new Vector3(0, -1, -1);
 
         var leftUpperArmBone = Bone.FindBoneByName(humanSkeleton, "leftUpperArm").Value;
         TwoBoneIk(
@@ -88,7 +101,7 @@ public class ProceduralAnimationExperiment : MonoBehaviour
         TwoBoneIk(
             humanSkeletonObject, rightUpperArmBone,
             rightHandTarget.transform.position, elbowTargetOffset
-        );
+        );*/
 
         var kneeTargetOffset = new Vector3(0, 1, 1);
 
