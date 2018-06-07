@@ -131,7 +131,7 @@ public class Client
                     }
                 }
 
-                if (Input.GetKeyDown(OsFps.JumpKeyCode))
+                if (Input.GetButtonDown("Jump"))
                 {
                     var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(PlayerId.Value);
 
@@ -145,7 +145,7 @@ public class Client
                     }
                 }
 
-                if (Input.GetKey(OsFps.PickupWeaponKeyCode))
+                if (Input.GetButton("Pickup Weapon"))
                 {
                     var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(PlayerId.Value);
 
@@ -168,13 +168,13 @@ public class Client
                     }
                 }
 
-                if (Input.GetKeyDown(OsFps.ZoomInKeyCode))
+                if (Input.GetButtonDown("Zoom"))
                 {
                     ChangeZoomLevel();
                 }
             }
 
-            if (Input.GetKeyDown(OsFps.ChatKeyCode))
+            if (Input.GetButtonDown("Chat"))
             {
                 if (!_isShowingChatMessageInput)
                 {
@@ -191,7 +191,7 @@ public class Client
                 }
             }
 
-            if (Input.GetKeyDown(OsFps.ToggleMenuKeyCode))
+            if (Input.GetButtonDown("Toggle Menu"))
             {
                 if (!_isShowingMenu)
                 {
@@ -271,7 +271,7 @@ public class Client
 
             DrawHud();
 
-            if (Input.GetKey(OsFps.ShowScoreboardKeyCode))
+            if (Input.GetButton("Show Scoreboard"))
             {
                 DrawScoreBoard();
             }

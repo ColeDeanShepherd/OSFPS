@@ -57,21 +57,6 @@ public class OsFps : MonoBehaviour
     public const float GrenadeExplosionForce = 500;
     public const float GrenadeExplosionDuration = 0.5f;
 
-    public const int FireMouseButtonNumber = 0;
-    public const int ThrowGrenadeMouseButtonNumber = 1;
-    public const KeyCode MoveForwardKeyCode = KeyCode.W;
-    public const KeyCode MoveBackwardKeyCode = KeyCode.S;
-    public const KeyCode MoveRightKeyCode = KeyCode.D;
-    public const KeyCode MoveLeftKeyCode = KeyCode.A;
-    public const KeyCode JumpKeyCode = KeyCode.Space;
-    public const KeyCode ReloadKeyCode = KeyCode.R;
-    public const KeyCode SwitchGrenadeTypeKeyCode = KeyCode.G;
-    public const KeyCode PickupWeaponKeyCode = KeyCode.E;
-    public const KeyCode ZoomInKeyCode = KeyCode.Z;
-    public const KeyCode ShowScoreboardKeyCode = KeyCode.Tab;
-    public const KeyCode ChatKeyCode = KeyCode.Return;
-    public const KeyCode ToggleMenuKeyCode = KeyCode.Escape;
-
     public const float KillPlaneY = -100;
 
     public const string ShieldDownMaterialAlphaParameterName = "Vector1_14FF3C92";
@@ -391,11 +376,11 @@ public class OsFps : MonoBehaviour
     {
         return new PlayerInput
         {
-            IsMoveFowardPressed = Input.GetKey(MoveForwardKeyCode),
-            IsMoveBackwardPressed = Input.GetKey(MoveBackwardKeyCode),
-            IsMoveRightPressed = Input.GetKey(MoveRightKeyCode),
-            IsMoveLeftPressed = Input.GetKey(MoveLeftKeyCode),
-            IsFirePressed = Input.GetMouseButton(FireMouseButtonNumber)
+            IsMoveFowardPressed = Input.GetButton("Move Forward"),
+            IsMoveBackwardPressed = Input.GetButton("Move Backward"),
+            IsMoveRightPressed = Input.GetButton("Move Right"),
+            IsMoveLeftPressed = Input.GetButton("Move Left"),
+            IsFirePressed = Input.GetButton("Fire")
         };
     }
     public Vector3 GetRelativeMoveDirection(PlayerInput input)

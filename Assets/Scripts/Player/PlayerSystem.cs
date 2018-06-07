@@ -656,14 +656,14 @@ public class PlayerSystem : ComponentSystem
             Mathf.Repeat(playerObjectState.LookDirAngles.y + deltaMouse.x, 360)
         );
 
-        if (Input.GetKeyDown(OsFps.ReloadKeyCode) && playerObjectState.CanReload)
+        if (Input.GetButtonDown("Reload") && playerObjectState.CanReload)
         {
             client.Reload(playerObjectComponent);
         }
 
         if (playerObjectState.Input.IsFirePressed)
         {
-            var wasTriggerJustPulled = Input.GetMouseButtonDown(OsFps.FireMouseButtonNumber);
+            var wasTriggerJustPulled = Input.GetButtonDown("Fire");
 
             if (
                 playerObjectState.CanShoot &&
@@ -674,12 +674,12 @@ public class PlayerSystem : ComponentSystem
             }
         }
 
-        if (Input.GetMouseButtonDown(OsFps.ThrowGrenadeMouseButtonNumber) && playerObjectState.CanThrowGrenade)
+        if (Input.GetButtonDown("Throw Grenade") && playerObjectState.CanThrowGrenade)
         {
             client.ThrowGrenade(playerObjectState);
         }
 
-        if (Input.GetKeyDown(OsFps.SwitchGrenadeTypeKeyCode))
+        if (Input.GetButtonDown("Switch Grenade"))
         {
             client.SwitchGrenadeType(playerObjectState);
         }
