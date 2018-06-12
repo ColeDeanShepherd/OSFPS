@@ -21,6 +21,13 @@ public class MainMenuComponent : MonoBehaviour
     }
     public void OnStartListenServerClick()
     {
+        OsFps.Instance.EnteredClientIpAddressAndPort = OsFps.LocalHostIpv4Address + ":" + Server.PortNumber;
+        OsFps.Instance.Server = new Server();
+        OsFps.Instance.Server.Start();
+
+        SceneManager.sceneLoaded += OsFps.Instance.OnMapLoadedAsClient;
+
+        OsFps.Instance.PopMenu();
     }
     public void OnOptionsClick()
     {

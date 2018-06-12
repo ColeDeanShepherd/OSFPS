@@ -126,12 +126,41 @@ public class Server
 
         OnServerStarted?.Invoke();
     }
-    
+
+    private const int maxCachedSentGameStates = 60;
+    private List<GameState> cachedSentGameStates = new List<GameState>();
+    private Dictionary<uint, uint> _latestAcknowledgedGameStateSequenceNumberByPlayerId = new Dictionary<uint, uint>();
     private void SendGameState()
     {
+        var gameState = gameStateScraperSystem.GetGameState();
+
+        foreach (var playerId in playerIdsByConnectionId.Values)
+        {
+            var playersLatestAcknowledgedGameStateSequenceNumber = _latestAcknowledgedGameStateSequenceNumberByPlayerId
+                .GetValueOrDefault(playerId);
+            var playersLatestAcknowledgedGameState = cachedSentGameStates
+                .FirstOrDefault(gs => gs.SequenceNumber == playersLatestAcknowledgedGameStateSequenceNumber);
+
+            SendGameStateDiff(gameState, playersLatestAcknowledgedGameState, playerId);
+        }
+
         OsFps.Instance.CallRpcOnAllClients("ClientOnReceiveGameState", unreliableStateUpdateChannelId, new
         {
-            gameState = gameStateScraperSystem.GetGameState()
+            gameState = gameState
+        });
+
+        cachedSentGameStates.Add(gameState);
+        if (cachedSentGameStates.Count > maxCachedSentGameStates)
+        {
+            cachedSentGameStates.RemoveAt(0);
+        }
+    }
+    private void SendGameStateDiff(GameState newGameState, GameState oldGameState, uint playerId)
+    {
+        var connectionId = GetConnectionIdByPlayerId(playerId);
+        OsFps.Instance.CallRpcOnClient("ClientOnReceiveGameState", connectionId.Value, unreliableStateUpdateChannelId, new
+        {
+            gameState = newGameState
         });
     }
 
@@ -249,6 +278,18 @@ public class Server
             playerId = (uint?)null,
             message = $"{playerName} joined."
         });
+    }
+
+    [Rpc(ExecuteOn = NetworkPeerType.Server)]
+    public void ServerOnReceiveClientGameStateAck(uint playerId, uint gameStateSequenceNumber)
+    {
+        var latestSequenceNumber =
+            _latestAcknowledgedGameStateSequenceNumberByPlayerId.GetValueOrDefault(playerId);
+
+        if (gameStateSequenceNumber > latestSequenceNumber)
+        {
+            _latestAcknowledgedGameStateSequenceNumberByPlayerId[playerId] = gameStateSequenceNumber;
+        }
     }
 
     [Rpc(ExecuteOn = NetworkPeerType.Server)]

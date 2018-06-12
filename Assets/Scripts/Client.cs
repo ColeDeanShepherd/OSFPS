@@ -12,6 +12,7 @@ public class Client
     public uint? PlayerId;
     public GameObject Camera;
     public GameObject GuiContainer;
+    public ChatBoxComponent ChatBox;
     public int ZoomLevel;
 
     public event ClientPeer.ServerConnectionChangeEventHandler OnDisconnectedFromServer;
@@ -178,9 +179,9 @@ public class Client
             {
                 if (!_isShowingChatMessageInput)
                 {
-                    _isShowingChatMessageInput = true;
-                    _justOpenedChatMessageInput = true;
-                    _chatMessageBeingTyped = "";
+                    SetChatBoxIsVisible(true);
+                    ChatBox.MessageInputField.Select();
+                    ChatBox.MessageInputField.ActivateInputField();
 
                     Cursor.lockState = CursorLockMode.None;
                     Cursor.visible = true;
@@ -214,6 +215,10 @@ public class Client
                 Cursor.lockState = CursorLockMode.Locked;
                 Cursor.visible = false;
             }
+
+            var chatMessagesText = string.Join("\n", _chatMessages);
+            ChatBox.VisualMessagesText.text = chatMessagesText;
+            ChatBox.ScrollableMessagesText.text = chatMessagesText;
 
             SendInputPeriodicFunction.TryToCall();
         }
@@ -253,13 +258,28 @@ public class Client
         GuiContainer.transform.SetParent(OsFps.Instance.CanvasObject.transform);
         GuiContainer.transform.localPosition = Vector3.zero;
         GuiContainer.transform.localRotation = Quaternion.identity;
+        var rectTransform = GuiContainer.AddComponent<RectTransform>();
+        rectTransform.anchorMin = Vector2.zero;
+        rectTransform.anchorMax = Vector2.one;
+        rectTransform.offsetMin = Vector2.zero;
+        rectTransform.offsetMax = Vector2.zero;
 
         GameObject crosshair = Object.Instantiate(OsFps.Instance.CrosshairPrefab);
         crosshair.transform.SetParent(GuiContainer.transform);
         crosshair.transform.localPosition = Vector3.zero;
         crosshair.transform.localRotation = Quaternion.identity;
+
+        ChatBox = Object.Instantiate(OsFps.Instance.ChatBoxPrefab).GetComponent<ChatBoxComponent>();
+        ChatBox.transform.SetParent(GuiContainer.transform, worldPositionStays: false);
+        SetChatBoxIsVisible(false);
     }
 
+    private void SetChatBoxIsVisible(bool isVisible)
+    {
+        ChatBox.MessagesScrollView.gameObject.SetActive(isVisible);
+        ChatBox.MessageInputField.gameObject.SetActive(isVisible);
+        ChatBox.VisualMessagesText.gameObject.SetActive(!isVisible);
+    }
     public void OnGui()
     {
         if (ClientPeer.IsConnectedToServer)
@@ -275,8 +295,6 @@ public class Client
             {
                 DrawScoreBoard();
             }
-
-            DrawChatWindow();
 
             if (PlayerId.HasValue)
             {
@@ -426,59 +444,6 @@ public class Client
             position.y += rowHeight;
         }
     }
-    private void DrawChatWindow()
-    {
-        const float margin = 10;
-        const float chatMessagesWidth = 300;
-        const float chatMessagesHeight = 100;
-        const float chatMessageInputWidth = chatMessagesWidth;
-        const float chatMessageInputHeight = 30;
-        const float totalWidth = chatMessagesWidth;
-        const float totalHeight = chatMessagesHeight + chatMessageInputHeight;
-
-        var chatMessagesRect = new Rect(
-            new Vector2(margin, Screen.height - totalHeight - margin),
-            new Vector2(chatMessagesWidth, chatMessagesHeight)
-        );
-
-        if (_isShowingChatMessageInput)
-        {
-            chatMessageScrollPosition = GUI.BeginScrollView(
-                chatMessagesRect,
-                chatMessageScrollPosition,
-                new Rect(0, 0, chatMessagesWidth, 400)
-            );
-
-            GUI.Label(new Rect(0, 0, chatMessagesWidth, chatMessagesHeight), string.Join("\n", _chatMessages));
-
-            GUI.EndScrollView();
-        }
-        else
-        {
-            GUI.Label(chatMessagesRect, string.Join("\n", _chatMessages));
-        }
-        
-        if (_isShowingChatMessageInput)
-        {
-            if ((Event.current.type == EventType.KeyDown) && (Event.current.keyCode == KeyCode.Return))
-            {
-                ConfirmChatMessage();
-            }
-
-            GUI.SetNextControlName("chatMessageInput");
-            var chatMessageTextFieldRect = new Rect(
-                new Vector3(margin, Screen.height - chatMessageInputHeight - margin),
-                new Vector2(chatMessageInputWidth, chatMessageInputHeight)
-            );
-            _chatMessageBeingTyped = GUI.TextField(chatMessageTextFieldRect, _chatMessageBeingTyped);
-        }
-
-        if (_justOpenedChatMessageInput)
-        {
-            GUI.FocusControl("chatMessageInput");
-            _justOpenedChatMessageInput = false;
-        }
-    }
     private void DrawWeaponPickupHud(WeaponComponent weaponComponent)
     {
         const float margin = 10;
@@ -498,11 +463,14 @@ public class Client
 
     private ThrottledAction SendInputPeriodicFunction;
 
-    public bool _isShowingChatMessageInput;
-    public bool _justOpenedChatMessageInput;
-    private string _chatMessageBeingTyped;
+    public bool _isShowingChatMessageInput
+    {
+        get
+        {
+            return ChatBox?.MessageInputField.gameObject.activeSelf ?? false;
+        }
+    }
     public List<string> _chatMessages = new List<string>();
-    private Vector2 chatMessageScrollPosition = new Vector2();
 
     public bool _isShowingMenu
     {
@@ -761,18 +729,18 @@ public class Client
 
     private void ConfirmChatMessage()
     {
-        if (_chatMessageBeingTyped.Length > 0)
+        if (ChatBox.MessageInputField.text.Length > 0)
         {
             OsFps.Instance.CallRpcOnServer("ServerOnChatMessage", reliableChannelId, new
             {
                 playerId = PlayerId,
-                message = _chatMessageBeingTyped
+                message = ChatBox.MessageInputField.text
             });
 
-            _chatMessageBeingTyped = "";
+            ChatBox.MessageInputField.text = "";
         }
-
-        _isShowingChatMessageInput = false;
+        
+        SetChatBoxIsVisible(false);
     }
 
     private Vector3 CorrectedPosition(Vector3 serverPosition, Vector3 serverVelocity, float roundTripTime, Vector3 clientPosition)
@@ -1201,7 +1169,6 @@ public class Client
     private void SpawnPlayer(PlayerObjectState playerState)
     {
         OsFps.Instance.SpawnLocalPlayer(playerState);
-        //VisualEquipWeapon(playerState);
 
         if (playerState.Id == PlayerId)
         {
@@ -1237,7 +1204,26 @@ public class Client
     [Rpc(ExecuteOn = NetworkPeerType.Client)]
     public void ClientOnReceiveGameState(GameState gameState)
     {
-        ApplyGameState(gameState);
+        if (PlayerId == null) return;
+
+        OsFps.Instance.CallRpcOnServer("ServerOnReceiveClientGameStateAck", unreliableChannelId, new
+        {
+            playerId = PlayerId.Value,
+            gameStateSequenceNumber = gameState.SequenceNumber
+        });
+
+        if (OsFps.Instance.IsRemoteClient)
+        {
+            ApplyGameState(gameState);
+        }
+        else
+        {
+            var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(PlayerId.Value);
+            if (playerObjectComponent != null)
+            {
+                AttachCameraToPlayer(PlayerId.Value);
+            }
+        }
     }
 
     [Rpc(ExecuteOn = NetworkPeerType.Client)]
@@ -1271,7 +1257,7 @@ public class Client
         if (playerId.HasValue)
         {
             var playerName = OsFps.Instance.FindPlayerComponent(playerId.Value)?.State.Name;
-            _chatMessages.Add(string.Format("{0}: {1}", playerId, message));
+            _chatMessages.Add(string.Format("{0}: {1}", playerName, message));
         }
         else
         {

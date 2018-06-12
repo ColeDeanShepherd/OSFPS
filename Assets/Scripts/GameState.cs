@@ -4,6 +4,7 @@ using System.IO;
 
 public class GameState : INetworkSerializable
 {
+    public uint SequenceNumber;
     public List<PlayerState> Players = new List<PlayerState>();
     public List<PlayerObjectState> PlayerObjects = new List<PlayerObjectState>();
     public List<WeaponObjectState> WeaponObjects = new List<WeaponObjectState>();
@@ -14,6 +15,7 @@ public class GameState : INetworkSerializable
 
     public void Serialize(BinaryWriter writer)
     {
+        writer.Write(SequenceNumber);
         NetworkSerializationUtils.Serialize(writer, Players);
         NetworkSerializationUtils.Serialize(writer, PlayerObjects);
         NetworkSerializationUtils.Serialize(writer, WeaponObjects);
@@ -24,6 +26,7 @@ public class GameState : INetworkSerializable
     }
     public void Deserialize(BinaryReader reader)
     {
+        SequenceNumber = reader.ReadUInt32();
         NetworkSerializationUtils.Deserialize(reader, Players);
         NetworkSerializationUtils.Deserialize(reader, PlayerObjects);
         NetworkSerializationUtils.Deserialize(reader, WeaponObjects);

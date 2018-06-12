@@ -8,6 +8,7 @@ public class GameStateScraperSystem
     {
         return new GameState
         {
+            SequenceNumber = GenerateSequenceNumber(),
             Players = GetPlayerStates(),
             PlayerObjects = GetPlayerObjectStates(),
             WeaponObjects = GetWeaponObjectStates(),
@@ -103,5 +104,13 @@ public class GameStateScraperSystem
             Velocity = rigidbody.velocity,
             AngularVelocity = rigidbody.angularVelocity
         };
+    }
+
+    private uint _nextSequenceNumber = 1;
+    private uint GenerateSequenceNumber()
+    {
+        var generatedSequenceNumber = _nextSequenceNumber;
+        _nextSequenceNumber++;
+        return generatedSequenceNumber;
     }
 }

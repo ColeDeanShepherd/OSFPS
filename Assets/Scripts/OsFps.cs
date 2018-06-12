@@ -104,6 +104,7 @@ public class OsFps : MonoBehaviour
     public GameObject OptionsScreenPrefab;
     public GameObject PauseScreenPrefab;
     public GameObject ConnectingScreenPrefab;
+    public GameObject ChatBoxPrefab;
 
     public GameObject PlayerPrefab;
     public GameObject CameraPrefab;
@@ -570,6 +571,12 @@ public class OsFps : MonoBehaviour
         SetupRpcs();
 
         LoadSettings();
+
+        var type = typeof(PlayerState);
+        foreach (var fieldInfo in type.GetFields())
+        {
+            Debug.Log(fieldInfo.Name);
+        }
     }
     private GameObject CreateDataObject()
     {

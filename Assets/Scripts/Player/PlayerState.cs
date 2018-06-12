@@ -15,18 +15,60 @@ public class PlayerState : INetworkSerializable
 
     public void Serialize(BinaryWriter writer)
     {
-        writer.Write(Id);
-        writer.Write(Name);
-        writer.Write(Kills);
-        writer.Write(Deaths);
-        writer.Write(RespawnTimeLeft);
+        byte changeBits = byte.MaxValue;
+
+        if (BitUtilities.GetBit(changeBits, 0))
+        {
+            writer.Write(Id);
+        }
+
+        if (BitUtilities.GetBit(changeBits, 1))
+        {
+            writer.Write(Name);
+        }
+
+        if (BitUtilities.GetBit(changeBits, 2))
+        {
+            writer.Write(Kills);
+        }
+
+        if (BitUtilities.GetBit(changeBits, 3))
+        {
+            writer.Write(Deaths);
+        }
+
+        if (BitUtilities.GetBit(changeBits, 4))
+        {
+            writer.Write(RespawnTimeLeft);
+        }
     }
     public void Deserialize(BinaryReader reader)
     {
-        Id = reader.ReadUInt32();
-        Name = reader.ReadString();
-        Kills = reader.ReadInt16();
-        Deaths = reader.ReadUInt16();
-        RespawnTimeLeft = reader.ReadSingle();
+        byte changeBits = byte.MaxValue;
+
+        if (BitUtilities.GetBit(changeBits, 0))
+        {
+            Id = reader.ReadUInt32();
+        }
+
+        if (BitUtilities.GetBit(changeBits, 1))
+        {
+            Name = reader.ReadString();
+        }
+
+        if (BitUtilities.GetBit(changeBits, 2))
+        {
+            Kills = reader.ReadInt16();
+        }
+
+        if (BitUtilities.GetBit(changeBits, 3))
+        {
+            Deaths = reader.ReadUInt16();
+        }
+
+        if (BitUtilities.GetBit(changeBits, 4))
+        {
+            RespawnTimeLeft = reader.ReadSingle();
+        }
     }
 }

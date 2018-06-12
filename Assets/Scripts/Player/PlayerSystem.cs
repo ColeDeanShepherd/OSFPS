@@ -614,7 +614,9 @@ public class PlayerSystem : ComponentSystem
     private string GetKillMessage(PlayerObjectComponent killedPlayerObjectComponent, PlayerObjectComponent attackerPlayerObjectComponent)
     {
         var killedPlayerComponent = OsFps.Instance.FindPlayerComponent(killedPlayerObjectComponent.State.Id);
-        var attackerPlayerComponent = OsFps.Instance.FindPlayerComponent(attackerPlayerObjectComponent.State.Id);
+        var attackerPlayerComponent = (attackerPlayerObjectComponent != null)
+            ? OsFps.Instance.FindPlayerComponent(attackerPlayerObjectComponent.State.Id)
+            : null;
 
         return (attackerPlayerObjectComponent != null)
             ? string.Format("{0} killed {1}.", attackerPlayerComponent.State.Name, killedPlayerComponent.State.Name)
