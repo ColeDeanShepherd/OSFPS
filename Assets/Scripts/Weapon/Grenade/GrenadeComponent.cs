@@ -8,7 +8,7 @@ public class GrenadeComponent : MonoBehaviour
     {
         get
         {
-            return OsFps.Instance.GetGrenadeDefinitionByType(State.Type);
+            return GrenadeSystem.Instance.GetGrenadeDefinitionByType(State.Type);
         }
     }
 
@@ -22,7 +22,7 @@ public class GrenadeComponent : MonoBehaviour
     }
     private void OnCollisionEnter(Collision collision)
     {
-        OsFps.Instance.GrenadeOnCollisionEnter(this, collision);
+        GrenadeSystem.Instance.GrenadeOnCollisionEnter(this, collision);
     }
     private void OnCollisionStay(Collision collision)
     {
@@ -31,18 +31,18 @@ public class GrenadeComponent : MonoBehaviour
 
         if (playerObject != null)
         {
-            OsFps.Instance.OnPlayerCollidingWithGrenade(playerObject, gameObject);
+            PlayerSystem.Instance.OnPlayerCollidingWithGrenade(playerObject, gameObject);
         }
     }
     private void OnDestroy()
     {
         if (State.GrenadeSpawnerId.HasValue)
         {
-            var grenadeSpawnerComponent = OsFps.Instance.FindGrenadeSpawnerComponent(State.GrenadeSpawnerId.Value);
+            var grenadeSpawnerComponent = GrenadeSpawnerSystem.Instance.FindGrenadeSpawnerComponent(State.GrenadeSpawnerId.Value);
 
             if (grenadeSpawnerComponent != null)
             {
-                grenadeSpawnerComponent.State.TimeUntilNextSpawn = OsFps.Instance.GetGrenadeDefinitionByType(grenadeSpawnerComponent.State.Type).SpawnInterval;
+                grenadeSpawnerComponent.State.TimeUntilNextSpawn = GrenadeSystem.Instance.GetGrenadeDefinitionByType(grenadeSpawnerComponent.State.Type).SpawnInterval;
             }
         }
     }

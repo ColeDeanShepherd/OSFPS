@@ -40,7 +40,7 @@ public class PlayerSystem : ComponentSystem
             var playerObjectState = entity.PlayerObjectComponent.State;
             var wasReloadingBeforeUpdate = playerObjectState.IsReloading;
 
-            OsFps.Instance.UpdatePlayer(entity.PlayerObjectComponent);
+            UpdatePlayer(entity.PlayerObjectComponent);
 
             if (wasReloadingBeforeUpdate && (playerObjectState.ReloadTimeLeft <= 0))
             {
@@ -73,7 +73,7 @@ public class PlayerSystem : ComponentSystem
         {
             Time = currentTime,
             Position = playerObjectComponent.transform.position,
-            LookDirAngles = OsFps.Instance.GetPlayerLookDirAngles(playerObjectComponent)
+            LookDirAngles = GetPlayerLookDirAngles(playerObjectComponent)
         };
     }
 
@@ -91,7 +91,7 @@ public class PlayerSystem : ComponentSystem
 
         playerObjectState.TimeUntilShieldCanRegen = OsFps.TimeAfterDamageUntilShieldRegen;
 
-        var playerComponent = OsFps.Instance.FindPlayerComponent(playerObjectState.Id);
+        var playerComponent = FindPlayerComponent(playerObjectState.Id);
         var playerState = playerComponent.State;
 
         if (!playerObjectState.IsAlive)
@@ -116,7 +116,7 @@ public class PlayerSystem : ComponentSystem
             if (attackingPlayerObjectComponent != null)
             {
                 var attackingPlayerId = attackingPlayerObjectComponent.State.Id;
-                var attackingPlayerComponent = OsFps.Instance.FindPlayerComponent(attackingPlayerId);
+                var attackingPlayerComponent = FindPlayerComponent(attackingPlayerId);
                 attackingPlayerComponent.State.Kills++;
             }
 
@@ -149,7 +149,7 @@ public class PlayerSystem : ComponentSystem
                 AngularVelocity = Vector3.zero
             }
         };
-        OsFps.Instance.SpawnLocalWeaponObject(weaponObjectState);
+        WeaponSpawnerSystem.Instance.SpawnLocalWeaponObject(weaponObjectState);
 
         playerObjectComponent.State.Weapons[weaponIndex] = null;
     }
@@ -176,59 +176,12 @@ public class PlayerSystem : ComponentSystem
                 TimeUntilDetonation = null
             };
 
-            OsFps.Instance.SpawnLocalGrenadeObject(grenadeState);
+            GrenadeSpawnerSystem.Instance.SpawnLocalGrenadeObject(grenadeState);
         }
 
         playerGrenadeSlots[grenadeSlotIndex] = null;
     }
-
-    public GameObject ServerSpawnPlayer(Server server, uint playerId)
-    {
-        var spawnPoint = server.GetNextSpawnPoint();
-        return ServerSpawnPlayer(server, playerId, spawnPoint.Position, spawnPoint.Orientation.eulerAngles.y);
-    }
-    public GameObject ServerSpawnPlayer(Server server, uint playerId, Vector3 position, float lookDirYAngle)
-    {
-        var playerObjectState = new PlayerObjectState
-        {
-            Id = playerId,
-            Position = position,
-            Velocity = Vector3.zero,
-            LookDirAngles = new Vector2(0, lookDirYAngle),
-            Input = new PlayerInput(),
-            Health = OsFps.MaxPlayerHealth,
-            Shield = OsFps.MaxPlayerShield,
-            Weapons = new EquippedWeaponState[OsFps.MaxWeaponCount],
-            CurrentWeaponIndex = 0,
-            TimeUntilCanThrowGrenade = 0,
-            CurrentGrenadeSlotIndex = 0,
-            GrenadeSlots = new GrenadeSlot[OsFps.MaxGrenadeSlotCount],
-            ReloadTimeLeft = -1
-        };
-        var firstWeaponDefinition = OsFps.Instance.GetWeaponDefinitionByType(WeaponType.Pistol);
-        playerObjectState.Weapons[0] = new EquippedWeaponState
-        {
-            Type = firstWeaponDefinition.Type,
-            BulletsLeftInMagazine = firstWeaponDefinition.BulletsPerMagazine,
-            BulletsLeftOutOfMagazine = firstWeaponDefinition.MaxAmmoOutOfMagazine,
-            TimeSinceLastShot = firstWeaponDefinition.ShotInterval
-        };
-
-        playerObjectState.GrenadeSlots[0] = new GrenadeSlot
-        {
-            GrenadeType = GrenadeType.Fragmentation,
-            GrenadeCount = 2
-        };
-        playerObjectState.GrenadeSlots[1] = new GrenadeSlot
-        {
-            GrenadeType = GrenadeType.Sticky,
-            GrenadeCount = 2
-        };
-
-        var playerObject = OsFps.Instance.SpawnLocalPlayer(playerObjectState);
-        return playerObject;
-    }
-
+    
     public Ray GetShotRay(PlayerObjectComponent playerObjectComponent)
     {
         return new Ray(
@@ -243,7 +196,7 @@ public class PlayerSystem : ComponentSystem
         var shootingPlayerObjectState = shootingPlayerObjectComponent.State;
         if (!shootingPlayerObjectState.CanShoot) return;
 
-        var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(shootingPlayerObjectState.Id);
+        var playerObjectComponent = FindPlayerObjectComponent(shootingPlayerObjectState.Id);
         if (playerObjectComponent == null) return;
 
         var weaponState = shootingPlayerObjectState.CurrentWeapon;
@@ -282,7 +235,7 @@ public class PlayerSystem : ComponentSystem
     )
     {
         playerObjectComponent.transform.position = snapshot.Position;
-        OsFps.Instance.ApplyLookDirAnglesToPlayer(playerObjectComponent, snapshot.LookDirAngles);
+        ApplyLookDirAnglesToPlayer(playerObjectComponent, snapshot.LookDirAngles);
         
         if (OsFps.ShowLagCompensationOnServer)
         {
@@ -447,7 +400,7 @@ public class PlayerSystem : ComponentSystem
             },
             ShooterPlayerId = shootingPlayerObjectComponent.State.Id
         };
-        var rocket = OsFps.Instance.SpawnLocalRocketObject(rocketState);
+        var rocket = RocketSystem.Instance.SpawnLocalRocketObject(rocketState);
     }
     public void ServerPlayerStartReload(PlayerObjectComponent playerObjectComponent)
     {
@@ -583,16 +536,16 @@ public class PlayerSystem : ComponentSystem
 
     public void UpdatePlayerMovement(PlayerObjectState playerObjectState)
     {
-        var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(playerObjectState.Id);
+        var playerObjectComponent = FindPlayerObjectComponent(playerObjectState.Id);
         if (playerObjectComponent == null) return;
 
-        OsFps.Instance.ApplyLookDirAnglesToPlayer(playerObjectComponent, playerObjectState.LookDirAngles);
+        ApplyLookDirAnglesToPlayer(playerObjectComponent, playerObjectState.LookDirAngles);
 
-        var isGrounded = OsFps.Instance.IsPlayerGrounded(playerObjectComponent);
+        var isGrounded = IsPlayerGrounded(playerObjectComponent);
 
         if (isGrounded)
         {
-            var relativeMoveDirection = OsFps.Instance.GetRelativeMoveDirection(playerObjectState.Input);
+            var relativeMoveDirection = GetRelativeMoveDirection(playerObjectState.Input);
             var playerYAngle = playerObjectComponent.transform.eulerAngles.y;
             var horizontalMoveDirection = Quaternion.Euler(new Vector3(0, playerYAngle, 0)) * relativeMoveDirection;
             var desiredHorizontalVelocity = OsFps.MaxPlayerMovementSpeed * horizontalMoveDirection;
@@ -611,11 +564,24 @@ public class PlayerSystem : ComponentSystem
         playerObjectComponent.Rigidbody.velocity = newPlayerVelocity;
     }
 
+    public void SetShieldAlpha(PlayerObjectComponent playerObjectComponent, float alpha)
+    {
+        foreach (var meshRenderer in playerObjectComponent.GetComponentsInChildren<MeshRenderer>())
+        {
+            var shieldDownMaterial = meshRenderer.materials
+                .FirstOrDefault(m => m.name.Contains(OsFps.Instance.ShieldDownMaterial.name));
+            if (shieldDownMaterial != null)
+            {
+                shieldDownMaterial.SetFloat(OsFps.ShieldDownMaterialAlphaParameterName, alpha);
+            }
+        }
+    }
+
     private string GetKillMessage(PlayerObjectComponent killedPlayerObjectComponent, PlayerObjectComponent attackerPlayerObjectComponent)
     {
-        var killedPlayerComponent = OsFps.Instance.FindPlayerComponent(killedPlayerObjectComponent.State.Id);
+        var killedPlayerComponent = FindPlayerComponent(killedPlayerObjectComponent.State.Id);
         var attackerPlayerComponent = (attackerPlayerObjectComponent != null)
-            ? OsFps.Instance.FindPlayerComponent(attackerPlayerObjectComponent.State.Id)
+            ? FindPlayerComponent(attackerPlayerObjectComponent.State.Id)
             : null;
 
         return (attackerPlayerObjectComponent != null)
@@ -642,13 +608,13 @@ public class PlayerSystem : ComponentSystem
                 }
             }
 
-            OsFps.Instance.UpdatePlayer(playerObjectComponent);
+            UpdatePlayer(playerObjectComponent);
         }
     }
     private void ClientUpdateThisPlayer(Client client, PlayerObjectComponent playerObjectComponent)
     {
         var playerObjectState = playerObjectComponent.State;
-        playerObjectState.Input = OsFps.Instance.GetCurrentPlayersInput();
+        playerObjectState.Input = GetCurrentPlayersInput();
 
         var unscaledDeltaMouse = new Vector2(Input.GetAxis("Mouse X"), Input.GetAxis("Mouse Y"));
         var deltaMouse = OsFps.Instance.Settings.MouseSensitivity * unscaledDeltaMouse;
@@ -685,5 +651,158 @@ public class PlayerSystem : ComponentSystem
         {
             client.SwitchGrenadeType(playerObjectState);
         }
+    }
+
+    public PlayerInput GetCurrentPlayersInput()
+    {
+        return new PlayerInput
+        {
+            IsMoveFowardPressed = Input.GetButton("Move Forward"),
+            IsMoveBackwardPressed = Input.GetButton("Move Backward"),
+            IsMoveRightPressed = Input.GetButton("Move Right"),
+            IsMoveLeftPressed = Input.GetButton("Move Left"),
+            IsFirePressed = Input.GetButton("Fire")
+        };
+    }
+    public Vector3 GetRelativeMoveDirection(PlayerInput input)
+    {
+        var moveDirection = Vector3.zero;
+
+        if (input.IsMoveFowardPressed)
+        {
+            moveDirection += Vector3.forward;
+        }
+
+        if (input.IsMoveBackwardPressed)
+        {
+            moveDirection += Vector3.back;
+        }
+
+        if (input.IsMoveRightPressed)
+        {
+            moveDirection += Vector3.right;
+        }
+
+        if (input.IsMoveLeftPressed)
+        {
+            moveDirection += Vector3.left;
+        }
+
+        return moveDirection.normalized;
+    }
+
+    public bool IsPlayerGrounded(PlayerObjectComponent playerObjectComponent)
+    {
+        var sphereRadius = 0.4f;
+        var spherePosition = playerObjectComponent.transform.position + new Vector3(0, 0.3f, 0);
+
+        var intersectingColliders = Physics.OverlapSphere(spherePosition, sphereRadius);
+        return intersectingColliders.Any(collider =>
+        {
+            var otherPlayerObjectComponent = collider.gameObject.FindComponentInObjectOrAncestor<PlayerObjectComponent>();
+            return (
+                (otherPlayerObjectComponent == null) ||
+                (otherPlayerObjectComponent.State.Id != playerObjectComponent.State.Id)
+            );
+        });
+    }
+
+    public void UpdatePlayer(PlayerObjectComponent playerObjectComponent)
+    {
+        var playerObjectState = playerObjectComponent.State;
+
+        // reload
+        if (playerObjectState.IsReloading)
+        {
+            playerObjectState.ReloadTimeLeft -= Time.deltaTime;
+        }
+
+        // shot interval
+        if ((playerObjectState.CurrentWeapon != null) && (playerObjectState.CurrentWeapon.TimeUntilCanShoot > 0))
+        {
+            playerObjectState.CurrentWeapon.TimeSinceLastShot += Time.deltaTime;
+        }
+
+        // grenade throw interval
+        if (playerObjectState.TimeUntilCanThrowGrenade > 0)
+        {
+            playerObjectState.TimeUntilCanThrowGrenade -= Time.deltaTime;
+        }
+
+        // shield regen interval
+        float shieldRegenTime;
+        if (playerObjectState.TimeUntilShieldCanRegen > 0)
+        {
+            playerObjectState.TimeUntilShieldCanRegen -= Time.deltaTime;
+            shieldRegenTime = (playerObjectState.TimeUntilShieldCanRegen <= 0)
+                ? Mathf.Abs(playerObjectState.TimeUntilShieldCanRegen)
+                : 0;
+        }
+        else
+        {
+            shieldRegenTime = Time.deltaTime;
+        }
+
+        var shieldRegenAmount = shieldRegenTime * OsFps.ShieldRegenPerSecond;
+        playerObjectState.Shield = Mathf.Min(playerObjectState.Shield + shieldRegenAmount, OsFps.MaxPlayerShield);
+
+        // update movement
+        UpdatePlayerMovement(playerObjectState);
+    }
+
+    public Vector2 GetPlayerLookDirAngles(PlayerObjectComponent playerObjectComponent)
+    {
+        return new Vector2(
+            playerObjectComponent.CameraPointObject.transform.localEulerAngles.x,
+            playerObjectComponent.transform.eulerAngles.y
+        );
+    }
+    public void ApplyLookDirAnglesToPlayer(PlayerObjectComponent playerObjectComponent, Vector2 LookDirAngles)
+    {
+        playerObjectComponent.transform.localEulerAngles = new Vector3(0, LookDirAngles.y, 0);
+        playerObjectComponent.CameraPointObject.transform.localEulerAngles = new Vector3(LookDirAngles.x, 0, 0);
+    }
+
+    // probably too much boilerplate here
+    public void OnPlayerCollidingWithWeapon(GameObject playerObject, GameObject weaponObject)
+    {
+        if (OsFps.Instance.Server != null)
+        {
+            ServerOnPlayerCollidingWithWeapon(OsFps.Instance.Server, playerObject, weaponObject);
+        }
+    }
+    public void OnPlayerCollidingWithGrenade(GameObject playerObject, GameObject grenadeObject)
+    {
+        if (OsFps.Instance.Server != null)
+        {
+            ServerOnPlayerCollidingWithGrenade(playerObject, grenadeObject);
+        }
+    }
+
+    public GameObject FindPlayerObject(uint playerId)
+    {
+        var playerObjectComponent = FindPlayerObjectComponent(playerId);
+        return playerObjectComponent?.gameObject;
+    }
+    public PlayerComponent FindPlayerComponent(uint playerId)
+    {
+        return Object.FindObjectsOfType<PlayerComponent>()
+            .FirstOrDefault(pc => pc.State.Id == playerId);
+    }
+    public PlayerObjectComponent FindPlayerObjectComponent(uint playerId)
+    {
+        return Object.FindObjectsOfType<PlayerObjectComponent>()
+            .FirstOrDefault(poc => poc.State.Id == playerId);
+    }
+    public GameObject CreateLocalPlayerDataObject(PlayerState playerState)
+    {
+        var playerDataObject = new GameObject($"Player {playerState.Id}");
+
+        var playerComponent = playerDataObject.AddComponent<PlayerComponent>();
+        playerComponent.State = playerState;
+
+        playerDataObject.AddComponent<GameObjectEntity>();
+
+        return playerDataObject;
     }
 }

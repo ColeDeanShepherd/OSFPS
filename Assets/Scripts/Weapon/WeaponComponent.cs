@@ -7,7 +7,7 @@ public class WeaponComponent : MonoBehaviour
     {
         get
         {
-            return OsFps.Instance.GetWeaponDefinitionByType(State.Type);
+            return WeaponSystem.Instance.GetWeaponDefinitionByType(State.Type);
         }
     }
 
@@ -26,18 +26,18 @@ public class WeaponComponent : MonoBehaviour
 
         if (playerObject != null)
         {
-            OsFps.Instance.OnPlayerCollidingWithWeapon(playerObject, gameObject);
+            PlayerSystem.Instance.OnPlayerCollidingWithWeapon(playerObject, gameObject);
         }
     }
     private void OnDestroy()
     {
         if (State.WeaponSpawnerId.HasValue)
         {
-            var weaponSpawnerComponent = OsFps.Instance.FindWeaponSpawnerComponent(State.WeaponSpawnerId.Value);
+            var weaponSpawnerComponent = WeaponSpawnerSystem.Instance.FindWeaponSpawnerComponent(State.WeaponSpawnerId.Value);
 
             if (weaponSpawnerComponent != null)
             {
-                weaponSpawnerComponent.State.TimeUntilNextSpawn = OsFps.Instance.GetWeaponDefinitionByType(weaponSpawnerComponent.State.Type).SpawnInterval;
+                weaponSpawnerComponent.State.TimeUntilNextSpawn = WeaponSystem.Instance.GetWeaponDefinitionByType(weaponSpawnerComponent.State.Type).SpawnInterval;
             }
         }
     }

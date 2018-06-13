@@ -5,6 +5,8 @@ public class RocketState : INetworkSerializable
 {
     public uint Id;
     public RigidBodyState RigidBodyState = new RigidBodyState();
+
+    // not network serialized
     public uint? ShooterPlayerId;
 
     public void Deserialize(BinaryReader reader)

@@ -1,11 +1,19 @@
 ﻿using UnityEngine;
 using Unity.Entities;
+using System.Linq;
 
 public class GrenadeSpawnerSystem : ComponentSystem
 {
     public struct Group
     {
         public GrenadeSpawnerComponent GrenadeSpawnerComponent;
+    }
+
+    public static GrenadeSpawnerSystem Instance;
+
+    public GrenadeSpawnerSystem()
+    {
+        Instance = this;
     }
 
     protected override void OnUpdate()
@@ -40,8 +48,8 @@ public class GrenadeSpawnerSystem : ComponentSystem
     {
         if (grenadeSpawnerState.TimeUntilNextSpawn > 0) return;
 
-        var weaponDefinition = OsFps.Instance.GetGrenadeDefinitionByType(grenadeSpawnerState.Type);
-        var weaponSpawnerComponent = OsFps.Instance.FindGrenadeSpawnerComponent(grenadeSpawnerState.Id);
+        var weaponDefinition = GrenadeSystem.Instance.GetGrenadeDefinitionByType(grenadeSpawnerState.Type);
+        var weaponSpawnerComponent = FindGrenadeSpawnerComponent(grenadeSpawnerState.Id);
 
         var weaponObjectState = new GrenadeState
         {
@@ -57,6 +65,31 @@ public class GrenadeSpawnerSystem : ComponentSystem
             IsActive = false,
             GrenadeSpawnerId = grenadeSpawnerState.Id
         };
-        OsFps.Instance.SpawnLocalGrenadeObject(weaponObjectState);
+        SpawnLocalGrenadeObject(weaponObjectState);
     }
+
+    public GrenadeSpawnerComponent FindGrenadeSpawnerComponent(uint id)
+    {
+        return Object.FindObjectsOfType<GrenadeSpawnerComponent>()
+            .FirstOrDefault(gsc => gsc.State.Id == id);
+    }
+    public GameObject SpawnLocalGrenadeObject(GrenadeState grenadeState)
+    {
+        var grenadePrefab = GrenadeSystem.Instance.GetGrenadeDefinitionByType(grenadeState.Type).Prefab;
+        var grenadeObject = GameObject.Instantiate(
+            grenadePrefab,
+            grenadeState.RigidBodyState.Position,
+            Quaternion.Euler(grenadeState.RigidBodyState.EulerAngles)
+        );
+
+        var grenadeComponent = grenadeObject.GetComponent<GrenadeComponent>();
+        grenadeComponent.State = grenadeState;
+
+        var rigidbody = grenadeComponent.Rigidbody;
+        rigidbody.velocity = grenadeState.RigidBodyState.Velocity;
+        rigidbody.angularVelocity = grenadeState.RigidBodyState.AngularVelocity;
+
+        return grenadeObject;
+    }
+
 }

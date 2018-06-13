@@ -1,7 +1,6 @@
-﻿using System.Linq;
-using UnityEngine;
+﻿using UnityEngine;
 using Unity.Entities;
-using System.Collections.Generic;
+using System.Linq;
 
 public class RocketSystem : ComponentSystem
 {
@@ -25,17 +24,17 @@ public class RocketSystem : ComponentSystem
             ServerOnUpdate(server);
         }
     }
-
     private void ServerOnUpdate(Server server)
     {
         var deltaTime = Time.deltaTime;
     }
+
     private void ServerDetonateRocket(Server server, RocketComponent rocketComponent)
     {
         var rocketPosition = rocketComponent.transform.position;
 
         // apply damage & forces to players within range
-        var rocketLauncherDefinition = OsFps.Instance.GetWeaponDefinitionByType(WeaponType.RocketLauncher);
+        var rocketLauncherDefinition = WeaponSystem.Instance.GetWeaponDefinitionByType(WeaponType.RocketLauncher);
         OsFps.Instance.ApplyExplosionDamageAndForces(
             server, rocketPosition, OsFps.RocketExplosionRadius, OsFps.RocketExplosionForce,
             rocketLauncherDefinition.DamagePerBullet, rocketComponent.State.ShooterPlayerId
@@ -55,5 +54,36 @@ public class RocketSystem : ComponentSystem
     public void ServerRocketOnCollisionEnter(Server server, RocketComponent rocketComponent, Collision collision)
     {
         ServerDetonateRocket(server, rocketComponent);
+    }
+
+    public GameObject SpawnLocalRocketObject(RocketState rocketState)
+    {
+        var rocketObject = GameObject.Instantiate(
+            OsFps.Instance.RocketPrefab,
+            rocketState.RigidBodyState.Position,
+            Quaternion.Euler(rocketState.RigidBodyState.EulerAngles)
+        );
+
+        var rocketComponent = rocketObject.GetComponent<RocketComponent>();
+        rocketComponent.State = rocketState;
+
+        var rigidbody = rocketComponent.Rigidbody;
+        rigidbody.velocity = rocketState.RigidBodyState.Velocity;
+        rigidbody.angularVelocity = rocketState.RigidBodyState.AngularVelocity;
+
+        return rocketObject;
+    }
+    public void RocketOnCollisionEnter(RocketComponent rocketComponent, Collision collision)
+    {
+        if (OsFps.Instance.Server != null)
+        {
+            RocketSystem.Instance.ServerRocketOnCollisionEnter(OsFps.Instance.Server, rocketComponent, collision);
+        }
+    }
+
+    public RocketComponent FindRocketComponent(uint id)
+    {
+        return Object.FindObjectsOfType<RocketComponent>()
+           .FirstOrDefault(g => g.State.Id == id);
     }
 }

@@ -8,6 +8,12 @@ public class PlayerRespawnSystem : ComponentSystem
         public PlayerComponent PlayerComponent;
     }
 
+    public static PlayerRespawnSystem Instance;
+
+    public PlayerRespawnSystem()
+    {
+        Instance = this;
+    }
     protected override void OnUpdate()
     {
         var server = OsFps.Instance?.Server;
@@ -16,7 +22,6 @@ public class PlayerRespawnSystem : ComponentSystem
             ServerOnUpdate(server);
         }
     }
-
     private void ServerOnUpdate(Server server)
     {
         foreach (var entity in GetEntities<Group>())
@@ -28,9 +33,71 @@ public class PlayerRespawnSystem : ComponentSystem
 
                 if (playerState.RespawnTimeLeft <= 0)
                 {
-                    PlayerSystem.Instance.ServerSpawnPlayer(server, playerState.Id);
+                    ServerSpawnPlayer(server, playerState.Id);
                 }
             }
         }
+    }
+
+    public GameObject ServerSpawnPlayer(Server server, uint playerId)
+    {
+        var spawnPoint = server.GetNextSpawnPoint();
+        return ServerSpawnPlayer(server, playerId, spawnPoint.Position, spawnPoint.Orientation.eulerAngles.y);
+    }
+    public GameObject ServerSpawnPlayer(Server server, uint playerId, Vector3 position, float lookDirYAngle)
+    {
+        var playerObjectState = new PlayerObjectState
+        {
+            Id = playerId,
+            Position = position,
+            Velocity = Vector3.zero,
+            LookDirAngles = new Vector2(0, lookDirYAngle),
+            Input = new PlayerInput(),
+            Health = OsFps.MaxPlayerHealth,
+            Shield = OsFps.MaxPlayerShield,
+            Weapons = new EquippedWeaponState[OsFps.MaxWeaponCount],
+            CurrentWeaponIndex = 0,
+            TimeUntilCanThrowGrenade = 0,
+            CurrentGrenadeSlotIndex = 0,
+            GrenadeSlots = new GrenadeSlot[OsFps.MaxGrenadeSlotCount],
+            ReloadTimeLeft = -1
+        };
+        var firstWeaponDefinition = WeaponSystem.Instance.GetWeaponDefinitionByType(WeaponType.Pistol);
+        playerObjectState.Weapons[0] = new EquippedWeaponState
+        {
+            Type = firstWeaponDefinition.Type,
+            BulletsLeftInMagazine = firstWeaponDefinition.BulletsPerMagazine,
+            BulletsLeftOutOfMagazine = firstWeaponDefinition.MaxAmmoOutOfMagazine,
+            TimeSinceLastShot = firstWeaponDefinition.ShotInterval
+        };
+
+        playerObjectState.GrenadeSlots[0] = new GrenadeSlot
+        {
+            GrenadeType = GrenadeType.Fragmentation,
+            GrenadeCount = 2
+        };
+        playerObjectState.GrenadeSlots[1] = new GrenadeSlot
+        {
+            GrenadeType = GrenadeType.Sticky,
+            GrenadeCount = 2
+        };
+
+        var playerObject = SpawnLocalPlayer(playerObjectState);
+        return playerObject;
+    }
+    
+    public GameObject SpawnLocalPlayer(PlayerObjectState playerObjectState)
+    {
+        var playerObject = GameObject.Instantiate(
+            OsFps.Instance.PlayerPrefab, playerObjectState.Position, Quaternion.Euler(playerObjectState.LookDirAngles)
+        );
+
+        var playerObjectComponent = playerObject.GetComponent<PlayerObjectComponent>();
+        playerObjectComponent.State = playerObjectState;
+        playerObjectComponent.Rigidbody.velocity = playerObjectState.Velocity;
+
+        PlayerSystem.Instance.SetShieldAlpha(playerObjectComponent, 0);
+
+        return playerObject;
     }
 }

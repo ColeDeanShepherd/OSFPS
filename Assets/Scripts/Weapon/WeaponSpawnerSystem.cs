@@ -1,11 +1,19 @@
 ﻿using UnityEngine;
 using Unity.Entities;
+using System.Linq;
 
 public class WeaponSpawnerSystem : ComponentSystem
 {
     public struct Group
     {
         public WeaponSpawnerComponent WeaponSpawnerComponent;
+    }
+
+    public static WeaponSpawnerSystem Instance;
+
+    public WeaponSpawnerSystem()
+    {
+        Instance = this;
     }
 
     protected override void OnUpdate()
@@ -16,7 +24,6 @@ public class WeaponSpawnerSystem : ComponentSystem
             ServerOnUpdate(server);
         }
     }
-
     private void ServerOnUpdate(Server server)
     {
         foreach (var entity in GetEntities<Group>())
@@ -36,14 +43,15 @@ public class WeaponSpawnerSystem : ComponentSystem
             }
         }
     }
+
     public void ServerSpawnWeapon(Server server, WeaponSpawnerState weaponSpawnerState)
     {
         if (weaponSpawnerState.TimeUntilNextSpawn > 0) return;
 
-        var weaponDefinition = OsFps.Instance.GetWeaponDefinitionByType(weaponSpawnerState.Type);
+        var weaponDefinition = WeaponSystem.Instance.GetWeaponDefinitionByType(weaponSpawnerState.Type);
         var bulletsLeft = weaponDefinition.MaxAmmo / 2;
         var bulletsLeftInMagazine = Mathf.Min(weaponDefinition.BulletsPerMagazine, bulletsLeft);
-        var weaponSpawnerComponent = OsFps.Instance.FindWeaponSpawnerComponent(weaponSpawnerState.Id);
+        var weaponSpawnerComponent = FindWeaponSpawnerComponent(weaponSpawnerState.Id);
 
         var weaponObjectState = new WeaponObjectState
         {
@@ -60,6 +68,30 @@ public class WeaponSpawnerSystem : ComponentSystem
             },
             WeaponSpawnerId = weaponSpawnerState.Id
         };
-        OsFps.Instance.SpawnLocalWeaponObject(weaponObjectState);
+        SpawnLocalWeaponObject(weaponObjectState);
+    }
+    public GameObject SpawnLocalWeaponObject(WeaponObjectState weaponObjectState)
+    {
+        var weaponPrefab = WeaponSystem.Instance.GetWeaponDefinitionByType(weaponObjectState.Type).Prefab;
+        var weaponObject = GameObject.Instantiate(
+            weaponPrefab,
+            weaponObjectState.RigidBodyState.Position,
+            Quaternion.Euler(weaponObjectState.RigidBodyState.EulerAngles)
+        );
+
+        var weaponObjectComponent = weaponObject.GetComponent<WeaponComponent>();
+        weaponObjectComponent.State = weaponObjectState;
+
+        var rigidbody = weaponObjectComponent.Rigidbody;
+        rigidbody.velocity = weaponObjectState.RigidBodyState.Velocity;
+        rigidbody.angularVelocity = weaponObjectState.RigidBodyState.AngularVelocity;
+
+        return weaponObject;
+    }
+
+    public WeaponSpawnerComponent FindWeaponSpawnerComponent(uint id)
+    {
+        return Object.FindObjectsOfType<WeaponSpawnerComponent>()
+            .FirstOrDefault(wsc => wsc.State.Id == id);
     }
 }

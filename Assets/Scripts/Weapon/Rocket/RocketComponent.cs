@@ -18,6 +18,6 @@ public class RocketComponent : MonoBehaviour
     }
     private void OnCollisionEnter(Collision collision)
     {
-        OsFps.Instance.RocketOnCollisionEnter(this, collision);
+        RocketSystem.Instance.RocketOnCollisionEnter(this, collision);
     }
 }

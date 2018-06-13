@@ -8,6 +8,8 @@ public class GrenadeState : INetworkSerializable
     public RigidBodyState RigidBodyState = new RigidBodyState();
     public bool IsActive;
     public float? TimeUntilDetonation;
+
+    // not network serialized
     public uint? ThrowerPlayerId;
     public uint? GrenadeSpawnerId;
 

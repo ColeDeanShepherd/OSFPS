@@ -1,7 +1,7 @@
-﻿using System.Linq;
-using UnityEngine;
+﻿using UnityEngine;
 using Unity.Entities;
 using System.Collections.Generic;
+using System.Linq;
 
 public class GrenadeSystem : ComponentSystem
 {
@@ -25,7 +25,6 @@ public class GrenadeSystem : ComponentSystem
             ServerOnUpdate(server);
         }
     }
-    
     private void ServerOnUpdate(Server server)
     {
         var deltaTime = Time.deltaTime;
@@ -57,10 +56,11 @@ public class GrenadeSystem : ComponentSystem
             ServerDetonateGrenade(server, grenadeToDetonate);
         }
     }
+
     private void ServerDetonateGrenade(Server server, GrenadeComponent grenadeComponent)
     {
         var grenade = grenadeComponent.State;
-        var grenadeDefinition = OsFps.Instance.GetGrenadeDefinitionByType(grenade.Type);
+        var grenadeDefinition = GetGrenadeDefinitionByType(grenade.Type);
         var grenadePosition = grenadeComponent.transform.position;
 
         // apply damage & forces to players within range
@@ -105,7 +105,7 @@ public class GrenadeSystem : ComponentSystem
             },
             ThrowerPlayerId = playerObjectState.Id
         };
-        var grenadeObject = OsFps.Instance.SpawnLocalGrenadeObject(grenadeState);
+        var grenadeObject = GrenadeSpawnerSystem.Instance.SpawnLocalGrenadeObject(grenadeState);
 
         currentGrenadeSlot.GrenadeCount--;
         playerObjectState.TimeUntilCanThrowGrenade = OsFps.GrenadeThrowInterval;
@@ -122,7 +122,7 @@ public class GrenadeSystem : ComponentSystem
 
         if (grenadeState.IsActive)
         {
-            grenadeState.TimeUntilDetonation = OsFps.Instance.GetGrenadeDefinitionByType(grenadeState.Type).TimeAfterHitUntilDetonation;
+            grenadeState.TimeUntilDetonation = GetGrenadeDefinitionByType(grenadeState.Type).TimeAfterHitUntilDetonation;
 
             if (grenadeComponent.State.Type == GrenadeType.Fragmentation)
             {
@@ -134,5 +134,25 @@ public class GrenadeSystem : ComponentSystem
                 StickStickyGrenadeToObject(grenadeComponent, collision.gameObject);
             }
         }
+    }
+
+    public void GrenadeOnCollisionEnter(GrenadeComponent grenadeComponent, Collision collision)
+    {
+        if (OsFps.Instance.Server != null)
+        {
+            GrenadeSystem.Instance.ServerGrenadeOnCollisionEnter(OsFps.Instance.Server, grenadeComponent, collision);
+        }
+    }
+
+    public GrenadeComponent FindGrenadeComponent(uint id)
+    {
+        return Object.FindObjectsOfType<GrenadeComponent>()
+           .FirstOrDefault(g => g.State.Id == id);
+    }
+    public GrenadeDefinition GetGrenadeDefinitionByType(GrenadeType type)
+    {
+        return OsFps.Instance.GrenadeDefinitionComponents
+            .FirstOrDefault(gdc => gdc.Definition.Type == type)
+            ?.Definition;
     }
 }

@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using UnityEngine;
+﻿using System.IO;
 
 [System.Serializable]
 public class PlayerState : INetworkSerializable

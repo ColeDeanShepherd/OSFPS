@@ -8,6 +8,7 @@ using UnityEngine.SceneManagement;
 
 public class OsFps : MonoBehaviour
 {
+    #region Constants
     public const string LocalHostIpv4Address = "127.0.0.1";
 
     public const string StartSceneName = "Start";
@@ -60,6 +61,7 @@ public class OsFps : MonoBehaviour
     public const float KillPlaneY = -100;
 
     public const string ShieldDownMaterialAlphaParameterName = "Vector1_14FF3C92";
+    #endregion
 
     public static OsFps Instance;
     public static CustomLogger Logger = new CustomLogger(Debug.unityLogger.logHandler);
@@ -152,111 +154,6 @@ public class OsFps : MonoBehaviour
         return connectionConfig;
     }
     
-    public GameObject CreateLocalPlayerDataObject(PlayerState playerState)
-    {
-        var playerDataObject = new GameObject($"Player {playerState.Id}");
-
-        var playerComponent = playerDataObject.AddComponent<PlayerComponent>();
-        playerComponent.State = playerState;
-
-        playerDataObject.AddComponent<GameObjectEntity>();
-
-        return playerDataObject;
-    }
-
-    public void SetShieldAlpha(PlayerObjectComponent playerObjectComponent, float alpha)
-    {
-        foreach (var meshRenderer in playerObjectComponent.GetComponentsInChildren<MeshRenderer>())
-        {
-            var shieldDownMaterial = meshRenderer.materials
-                .FirstOrDefault(m => m.name.Contains(OsFps.Instance.ShieldDownMaterial.name));
-            if (shieldDownMaterial != null)
-            {
-                shieldDownMaterial.SetFloat(ShieldDownMaterialAlphaParameterName, alpha);
-            }
-        }
-    }
-    public GameObject SpawnLocalPlayer(PlayerObjectState playerObjectState)
-    {
-        var playerObject = Instantiate(
-            PlayerPrefab, playerObjectState.Position, Quaternion.Euler(playerObjectState.LookDirAngles)
-        );
-
-        var playerObjectComponent = playerObject.GetComponent<PlayerObjectComponent>();
-        playerObjectComponent.State = playerObjectState;
-        playerObjectComponent.Rigidbody.velocity = playerObjectState.Velocity;
-
-        SetShieldAlpha(playerObjectComponent, 0);
-
-        return playerObject;
-    }
-    public GameObject SpawnLocalWeaponObject(WeaponObjectState weaponObjectState)
-    {
-        var weaponPrefab = GetWeaponDefinitionByType(weaponObjectState.Type).Prefab;
-        var weaponObject = Instantiate(
-            weaponPrefab,
-            weaponObjectState.RigidBodyState.Position,
-            Quaternion.Euler(weaponObjectState.RigidBodyState.EulerAngles)
-        );
-
-        var weaponObjectComponent = weaponObject.GetComponent<WeaponComponent>();
-        weaponObjectComponent.State = weaponObjectState;
-
-        var rigidbody = weaponObjectComponent.Rigidbody;
-        rigidbody.velocity = weaponObjectState.RigidBodyState.Velocity;
-        rigidbody.angularVelocity = weaponObjectState.RigidBodyState.AngularVelocity;
-
-        return weaponObject;
-    }
-    public GameObject SpawnLocalGrenadeObject(GrenadeState grenadeState)
-    {
-        var grenadePrefab = GetGrenadeDefinitionByType(grenadeState.Type).Prefab;
-        var grenadeObject = Instantiate(
-            grenadePrefab,
-            grenadeState.RigidBodyState.Position,
-            Quaternion.Euler(grenadeState.RigidBodyState.EulerAngles)
-        );
-
-        var grenadeComponent = grenadeObject.GetComponent<GrenadeComponent>();
-        grenadeComponent.State = grenadeState;
-
-        var rigidbody = grenadeComponent.Rigidbody;
-        rigidbody.velocity = grenadeState.RigidBodyState.Velocity;
-        rigidbody.angularVelocity = grenadeState.RigidBodyState.AngularVelocity;
-
-        return grenadeObject;
-    }
-    public GameObject SpawnLocalRocketObject(RocketState rocketState)
-    {
-        var rocketObject = Instantiate(
-            RocketPrefab,
-            rocketState.RigidBodyState.Position,
-            Quaternion.Euler(rocketState.RigidBodyState.EulerAngles)
-        );
-
-        var rocketComponent = rocketObject.GetComponent<RocketComponent>();
-        rocketComponent.State = rocketState;
-
-        var rigidbody = rocketComponent.Rigidbody;
-        rigidbody.velocity = rocketState.RigidBodyState.Velocity;
-        rigidbody.angularVelocity = rocketState.RigidBodyState.AngularVelocity;
-
-        return rocketObject;
-    }
-
-    public WeaponDefinition GetWeaponDefinitionByType(WeaponType type)
-    {
-        return Instance.WeaponDefinitionComponents
-            .FirstOrDefault(wdc => wdc.Definition.Type == type)
-            ?.Definition;
-    }
-    public GrenadeDefinition GetGrenadeDefinitionByType(GrenadeType type)
-    {
-        return Instance.GrenadeDefinitionComponents
-            .FirstOrDefault(gdc => gdc.Definition.Type == type)
-            ?.Definition;
-    }
-
     public void ApplyExplosionDamageAndForces(
         Server server, Vector3 explosionPosition, float explosionRadius, float maxExplosionForce,
         float maxDamage, uint? attackerPlayerId
@@ -296,7 +193,7 @@ public class OsFps : MonoBehaviour
 
             // TODO: don't call system directly
             var attackingPlayerObjectComponent = attackerPlayerId.HasValue
-                ? OsFps.Instance.FindPlayerObjectComponent(attackerPlayerId.Value)
+                ? PlayerSystem.Instance.FindPlayerObjectComponent(attackerPlayerId.Value)
                 : null;
             PlayerSystem.Instance.ServerDamagePlayer(
                 server, playerObjectComponent, damage, attackingPlayerObjectComponent
@@ -324,217 +221,7 @@ public class OsFps : MonoBehaviour
             }
         }
     }
-
-    public GameObject FindPlayerObject(uint playerId)
-    {
-        var playerObjectComponent = FindPlayerObjectComponent(playerId);
-        return playerObjectComponent?.gameObject;
-    }
-    public PlayerComponent FindPlayerComponent(uint playerId)
-    {
-        return FindObjectsOfType<PlayerComponent>()
-            .FirstOrDefault(pc => pc.State.Id == playerId);
-    }
-    public PlayerObjectComponent FindPlayerObjectComponent(uint playerId)
-    {
-        return FindObjectsOfType<PlayerObjectComponent>()
-            .FirstOrDefault(poc => poc.State.Id == playerId);
-    }
-
-    public WeaponComponent FindWeaponComponent(uint weaponId)
-    {
-        return FindObjectsOfType<WeaponComponent>()
-            .FirstOrDefault(wc => wc.State?.Id == weaponId);
-    }
-    public GameObject FindWeaponObject(uint weaponId)
-    {
-        var weaponComponent = FindWeaponComponent(weaponId);
-        return weaponComponent?.gameObject;
-    }
-    public GrenadeComponent FindGrenadeComponent(uint id)
-    {
-         return FindObjectsOfType<GrenadeComponent>()
-            .FirstOrDefault(g => g.State.Id == id);
-    }
-    public RocketComponent FindRocketComponent(uint id)
-    {
-        return FindObjectsOfType<RocketComponent>()
-           .FirstOrDefault(g => g.State.Id == id);
-    }
-
-    public WeaponSpawnerComponent FindWeaponSpawnerComponent(uint id)
-    {
-        return FindObjectsOfType<WeaponSpawnerComponent>()
-            .FirstOrDefault(wsc => wsc.State.Id == id);
-    }
-    public GrenadeSpawnerComponent FindGrenadeSpawnerComponent(uint id)
-    {
-        return FindObjectsOfType<GrenadeSpawnerComponent>()
-            .FirstOrDefault(gsc => gsc.State.Id == id);
-    }
-
-    public PlayerInput GetCurrentPlayersInput()
-    {
-        return new PlayerInput
-        {
-            IsMoveFowardPressed = Input.GetButton("Move Forward"),
-            IsMoveBackwardPressed = Input.GetButton("Move Backward"),
-            IsMoveRightPressed = Input.GetButton("Move Right"),
-            IsMoveLeftPressed = Input.GetButton("Move Left"),
-            IsFirePressed = Input.GetButton("Fire")
-        };
-    }
-    public Vector3 GetRelativeMoveDirection(PlayerInput input)
-    {
-        var moveDirection = Vector3.zero;
-
-        if (input.IsMoveFowardPressed)
-        {
-            moveDirection += Vector3.forward;
-        }
-
-        if (input.IsMoveBackwardPressed)
-        {
-            moveDirection += Vector3.back;
-        }
-
-        if (input.IsMoveRightPressed)
-        {
-            moveDirection += Vector3.right;
-        }
-
-        if (input.IsMoveLeftPressed)
-        {
-            moveDirection += Vector3.left;
-        }
-
-        return moveDirection.normalized;
-    }
     
-    public bool IsPlayerGrounded(PlayerObjectComponent playerObjectComponent)
-    {
-        var sphereRadius = 0.4f;
-        var spherePosition = playerObjectComponent.transform.position + new Vector3(0, 0.3f, 0);
-
-        var intersectingColliders = Physics.OverlapSphere(spherePosition, sphereRadius);
-        return intersectingColliders.Any(collider =>
-        {
-            var otherPlayerObjectComponent = collider.gameObject.FindComponentInObjectOrAncestor<PlayerObjectComponent>();
-            return (
-                (otherPlayerObjectComponent == null) ||
-                (otherPlayerObjectComponent.State.Id != playerObjectComponent.State.Id)
-            );
-        });
-    }
-
-    public void UpdatePlayer(PlayerObjectComponent playerObjectComponent)
-    {
-        var playerObjectState = playerObjectComponent.State;
-
-        // reload
-        if (playerObjectState.IsReloading)
-        {
-            playerObjectState.ReloadTimeLeft -= Time.deltaTime;
-        }
-
-        // shot interval
-        if ((playerObjectState.CurrentWeapon != null) && (playerObjectState.CurrentWeapon.TimeUntilCanShoot > 0))
-        {
-            playerObjectState.CurrentWeapon.TimeSinceLastShot += Time.deltaTime;
-        }
-
-        // grenade throw interval
-        if (playerObjectState.TimeUntilCanThrowGrenade > 0)
-        {
-            playerObjectState.TimeUntilCanThrowGrenade -= Time.deltaTime;
-        }
-
-        // shield regen interval
-        float shieldRegenTime;
-        if (playerObjectState.TimeUntilShieldCanRegen > 0)
-        {
-            playerObjectState.TimeUntilShieldCanRegen -= Time.deltaTime;
-            shieldRegenTime = (playerObjectState.TimeUntilShieldCanRegen <= 0)
-                ? Mathf.Abs(playerObjectState.TimeUntilShieldCanRegen)
-                : 0;
-        }
-        else
-        {
-            shieldRegenTime = Time.deltaTime;
-        }
-
-        var shieldRegenAmount = shieldRegenTime * OsFps.ShieldRegenPerSecond;
-        playerObjectState.Shield = Mathf.Min(playerObjectState.Shield + shieldRegenAmount, OsFps.MaxPlayerShield);
-
-        // update movement
-        PlayerSystem.Instance.UpdatePlayerMovement(playerObjectState);
-    }
-
-    public Vector2 GetPlayerLookDirAngles(PlayerObjectComponent playerObjectComponent)
-    {
-        return new Vector2(
-            playerObjectComponent.CameraPointObject.transform.localEulerAngles.x,
-            playerObjectComponent.transform.eulerAngles.y
-        );
-    }
-    public void ApplyLookDirAnglesToPlayer(PlayerObjectComponent playerObjectComponent, Vector2 LookDirAngles)
-    {
-        playerObjectComponent.transform.localEulerAngles = new Vector3(0, LookDirAngles.y, 0);
-        playerObjectComponent.CameraPointObject.transform.localEulerAngles = new Vector3(LookDirAngles.x, 0, 0);
-    }
-
-    // probably too much boilerplate here
-    public void OnPlayerCollidingWithWeapon(GameObject playerObject, GameObject weaponObject)
-    {
-        if (Server != null)
-        {
-            PlayerSystem.Instance.ServerOnPlayerCollidingWithWeapon(Server, playerObject, weaponObject);
-        }
-    }
-
-    public void OnPlayerCollidingWithGrenade(GameObject playerObject, GameObject grenadeObject)
-    {
-        if (Server != null)
-        {
-            PlayerSystem.Instance.ServerOnPlayerCollidingWithGrenade(playerObject, grenadeObject);
-        }
-    }
-
-    public void GrenadeOnCollisionEnter(GrenadeComponent grenadeComponent, Collision collision)
-    {
-        if (Server != null)
-        {
-            GrenadeSystem.Instance.ServerGrenadeOnCollisionEnter(Server, grenadeComponent, collision);
-        }
-    }
-    public void RocketOnCollisionEnter(RocketComponent rocketComponent, Collision collision)
-    {
-        if (Server != null)
-        {
-            RocketSystem.Instance.ServerRocketOnCollisionEnter(Server, rocketComponent, collision);
-        }
-    }
-
-    public GameObject CreateSniperBulletTrail(Ray ray)
-    {
-        var sniperBulletTrail = new GameObject("sniperBulletTrail");
-        var lineRenderer = sniperBulletTrail.AddComponent<LineRenderer>();
-        lineRenderer.SetPositions(new []
-        {
-            ray.origin,
-            ray.origin + (2000 * ray.direction)
-        });
-        lineRenderer.material = SniperBulletTrailMaterial;
-
-        var lineWidth = 0.1f;
-        lineRenderer.startWidth = lineWidth;
-        lineRenderer.endWidth = lineWidth;
-
-        Object.Destroy(sniperBulletTrail, 1);
-
-        return sniperBulletTrail;
-    }
-
     public MainMenuComponent CreateMainMenu()
     {
         var mainMenuObject = Instantiate(MainMenuPrefab, CanvasObject.transform);

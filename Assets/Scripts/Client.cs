@@ -82,7 +82,7 @@ public class Client
             {
                 if (Input.GetKeyDown(KeyCode.Alpha1))
                 {
-                    var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(PlayerId.Value);
+                    var playerObjectComponent = PlayerSystem.Instance.FindPlayerObjectComponent(PlayerId.Value);
 
                     if (playerObjectComponent != null)
                     {
@@ -92,7 +92,7 @@ public class Client
 
                 if (Input.GetKeyDown(KeyCode.Alpha2))
                 {
-                    var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(PlayerId.Value);
+                    var playerObjectComponent = PlayerSystem.Instance.FindPlayerObjectComponent(PlayerId.Value);
 
                     if (playerObjectComponent != null)
                     {
@@ -103,7 +103,7 @@ public class Client
                 var mouseScrollDirection = Input.GetAxis("Mouse ScrollWheel");
                 if (mouseScrollDirection > 0)
                 {
-                    var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(PlayerId.Value);
+                    var playerObjectComponent = PlayerSystem.Instance.FindPlayerObjectComponent(PlayerId.Value);
                     if (playerObjectComponent != null)
                     {
                         var newWeaponIndex = MathfExtensions.Wrap(
@@ -118,7 +118,7 @@ public class Client
                 }
                 else if (mouseScrollDirection < 0)
                 {
-                    var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(PlayerId.Value);
+                    var playerObjectComponent = PlayerSystem.Instance.FindPlayerObjectComponent(PlayerId.Value);
                     if (playerObjectComponent != null)
                     {
                         var newWeaponIndex = MathfExtensions.Wrap(
@@ -134,9 +134,9 @@ public class Client
 
                 if (Input.GetButtonDown("Jump"))
                 {
-                    var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(PlayerId.Value);
+                    var playerObjectComponent = PlayerSystem.Instance.FindPlayerObjectComponent(PlayerId.Value);
 
-                    if ((playerObjectComponent != null) && OsFps.Instance.IsPlayerGrounded(playerObjectComponent))
+                    if ((playerObjectComponent != null) && PlayerSystem.Instance.IsPlayerGrounded(playerObjectComponent))
                     {
                         PlayerSystem.Instance.Jump(playerObjectComponent);
                         OsFps.Instance.CallRpcOnServer("ServerOnPlayerTryJump", reliableChannelId, new
@@ -148,7 +148,7 @@ public class Client
 
                 if (Input.GetButton("Pickup Weapon"))
                 {
-                    var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(PlayerId.Value);
+                    var playerObjectComponent = PlayerSystem.Instance.FindPlayerObjectComponent(PlayerId.Value);
 
                     if (playerObjectComponent != null)
                     {
@@ -227,14 +227,14 @@ public class Client
     {
         if (PlayerId != null)
         {
-            var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(PlayerId.Value);
+            var playerObjectComponent = PlayerSystem.Instance.FindPlayerObjectComponent(PlayerId.Value);
             
             if (playerObjectComponent != null)
             {
                 var playerObjectState = playerObjectComponent.State;
                 playerObjectState.Position = playerObjectComponent.transform.position;
                 playerObjectState.Velocity = playerObjectComponent.Rigidbody.velocity;
-                playerObjectState.LookDirAngles = OsFps.Instance.GetPlayerLookDirAngles(playerObjectComponent);
+                playerObjectState.LookDirAngles = PlayerSystem.Instance.GetPlayerLookDirAngles(playerObjectComponent);
             }
         }
     }
@@ -303,7 +303,7 @@ public class Client
 
                 if (closestWeaponInfo != null)
                 {
-                    var weaponComponent = OsFps.Instance.FindWeaponComponent(closestWeaponInfo.Item1);
+                    var weaponComponent = WeaponSystem.Instance.FindWeaponComponent(closestWeaponInfo.Item1);
                     DrawWeaponPickupHud(weaponComponent);
                 }
             }
@@ -326,7 +326,7 @@ public class Client
         const float weaponHudHeight = 5 + lineHeight;
 
         var playerObjectComponent = PlayerId.HasValue
-            ? OsFps.Instance.FindPlayerObjectComponent(PlayerId.Value)
+            ? PlayerSystem.Instance.FindPlayerObjectComponent(PlayerId.Value)
             : null;
         if (playerObjectComponent == null) return;
 
@@ -512,7 +512,7 @@ public class Client
 
         if (PlayerId == null) return false;
 
-        var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(PlayerId.Value);
+        var playerObjectComponent = PlayerSystem.Instance.FindPlayerObjectComponent(PlayerId.Value);
         if (playerObjectComponent == null) return false;
 
         var currentWeapon = playerObjectComponent.State.CurrentWeapon;
@@ -535,7 +535,7 @@ public class Client
     }
     private void AttachCameraToPlayer(uint playerId)
     {
-        var playerObject = OsFps.Instance.FindPlayerObject(playerId);
+        var playerObject = PlayerSystem.Instance.FindPlayerObject(playerId);
         var cameraPointObject = playerObject.GetComponent<PlayerObjectComponent>().CameraPointObject;
         
         Camera.transform.SetParent(cameraPointObject.transform);
@@ -562,7 +562,7 @@ public class Client
     }
     private void VisualEquipWeapon(PlayerObjectState playerObjectState)
     {
-        var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(playerObjectState.Id);
+        var playerObjectComponent = PlayerSystem.Instance.FindPlayerObjectComponent(playerObjectState.Id);
 
         var equippedWeaponComponent = GetEquippedWeaponComponent(playerObjectComponent);
         var wasEQCNull = equippedWeaponComponent == null;
@@ -573,7 +573,7 @@ public class Client
 
         if (playerObjectState.CurrentWeapon != null)
         {
-            var weaponPrefab = OsFps.Instance.GetWeaponDefinitionByType(playerObjectState.CurrentWeapon.Type).Prefab;
+            var weaponPrefab = WeaponSystem.Instance.GetWeaponDefinitionByType(playerObjectState.CurrentWeapon.Type).Prefab;
             GameObject weaponObject = Object.Instantiate(weaponPrefab, Vector3.zero, Quaternion.identity);
             weaponObject.transform.SetParent(playerObjectComponent.HandsPointObject.transform, false);
 
@@ -628,7 +628,7 @@ public class Client
         {
             if (weapon.Type == WeaponType.SniperRifle)
             {
-                OsFps.Instance.CreateSniperBulletTrail(shotRay);
+                WeaponSystem.Instance.CreateSniperBulletTrail(shotRay);
             }
 
             var equippedWeaponComponent = GetEquippedWeaponComponent(playerObjectComponent);
@@ -659,7 +659,7 @@ public class Client
     }
     public void ShowGrenadeExplosion(Vector3 position, GrenadeType grenadeType)
     {
-        var explosionPrefab = OsFps.Instance.GetGrenadeDefinitionByType(grenadeType).ExplosionPrefab;
+        var explosionPrefab = GrenadeSystem.Instance.GetGrenadeDefinitionByType(grenadeType).ExplosionPrefab;
         GameObject grenadeExplosionObject = Object.Instantiate(
             explosionPrefab, position, Quaternion.identity
         );
@@ -895,12 +895,12 @@ public class Client
 
         System.Action<PlayerState> handleRemovedPlayerState = removedPlayerState =>
         {
-            var playerComponent = OsFps.Instance.FindPlayerComponent(removedPlayerState.Id);
+            var playerComponent = PlayerSystem.Instance.FindPlayerComponent(removedPlayerState.Id);
             Object.Destroy(playerComponent);
         };
 
         System.Action<PlayerState> handleAddedPlayerState = addedPlayerState =>
-            OsFps.Instance.CreateLocalPlayerDataObject(addedPlayerState);
+            PlayerSystem.Instance.CreateLocalPlayerDataObject(addedPlayerState);
 
         System.Action<PlayerState, PlayerState> handleUpdatedPlayerState =
             (oldPlayerState, updatedPlayerState) =>
@@ -913,7 +913,7 @@ public class Client
     }
     private void ApplyPlayerState(GameState oldGameState, PlayerState updatedPlayerState)
     {
-        var playerComponent = OsFps.Instance.FindPlayerComponent(updatedPlayerState.Id);
+        var playerComponent = PlayerSystem.Instance.FindPlayerComponent(updatedPlayerState.Id);
         playerComponent.State = updatedPlayerState;
     }
 
@@ -929,7 +929,7 @@ public class Client
                 DetachCameraFromPlayer();
             }
 
-            Object.Destroy(OsFps.Instance.FindPlayerObject(removedPlayerObjectState.Id));
+            Object.Destroy(PlayerSystem.Instance.FindPlayerObject(removedPlayerObjectState.Id));
         };
 
         System.Action<PlayerObjectState> handleAddedPlayerObjectState = addedPlayerObjectState =>
@@ -953,7 +953,7 @@ public class Client
         var isPlayerMe = updatedPlayerObjectState.Id == PlayerId;
         var roundTripTime = ClientPeer.RoundTripTime.Value;
 
-        var playerObject = OsFps.Instance.FindPlayerObject(updatedPlayerObjectState.Id);
+        var playerObject = PlayerSystem.Instance.FindPlayerObject(updatedPlayerObjectState.Id);
 
         // Handle weapon pickup.
         if (playerObject != null)
@@ -991,10 +991,10 @@ public class Client
             // Update look direction.
             if (isPlayerMe)
             {
-                updatedPlayerObjectState.LookDirAngles = OsFps.Instance.GetPlayerLookDirAngles(playerObjectComponent);
+                updatedPlayerObjectState.LookDirAngles = PlayerSystem.Instance.GetPlayerLookDirAngles(playerObjectComponent);
             }
 
-            OsFps.Instance.ApplyLookDirAnglesToPlayer(playerObjectComponent, updatedPlayerObjectState.LookDirAngles);
+            PlayerSystem.Instance.ApplyLookDirAnglesToPlayer(playerObjectComponent, updatedPlayerObjectState.LookDirAngles);
 
             // Update weapon if reloading.
             var equippedWeaponComponent = GetEquippedWeaponComponent(playerObjectComponent);
@@ -1022,7 +1022,7 @@ public class Client
 
             // Update shields.
             var shieldAlpha = 1.0f - (playerObjectComponent.State.Shield / OsFps.MaxPlayerShield);
-            OsFps.Instance.SetShieldAlpha(playerObjectComponent, shieldAlpha);
+            PlayerSystem.Instance.SetShieldAlpha(playerObjectComponent, shieldAlpha);
         }
 
         // Update state.
@@ -1052,10 +1052,10 @@ public class Client
             (wos1, wos2) => wos1.Id == wos2.Id;
 
         System.Action<WeaponObjectState> handleRemovedWeaponObjectState = removedWeaponObjectState => 
-            Object.Destroy(OsFps.Instance.FindWeaponObject(removedWeaponObjectState.Id));
+            Object.Destroy(WeaponSystem.Instance.FindWeaponObject(removedWeaponObjectState.Id));
 
         System.Action<WeaponObjectState> handleAddedWeaponObjectState = addedWeaponObjectState =>
-            OsFps.Instance.SpawnLocalWeaponObject(addedWeaponObjectState);
+            WeaponSpawnerSystem.Instance.SpawnLocalWeaponObject(addedWeaponObjectState);
 
         System.Action<WeaponObjectState, WeaponObjectState> handleUpdatedWeaponObjectState =
             (oldWeaponObjectState, updatedWeaponObjectState) => ApplyWeaponObjectState(updatedWeaponObjectState);
@@ -1067,7 +1067,7 @@ public class Client
     }
     private void ApplyWeaponObjectState(WeaponObjectState updatedWeaponObjectState)
     {
-        var weaponComponent = OsFps.Instance.FindWeaponComponent(updatedWeaponObjectState.Id);
+        var weaponComponent = WeaponSystem.Instance.FindWeaponComponent(updatedWeaponObjectState.Id);
         var currentWeaponObjectState = weaponComponent.State;
 
         // Update weapon object.
@@ -1091,12 +1091,12 @@ public class Client
 
         System.Action<GrenadeState> handleRemovedGrenadeState = removedGrenadeState =>
         {
-            var grenadeComponent = OsFps.Instance.FindGrenadeComponent(removedGrenadeState.Id);
+            var grenadeComponent = GrenadeSystem.Instance.FindGrenadeComponent(removedGrenadeState.Id);
             Object.Destroy(grenadeComponent.gameObject);
         };
 
         System.Action<GrenadeState> handleAddedGrenadeState = addedGrenadeState =>
-            OsFps.Instance.SpawnLocalGrenadeObject(addedGrenadeState);
+            GrenadeSpawnerSystem.Instance.SpawnLocalGrenadeObject(addedGrenadeState);
 
         System.Action<GrenadeState, GrenadeState> handleUpdatedGrenadeState =
             (oldGrenadeState, updatedGrenadeState) => ApplyGrenadeState(updatedGrenadeState);
@@ -1108,7 +1108,7 @@ public class Client
     }
     private void ApplyGrenadeState(GrenadeState updatedGrenadeState)
     {
-        var grenadeComponent = OsFps.Instance.FindGrenadeComponent(updatedGrenadeState.Id);
+        var grenadeComponent = GrenadeSystem.Instance.FindGrenadeComponent(updatedGrenadeState.Id);
         var currentGrenadeState = grenadeComponent.State;
 
         // Update weapon object.
@@ -1132,12 +1132,12 @@ public class Client
 
         System.Action<RocketState> handleRemovedRocketState = removedRocketState =>
         {
-            var rocketComponent = OsFps.Instance.FindRocketComponent(removedRocketState.Id);
+            var rocketComponent = RocketSystem.Instance.FindRocketComponent(removedRocketState.Id);
             Object.Destroy(rocketComponent.gameObject);
         };
 
         System.Action<RocketState> handleAddedRocketState = addedRocketState =>
-            OsFps.Instance.SpawnLocalRocketObject(addedRocketState);
+            RocketSystem.Instance.SpawnLocalRocketObject(addedRocketState);
 
         System.Action<RocketState, RocketState> handleUpdatedRocketState =
             (oldRocketState, updatedRocketState) => ApplyRocketState(updatedRocketState);
@@ -1149,7 +1149,7 @@ public class Client
     }
     private void ApplyRocketState(RocketState updatedRocketState)
     {
-        var rocketComponent = OsFps.Instance.FindRocketComponent(updatedRocketState.Id);
+        var rocketComponent = RocketSystem.Instance.FindRocketComponent(updatedRocketState.Id);
         var currentRocketState = rocketComponent.State;
 
         // Update weapon object.
@@ -1168,7 +1168,7 @@ public class Client
 
     private void SpawnPlayer(PlayerObjectState playerState)
     {
-        OsFps.Instance.SpawnLocalPlayer(playerState);
+        PlayerRespawnSystem.Instance.SpawnLocalPlayer(playerState);
 
         if (playerState.Id == PlayerId)
         {
@@ -1218,7 +1218,7 @@ public class Client
         }
         else
         {
-            var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(PlayerId.Value);
+            var playerObjectComponent = PlayerSystem.Instance.FindPlayerObjectComponent(PlayerId.Value);
             if (playerObjectComponent != null)
             {
                 AttachCameraToPlayer(PlayerId.Value);
@@ -1235,7 +1235,7 @@ public class Client
             return;
         }
 
-        var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(playerId);
+        var playerObjectComponent = PlayerSystem.Instance.FindPlayerObjectComponent(playerId);
         ShowWeaponFireEffects(playerObjectComponent, shotRay);
     }
 
@@ -1256,7 +1256,7 @@ public class Client
     {
         if (playerId.HasValue)
         {
-            var playerName = OsFps.Instance.FindPlayerComponent(playerId.Value)?.State.Name;
+            var playerName = PlayerSystem.Instance.FindPlayerComponent(playerId.Value)?.State.Name;
             _chatMessages.Add(string.Format("{0}: {1}", playerName, message));
         }
         else
@@ -1273,7 +1273,7 @@ public class Client
             return;
         }
 
-        var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(playerId);
+        var playerObjectComponent = PlayerSystem.Instance.FindPlayerObjectComponent(playerId);
         if (playerObjectComponent == null) return;
 
         SwitchWeapons(playerObjectComponent, weaponIndex);
@@ -1296,7 +1296,7 @@ public class Client
     {
         if (PlayerId == null) return;
 
-        var playerObjectComponent = OsFps.Instance.FindPlayerObjectComponent(PlayerId.Value);
+        var playerObjectComponent = PlayerSystem.Instance.FindPlayerObjectComponent(PlayerId.Value);
         if (playerObjectComponent == null) return;
 
         OsFps.Instance.CallRpcOnServer("ServerOnReceivePlayerInput", unreliableStateUpdateChannelId, new

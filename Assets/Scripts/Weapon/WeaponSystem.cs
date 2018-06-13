@@ -1,6 +1,6 @@
-﻿using System.Linq;
-using UnityEngine;
+﻿using UnityEngine;
 using Unity.Entities;
+using System.Linq;
 
 public class WeaponSystem : ComponentSystem
 {
@@ -59,5 +59,40 @@ public class WeaponSystem : ComponentSystem
                 numBulletsToRemove
             );
         }
+    }
+    public WeaponComponent FindWeaponComponent(uint weaponId)
+    {
+        return Object.FindObjectsOfType<WeaponComponent>()
+            .FirstOrDefault(wc => wc.State?.Id == weaponId);
+    }
+    public GameObject FindWeaponObject(uint weaponId)
+    {
+        var weaponComponent = FindWeaponComponent(weaponId);
+        return weaponComponent?.gameObject;
+    }
+    public GameObject CreateSniperBulletTrail(Ray ray)
+    {
+        var sniperBulletTrail = new GameObject("sniperBulletTrail");
+        var lineRenderer = sniperBulletTrail.AddComponent<LineRenderer>();
+        lineRenderer.SetPositions(new[]
+        {
+            ray.origin,
+            ray.origin + (2000 * ray.direction)
+        });
+        lineRenderer.material = OsFps.Instance.SniperBulletTrailMaterial;
+
+        var lineWidth = 0.1f;
+        lineRenderer.startWidth = lineWidth;
+        lineRenderer.endWidth = lineWidth;
+
+        Object.Destroy(sniperBulletTrail, 1);
+
+        return sniperBulletTrail;
+    }
+    public WeaponDefinition GetWeaponDefinitionByType(WeaponType type)
+    {
+        return OsFps.Instance.WeaponDefinitionComponents
+            .FirstOrDefault(wdc => wdc.Definition.Type == type)
+            ?.Definition;
     }
 }
