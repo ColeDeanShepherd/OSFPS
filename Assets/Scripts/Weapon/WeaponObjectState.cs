@@ -1,13 +1,13 @@
-﻿using System.IO;
-
-[System.Serializable]
-public class WeaponObjectState : INetworkSerializable
+﻿[System.Serializable]
+public class WeaponObjectState
 {
     public uint Id;
     public WeaponType Type = WeaponType.Pistol;
     public ushort BulletsLeftInMagazine;
     public ushort BulletsLeftOutOfMagazine;
     public RigidBodyState RigidBodyState = new RigidBodyState();
+
+    [NotNetworkSynchronized]
     public uint? WeaponSpawnerId;
 
     public ushort BulletsLeft
@@ -23,23 +23,5 @@ public class WeaponObjectState : INetworkSerializable
         {
             return WeaponSystem.Instance.GetWeaponDefinitionByType(Type);
         }
-    }
-
-    public void Deserialize(BinaryReader reader)
-    {
-        Id = reader.ReadUInt32();
-        Type = (WeaponType)reader.ReadByte();
-        BulletsLeftInMagazine = reader.ReadUInt16();
-        BulletsLeftOutOfMagazine = reader.ReadUInt16();
-        RigidBodyState.Deserialize(reader);
-    }
-
-    public void Serialize(BinaryWriter writer)
-    {
-        writer.Write(Id);
-        writer.Write((byte)Type);
-        writer.Write(BulletsLeftInMagazine);
-        writer.Write(BulletsLeftOutOfMagazine);
-        RigidBodyState.Serialize(writer);
     }
 }

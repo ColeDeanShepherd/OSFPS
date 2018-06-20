@@ -1,7 +1,9 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using UnityEngine;
 using UnityEngine.Assertions;
 
@@ -50,25 +52,60 @@ public static class NetworkSerializationUtils
             .ToArray();
     }
 
-    public static Type GetSmallestIntTypeToHoldEnumValues(Type enumType)
+    public static Type GetSmallestUIntTypeWithNumberOfBits(uint numberOfBits)
+    {
+        if (numberOfBits <= 8)
+        {
+            return typeof(byte);
+        }
+        else if (numberOfBits <= 16)
+        {
+            return typeof(ushort);
+        }
+        else if (numberOfBits <= 32)
+        {
+            return typeof(uint);
+        }
+        else if (numberOfBits <= 64)
+        {
+            return typeof(ulong);
+        }
+        else
+        {
+            throw new NotImplementedException();
+        }
+    }
+    public static Type GetSmallestUIntTypeForMaxValue(ulong maxValue)
+    {
+        if (maxValue <= byte.MaxValue)
+        {
+            return typeof(byte);
+        }
+        else if (maxValue <= ushort.MaxValue)
+        {
+            return typeof(ushort);
+        }
+        else if (maxValue <= uint.MaxValue)
+        {
+            return typeof(uint);
+        }
+        else if (maxValue <= ulong.MaxValue)
+        {
+            return typeof(ulong);
+        }
+        else
+        {
+            throw new NotImplementedException();
+        }
+    }
+    public static Type GetSmallestUIntTypeToHoldEnumValues(Type enumType)
     {
         Assert.IsTrue(enumType.IsEnum);
 
         var numEnumValues = enumType.GetEnumValues().Length;
-
-        if (numEnumValues <= byte.MaxValue)
-        {
-            return typeof(byte);
-        }
-        else if (numEnumValues <= ushort.MaxValue)
-        {
-            return typeof(ushort);
-        }
-        else
-        {
-            return typeof(uint);
-        }
+        return GetSmallestUIntTypeForMaxValue((ulong)numEnumValues);
     }
+
     public static void Serialize<T>(BinaryWriter writer, T t, bool isNullableIfReferenceType = false)
     {
         SerializeObject(writer, t, typeof(T), isNullableIfReferenceType);
@@ -81,6 +118,7 @@ public static class NetworkSerializationUtils
 
         var objType = overrideType ?? obj?.GetType();
         Assert.IsNotNull(objType);
+        Assert.IsTrue((obj != null) || !objType.IsClass || isNullableIfReferenceType);
 
         var nullableUnderlyingType = Nullable.GetUnderlyingType(objType);
         if ((nullableUnderlyingType == null) && isNullableIfReferenceType && objType.IsClass)
@@ -170,11 +208,21 @@ public static class NetworkSerializationUtils
         {
             ((INetworkSerializable)obj).Serialize(writer);
         }
+        else if (typeof(ICollection).IsAssignableFrom(objType))
+        {
+            var collection = (ICollection)obj;
+            writer.Write((uint)collection.Count);
+
+            foreach (var element in collection)
+            {
+                SerializeObject(writer, element, overrideType: null, isNullableIfReferenceType: false);
+            }
+        }
         else
         {
             if (objType.IsEnum)
             {
-                var smallestTypeToHoldEnumValues = GetSmallestIntTypeToHoldEnumValues(objType);
+                var smallestTypeToHoldEnumValues = GetSmallestUIntTypeToHoldEnumValues(objType);
                 SerializeObject(writer, Convert.ChangeType(obj, smallestTypeToHoldEnumValues));
             }
             else if (objType.IsClass || objType.IsValueType)
@@ -197,6 +245,130 @@ public static class NetworkSerializationUtils
             }
         }
     }
+
+
+    public static uint GetChangeMask(Type type, object oldValue, object newValue)
+    {
+        var typeInfo = GetTypeToNetworkSynchronizeInfo(type);
+        uint changeMask = 0;
+        uint changeMaskBitIndex = 0;
+
+        foreach (var field in typeInfo.FieldsToSynchronize)
+        {
+            var oldFieldValue = field.GetValue(oldValue);
+            var newFieldValue = field.GetValue(newValue);
+
+            BitUtilities.SetBit(ref changeMask, (byte)changeMaskBitIndex, !object.Equals(newFieldValue, oldFieldValue));
+            changeMaskBitIndex++;
+        }
+
+        foreach (var property in typeInfo.PropertiesToSynchronize)
+        {
+            var oldPropertyValue = property.GetValue(oldValue);
+            var newPropertyValue = property.GetValue(newValue);
+
+            BitUtilities.SetBit(ref changeMask, (byte)changeMaskBitIndex, !object.Equals(newPropertyValue, oldPropertyValue));
+            changeMaskBitIndex++;
+        }
+
+        return changeMask;
+    }
+
+    public struct TypeToNetworkSynchronizeInfo
+    {
+        public FieldInfo[] FieldsToSynchronize;
+        public PropertyInfo[] PropertiesToSynchronize;
+    }
+    private static TypeToNetworkSynchronizeInfo GetTypeToNetworkSynchronizeInfo(Type type)
+    {
+        return new TypeToNetworkSynchronizeInfo
+        {
+            FieldsToSynchronize = type.GetFields()
+                .Where(field => !Attribute.IsDefined(field, typeof(NotNetworkSynchronizedAttribute)))
+                .ToArray(),
+            PropertiesToSynchronize = type.GetProperties()
+                .Where(property =>
+                    property.CanRead &&
+                    property.CanWrite &&
+                    !Attribute.IsDefined(property, typeof(NotNetworkSynchronizedAttribute))
+                )
+                .ToArray()
+        };
+    }
+
+    public static void SerializeGivenChangeMask(BinaryWriter writer, Type type, object value, uint changeMask)
+    {
+        var typeInfo = GetTypeToNetworkSynchronizeInfo(type);
+        uint changeMaskBitIndex = 0;
+
+        foreach (var field in typeInfo.FieldsToSynchronize)
+        {
+            if (BitUtilities.GetBit(changeMask, (byte)changeMaskBitIndex))
+            {
+                var isNullableIfReferenceType = field.FieldType.IsClass && !Attribute.IsDefined(field, typeof(NonNullableAttribute));
+                SerializeObject(
+                    writer, field.GetValue(value), field.FieldType, isNullableIfReferenceType
+                );
+            }
+            changeMaskBitIndex++;
+        }
+
+        foreach (var property in typeInfo.PropertiesToSynchronize)
+        {
+            if (BitUtilities.GetBit(changeMask, (byte)changeMaskBitIndex))
+            {
+                var isNullableIfReferenceType = property.PropertyType.IsClass && !Attribute.IsDefined(property, typeof(NonNullableAttribute));
+                SerializeObject(
+                    writer, property.GetValue(value), property.PropertyType, isNullableIfReferenceType
+                );
+            }
+            changeMaskBitIndex++;
+        }
+    }
+    public static void SerializeDelta(BinaryWriter writer, Type type, object oldValue, object newValue)
+    {
+        var changeMask = GetChangeMask(type, oldValue, newValue);
+        writer.Write(changeMask);
+        SerializeGivenChangeMask(writer, type, newValue, changeMask);
+    }
+
+    public static void DeserializeGivenChangeMask(BinaryReader reader, Type type, object oldValue, uint changeMask)
+    {
+        var typeInfo = GetTypeToNetworkSynchronizeInfo(type);
+        byte changeMaskBitIndex = 0;
+
+        foreach (var field in typeInfo.FieldsToSynchronize)
+        {
+            if (BitUtilities.GetBit(changeMask, changeMaskBitIndex))
+            {
+                var isNullableIfReferenceType = field.FieldType.IsClass && !Attribute.IsDefined(field, typeof(NonNullableAttribute));
+                var newFieldValue = NetworkSerializationUtils.Deserialize(
+                    reader, field.FieldType, isNullableIfReferenceType
+                );
+                field.SetValue(oldValue, newFieldValue);
+            }
+            changeMaskBitIndex++;
+        }
+
+        foreach (var property in typeInfo.PropertiesToSynchronize)
+        {
+            if (BitUtilities.GetBit(changeMask, changeMaskBitIndex))
+            {
+                var isNullableIfReferenceType = property.PropertyType.IsClass && !Attribute.IsDefined(property, typeof(NonNullableAttribute));
+                var newPropertyValue = NetworkSerializationUtils.Deserialize(
+                    reader, property.PropertyType, isNullableIfReferenceType
+                );
+                property.SetValue(oldValue, newPropertyValue);
+            }
+            changeMaskBitIndex++;
+        }
+    }
+    public static void DeserializeDelta(BinaryReader reader, Type type, object oldValue)
+    {
+        var changeMask = reader.ReadUInt32();
+        DeserializeGivenChangeMask(reader, type, oldValue, changeMask);
+    }
+
     public static object Deserialize(BinaryReader reader, Type type, bool isNullableIfReferenceType = false)
     {
         var nullableUnderlyingType = Nullable.GetUnderlyingType(type);
@@ -287,11 +459,46 @@ public static class NetworkSerializationUtils
 
             return result;
         }
+        else if (typeof(IEnumerable).IsAssignableFrom(type))
+        {
+            if (typeof(Array).IsAssignableFrom(type))
+            {
+                var elementType = type.GetElementType();
+                var elementCount = reader.ReadUInt32();
+                var array = Array.CreateInstance(elementType, elementCount);
+
+                for (var i = 0; i < elementCount; i++)
+                {
+                    var element = Deserialize(reader, elementType, isNullableIfReferenceType: false);
+                    array.SetValue(element, i);
+                }
+
+                return array;
+            }
+            else if (typeof(IList).IsAssignableFrom(type))
+            {
+                var list = (IList)Activator.CreateInstance(type);
+                var elementType = type.GenericTypeArguments[0];
+                var elementCount = reader.ReadUInt32();
+
+                for (var i = 0; i < elementCount; i++)
+                {
+                    var element = Deserialize(reader, elementType, isNullableIfReferenceType: false);
+                    list.Add(element);
+                }
+
+                return list;
+            }
+            else
+            {
+                throw new NotImplementedException();
+            }
+        }
         else
         {
             if (type.IsEnum)
             {
-                var smallestTypeToHoldEnumValues = GetSmallestIntTypeToHoldEnumValues(type);
+                var smallestTypeToHoldEnumValues = GetSmallestUIntTypeToHoldEnumValues(type);
                 var enumValueAsInt = Deserialize(reader, smallestTypeToHoldEnumValues);
 
                 return Enum.ToObject(type, enumValueAsInt);
