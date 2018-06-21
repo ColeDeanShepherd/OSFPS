@@ -1,10 +1,9 @@
 ﻿using System;
-using System.IO;
 using System.Linq;
 using UnityEngine;
 
 [System.Serializable]
-public class PlayerObjectState : INetworkSerializable
+public class PlayerObjectState
 {
     public uint Id;
     public Vector3 Position;
@@ -93,66 +92,6 @@ public class PlayerObjectState : INetworkSerializable
         get
         {
             return Weapons.Any(w => w == null);
-        }
-    }
-
-    public void Serialize(BinaryWriter writer)
-    {
-        writer.Write(Id);
-        NetworkSerializationUtils.Serialize(writer, Position);
-        NetworkSerializationUtils.Serialize(writer, Velocity);
-        NetworkSerializationUtils.Serialize(writer, LookDirAngles);
-        NetworkSerializationUtils.SerializeObject(writer, Input);
-        writer.Write(Shield);
-        writer.Write(Health);
-        writer.Write(TimeUntilShieldCanRegen);
-
-        for (var i = 0; i < Weapons.Length; i++)
-        {
-            NetworkSerializationUtils.SerializeNullable(writer, Weapons[i]);
-        }
-
-        writer.Write(CurrentWeaponIndex);
-        writer.Write(ReloadTimeLeft);
-        writer.Write(TimeUntilCanThrowGrenade);
-
-        writer.Write(CurrentGrenadeSlotIndex);
-
-        for (var i = 0; i < GrenadeSlots.Length; i++)
-        {
-            var grenadeSlot = GrenadeSlots[i];
-            NetworkSerializationUtils.SerializeObject(
-                writer, grenadeSlot, overrideType: typeof(GrenadeSlot), isNullableIfReferenceType: true
-            );
-        }
-    }
-    public void Deserialize(BinaryReader reader)
-    {
-        Id = reader.ReadUInt32();
-        NetworkSerializationUtils.Deserialize(reader, ref Position);
-        NetworkSerializationUtils.Deserialize(reader, ref Velocity);
-        NetworkSerializationUtils.Deserialize(reader, ref LookDirAngles);
-        Input = NetworkSerializationUtils.Deserialize<PlayerInput>(reader);
-        Shield = reader.ReadSingle();
-        Health = reader.ReadSingle();
-        TimeUntilShieldCanRegen = reader.ReadSingle();
-
-        for (var i = 0; i < Weapons.Length; i++)
-        {
-            Weapons[i] = NetworkSerializationUtils.DeserializeNullable<EquippedWeaponState>(reader);
-        }
-
-        CurrentWeaponIndex = reader.ReadByte();
-        ReloadTimeLeft = reader.ReadSingle();
-
-        TimeUntilCanThrowGrenade = reader.ReadSingle();
-        CurrentGrenadeSlotIndex = reader.ReadByte();
-
-        for (var i = 0; i < GrenadeSlots.Length; i++)
-        {
-            GrenadeSlots[i] = NetworkSerializationUtils.Deserialize<GrenadeSlot>(
-                reader, isNullableIfReferenceType: true
-            );
         }
     }
 }

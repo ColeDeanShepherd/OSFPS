@@ -35,8 +35,8 @@ public class StateSynchronizationExperiment : MonoBehaviour
     public class State
     {
         // currently testing
-        public float[] AF = new float[2];
-        public List<float> LF = new List<float>();
+        public DummyClass[] ADC = new DummyClass[2];
+        public List<DummyClass> LDC = new List<DummyClass>();
 
         // already tested
         public bool B;
@@ -64,6 +64,9 @@ public class StateSynchronizationExperiment : MonoBehaviour
 
         public WeaponType WeaponType = WeaponType.Pistol;
 
+        public float[] AF = new float[2];
+        public List<float> LF = new List<float>();
+
         public State DeepCopy()
         {
             var newState = (State)MemberwiseClone();
@@ -74,6 +77,11 @@ public class StateSynchronizationExperiment : MonoBehaviour
 
             newState.AF = new float[AF.Length];
             Array.Copy(AF, newState.AF, AF.Length);
+
+            newState.LDC = new List<DummyClass>(LDC);
+
+            newState.ADC = new DummyClass[ADC.Length];
+            Array.Copy(ADC, newState.ADC, ADC.Length);
 
             return newState;
         }
@@ -169,6 +177,8 @@ public class StateSynchronizationExperiment : MonoBehaviour
         serverState.WeaponType = (serverState.WeaponType == WeaponType.Pistol) ? WeaponType.RocketLauncher : WeaponType.Pistol;
         serverState.LF.Add(1.5f);
         serverState.AF[0]++;
+
+        serverState.LDC.Add(null);
     }
 
     private string ToPrettyJson(object obj)

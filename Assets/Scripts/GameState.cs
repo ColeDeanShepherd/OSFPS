@@ -22,7 +22,12 @@ public class GameState : INetworkSerializable
                 binaryWriter, player.GetType(), player, uint.MaxValue
             );
         });
-        NetworkSerializationUtils.Serialize(writer, PlayerObjects);
+        NetworkSerializationUtils.Serialize(writer, PlayerObjects, (binaryWriter, playerObject) =>
+        {
+            NetworkSerializationUtils.SerializeGivenChangeMask(
+                binaryWriter, playerObject.GetType(), playerObject, uint.MaxValue
+            );
+        });
         NetworkSerializationUtils.Serialize(writer, WeaponObjects, (binaryWriter, weaponObject) =>
         {
             NetworkSerializationUtils.SerializeGivenChangeMask(
@@ -65,7 +70,15 @@ public class GameState : INetworkSerializable
             );
             return playerState;
         });
-        NetworkSerializationUtils.Deserialize(reader, PlayerObjects);
+
+        NetworkSerializationUtils.Deserialize(reader, PlayerObjects, binaryReader =>
+        {
+            var playerObjectState = new PlayerObjectState();
+            NetworkSerializationUtils.DeserializeGivenChangeMask(
+                binaryReader, playerObjectState.GetType(), playerObjectState, uint.MaxValue
+            );
+            return playerObjectState;
+        });
 
         NetworkSerializationUtils.Deserialize(reader, WeaponObjects, binaryReader =>
         {

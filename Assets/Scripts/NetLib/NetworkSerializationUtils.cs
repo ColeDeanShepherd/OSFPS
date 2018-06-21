@@ -38,7 +38,10 @@ public static class NetworkSerializationUtils
                         $"RPC parameter {parameterName} has type {parameterType.AssemblyQualifiedName} but was passed {argumentType.AssemblyQualifiedName}."
                     );
 
-                    SerializeObject(binaryWriter, argument, argumentType);
+                    SerializeObject(
+                        binaryWriter, argument, argumentType, isNullableIfReferenceType: false,
+                        areElementsNullableIfReferenceType: false
+                    );
                 }
             }
 
@@ -48,7 +51,12 @@ public static class NetworkSerializationUtils
     public static object[] DeserializeRpcCallArguments(RpcInfo rpcInfo, BinaryReader reader)
     {
         return rpcInfo.ParameterTypes
-            .Select(parameterType => Deserialize(reader, parameterType))
+            .Select(parameterType =>
+                Deserialize(
+                    reader, parameterType, isNullableIfReferenceType: false,
+                    areElementsNullableIfReferenceType: false
+                )
+            )
             .ToArray();
     }
 
@@ -106,12 +114,15 @@ public static class NetworkSerializationUtils
         return GetSmallestUIntTypeForMaxValue((ulong)numEnumValues);
     }
 
-    public static void Serialize<T>(BinaryWriter writer, T t, bool isNullableIfReferenceType = false)
+    public static void Serialize<T>(
+        BinaryWriter writer, T t, bool isNullableIfReferenceType, bool areElementsNullableIfReferenceType
+    )
     {
-        SerializeObject(writer, t, typeof(T), isNullableIfReferenceType);
+        SerializeObject(writer, t, typeof(T), isNullableIfReferenceType, areElementsNullableIfReferenceType);
     }
     public static void SerializeObject(
-        BinaryWriter writer, object obj, Type overrideType = null, bool isNullableIfReferenceType = false
+        BinaryWriter writer, object obj, Type overrideType, bool isNullableIfReferenceType,
+        bool areElementsNullableIfReferenceType
     )
     {
         Assert.IsTrue(!isNullableIfReferenceType || (overrideType != null));
@@ -210,12 +221,31 @@ public static class NetworkSerializationUtils
         }
         else if (typeof(ICollection).IsAssignableFrom(objType))
         {
+            Type elementType;
+
+            if (objType.IsArray)
+            {
+                elementType = objType.GetElementType();
+            }
+            else if (objType.IsGenericType)
+            {
+                elementType = objType.GetGenericArguments()[0];
+            }
+            else
+            {
+                throw new NotImplementedException("Non-generic collections aren't supported.");
+            }
+
             var collection = (ICollection)obj;
             writer.Write((uint)collection.Count);
 
             foreach (var element in collection)
             {
-                SerializeObject(writer, element, overrideType: null, isNullableIfReferenceType: false);
+                SerializeObject(
+                    writer, element, overrideType: elementType,
+                    isNullableIfReferenceType: areElementsNullableIfReferenceType,
+                    areElementsNullableIfReferenceType: false
+                );
             }
         }
         else
@@ -223,20 +253,30 @@ public static class NetworkSerializationUtils
             if (objType.IsEnum)
             {
                 var smallestTypeToHoldEnumValues = GetSmallestUIntTypeToHoldEnumValues(objType);
-                SerializeObject(writer, Convert.ChangeType(obj, smallestTypeToHoldEnumValues));
+                var objToSerialize = Convert.ChangeType(obj, smallestTypeToHoldEnumValues);
+                SerializeObject(
+                    writer, objToSerialize, overrideType: null, isNullableIfReferenceType: false,
+                    areElementsNullableIfReferenceType: false
+                );
             }
             else if (objType.IsClass || objType.IsValueType)
             {
                 var objFields = objType.GetFields();
                 foreach (var objField in objFields)
                 {
-                    SerializeObject(writer, objField.GetValue(obj), objField.FieldType);
+                    SerializeObject(
+                        writer, objField.GetValue(obj), objField.FieldType, isNullableIfReferenceType: false,
+                        areElementsNullableIfReferenceType: false
+                    );
                 }
 
                 var objProperties = objType.GetProperties();
                 foreach (var objProperty in objProperties)
                 {
-                    SerializeObject(writer, objProperty.GetValue(obj), objProperty.PropertyType);
+                    SerializeObject(
+                        writer, objProperty.GetValue(obj), objProperty.PropertyType,
+                        isNullableIfReferenceType: false, areElementsNullableIfReferenceType: false
+                    );
                 }
             }
             else
@@ -246,10 +286,11 @@ public static class NetworkSerializationUtils
         }
     }
 
-
     public static uint GetChangeMask(Type type, object oldValue, object newValue)
     {
         var typeInfo = GetTypeToNetworkSynchronizeInfo(type);
+        Assert.IsTrue(typeInfo.NumberOfThingsToSynchronize <= (8 * sizeof(uint)));
+
         uint changeMask = 0;
         uint changeMaskBitIndex = 0;
 
@@ -278,6 +319,14 @@ public static class NetworkSerializationUtils
     {
         public FieldInfo[] FieldsToSynchronize;
         public PropertyInfo[] PropertiesToSynchronize;
+        
+        public int NumberOfThingsToSynchronize
+        {
+            get
+            {
+                return FieldsToSynchronize.Length + PropertiesToSynchronize.Length;
+            }
+        }
     }
     private static TypeToNetworkSynchronizeInfo GetTypeToNetworkSynchronizeInfo(Type type)
     {
@@ -306,8 +355,9 @@ public static class NetworkSerializationUtils
             if (BitUtilities.GetBit(changeMask, (byte)changeMaskBitIndex))
             {
                 var isNullableIfReferenceType = field.FieldType.IsClass && !Attribute.IsDefined(field, typeof(NonNullableAttribute));
+                var areElementsNullableIfReferenceType = !Attribute.IsDefined(field, typeof(NonNullableElementAttribute));
                 SerializeObject(
-                    writer, field.GetValue(value), field.FieldType, isNullableIfReferenceType
+                    writer, field.GetValue(value), field.FieldType, isNullableIfReferenceType, areElementsNullableIfReferenceType
                 );
             }
             changeMaskBitIndex++;
@@ -318,8 +368,9 @@ public static class NetworkSerializationUtils
             if (BitUtilities.GetBit(changeMask, (byte)changeMaskBitIndex))
             {
                 var isNullableIfReferenceType = property.PropertyType.IsClass && !Attribute.IsDefined(property, typeof(NonNullableAttribute));
+                var areElementsNullableIfReferenceType = !Attribute.IsDefined(property, typeof(NonNullableElementAttribute));
                 SerializeObject(
-                    writer, property.GetValue(value), property.PropertyType, isNullableIfReferenceType
+                    writer, property.GetValue(value), property.PropertyType, isNullableIfReferenceType, areElementsNullableIfReferenceType
                 );
             }
             changeMaskBitIndex++;
@@ -342,8 +393,9 @@ public static class NetworkSerializationUtils
             if (BitUtilities.GetBit(changeMask, changeMaskBitIndex))
             {
                 var isNullableIfReferenceType = field.FieldType.IsClass && !Attribute.IsDefined(field, typeof(NonNullableAttribute));
-                var newFieldValue = NetworkSerializationUtils.Deserialize(
-                    reader, field.FieldType, isNullableIfReferenceType
+                var areElementsNullableIfReferenceType = !Attribute.IsDefined(field, typeof(NonNullableElementAttribute));
+                var newFieldValue = Deserialize(
+                    reader, field.FieldType, isNullableIfReferenceType, areElementsNullableIfReferenceType
                 );
                 field.SetValue(oldValue, newFieldValue);
             }
@@ -355,8 +407,9 @@ public static class NetworkSerializationUtils
             if (BitUtilities.GetBit(changeMask, changeMaskBitIndex))
             {
                 var isNullableIfReferenceType = property.PropertyType.IsClass && !Attribute.IsDefined(property, typeof(NonNullableAttribute));
-                var newPropertyValue = NetworkSerializationUtils.Deserialize(
-                    reader, property.PropertyType, isNullableIfReferenceType
+                var areElementsNullableIfReferenceType = !Attribute.IsDefined(property, typeof(NonNullableElementAttribute));
+                var newPropertyValue = Deserialize(
+                    reader, property.PropertyType, isNullableIfReferenceType, areElementsNullableIfReferenceType
                 );
                 property.SetValue(oldValue, newPropertyValue);
             }
@@ -369,7 +422,10 @@ public static class NetworkSerializationUtils
         DeserializeGivenChangeMask(reader, type, oldValue, changeMask);
     }
 
-    public static object Deserialize(BinaryReader reader, Type type, bool isNullableIfReferenceType = false)
+    public static object Deserialize(
+        BinaryReader reader, Type type,
+        bool isNullableIfReferenceType, bool areElementsNullableIfReferenceType
+    )
     {
         var nullableUnderlyingType = Nullable.GetUnderlyingType(type);
         if ((nullableUnderlyingType == null) && isNullableIfReferenceType && type.IsClass)
@@ -380,7 +436,11 @@ public static class NetworkSerializationUtils
         if (nullableUnderlyingType != null)
         {
             var objHasValue = reader.ReadBoolean();
-            return objHasValue ? Deserialize(reader, nullableUnderlyingType) : null;
+            return objHasValue
+                ? Deserialize(
+                    reader, nullableUnderlyingType, isNullableIfReferenceType: false,
+                    areElementsNullableIfReferenceType: areElementsNullableIfReferenceType
+                ) : null;
         }
         else if (type == typeof(bool))
         {
@@ -469,7 +529,10 @@ public static class NetworkSerializationUtils
 
                 for (var i = 0; i < elementCount; i++)
                 {
-                    var element = Deserialize(reader, elementType, isNullableIfReferenceType: false);
+                    var element = Deserialize(
+                        reader, elementType, isNullableIfReferenceType: areElementsNullableIfReferenceType,
+                        areElementsNullableIfReferenceType: false
+                    );
                     array.SetValue(element, i);
                 }
 
@@ -483,7 +546,10 @@ public static class NetworkSerializationUtils
 
                 for (var i = 0; i < elementCount; i++)
                 {
-                    var element = Deserialize(reader, elementType, isNullableIfReferenceType: false);
+                    var element = Deserialize(
+                        reader, elementType, isNullableIfReferenceType: areElementsNullableIfReferenceType,
+                        areElementsNullableIfReferenceType: false
+                    );
                     list.Add(element);
                 }
 
@@ -499,7 +565,10 @@ public static class NetworkSerializationUtils
             if (type.IsEnum)
             {
                 var smallestTypeToHoldEnumValues = GetSmallestUIntTypeToHoldEnumValues(type);
-                var enumValueAsInt = Deserialize(reader, smallestTypeToHoldEnumValues);
+                var enumValueAsInt = Deserialize(
+                    reader, smallestTypeToHoldEnumValues, isNullableIfReferenceType: false,
+                    areElementsNullableIfReferenceType: false
+                );
 
                 return Enum.ToObject(type, enumValueAsInt);
             }
@@ -510,13 +579,21 @@ public static class NetworkSerializationUtils
                 var objFields = type.GetFields();
                 foreach (var field in objFields)
                 {
-                    field.SetValue(result, Deserialize(reader, field.FieldType));
+                    var fieldValue = Deserialize(
+                        reader, field.FieldType, isNullableIfReferenceType: false,
+                        areElementsNullableIfReferenceType: false
+                    );
+                    field.SetValue(result, fieldValue);
                 }
 
                 var objProperties = type.GetProperties();
                 foreach (var property in objProperties)
                 {
-                    property.SetValue(result, Deserialize(reader, property.PropertyType));
+                    var propertyValue = Deserialize(
+                        reader, property.PropertyType, isNullableIfReferenceType: false,
+                        areElementsNullableIfReferenceType: false
+                    );
+                    property.SetValue(result, propertyValue);
                 }
 
                 return result;
@@ -527,9 +604,9 @@ public static class NetworkSerializationUtils
             }
         }
     }
-    public static T Deserialize<T>(BinaryReader reader, bool isNullableIfReferenceType = false)
+    public static T Deserialize<T>(BinaryReader reader, bool isNullableIfReferenceType, bool areElementsNullableIfReferenceType)
     {
-        return (T)Deserialize(reader, typeof(T), isNullableIfReferenceType);
+        return (T)Deserialize(reader, typeof(T), isNullableIfReferenceType, areElementsNullableIfReferenceType);
     }
 
     public static void Serialize(BinaryWriter writer, Vector2 v)
