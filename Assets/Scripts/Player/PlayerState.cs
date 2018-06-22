@@ -1,4 +1,5 @@
 ﻿[System.Serializable]
+[NetworkSynchronizedComponent(MonoBehaviourType = typeof(PlayerComponent))]
 public class PlayerState
 {
     public uint Id;

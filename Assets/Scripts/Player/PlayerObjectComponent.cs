@@ -19,4 +19,9 @@ public class PlayerObjectComponent : MonoBehaviour
         CameraPointObject = transform.Find("CameraPoint").gameObject;
         HandsPointObject = gameObject.FindDescendant("HandsPoint");
     }
+    private void LateUpdate()
+    {
+        State.Position = transform.position;
+        State.Velocity = Rigidbody.velocity;
+    }
 }

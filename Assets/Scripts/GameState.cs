@@ -18,44 +18,65 @@ public class GameState : INetworkSerializable
         writer.Write(SequenceNumber);
         NetworkSerializationUtils.Serialize(writer, Players, (binaryWriter, player) =>
         {
+            var changeMask = uint.MaxValue;
+
+            binaryWriter.Write(changeMask);
             NetworkSerializationUtils.SerializeGivenChangeMask(
-                binaryWriter, player.GetType(), player, uint.MaxValue
+                binaryWriter, player.GetType(), player, changeMask
             );
         });
         NetworkSerializationUtils.Serialize(writer, PlayerObjects, (binaryWriter, playerObject) =>
         {
+            var changeMask = uint.MaxValue;
+
+            binaryWriter.Write(changeMask);
             NetworkSerializationUtils.SerializeGivenChangeMask(
-                binaryWriter, playerObject.GetType(), playerObject, uint.MaxValue
+                binaryWriter, playerObject.GetType(), playerObject, changeMask
             );
         });
         NetworkSerializationUtils.Serialize(writer, WeaponObjects, (binaryWriter, weaponObject) =>
         {
+            var changeMask = uint.MaxValue;
+
+            binaryWriter.Write(changeMask);
             NetworkSerializationUtils.SerializeGivenChangeMask(
-                binaryWriter, weaponObject.GetType(), weaponObject, uint.MaxValue
+                binaryWriter, weaponObject.GetType(), weaponObject, changeMask
             );
         });
         NetworkSerializationUtils.Serialize(writer, WeaponSpawners, (binaryWriter, weaponSpawner) =>
         {
+            var changeMask = uint.MaxValue;
+
+            binaryWriter.Write(changeMask);
             NetworkSerializationUtils.SerializeGivenChangeMask(
-                binaryWriter, weaponSpawner.GetType(), weaponSpawner, uint.MaxValue
+                binaryWriter, weaponSpawner.GetType(), weaponSpawner, changeMask
             );
         });
         NetworkSerializationUtils.Serialize(writer, Grenades, (binaryWriter, grenade) =>
         {
+            var changeMask = uint.MaxValue;
+
+            binaryWriter.Write(changeMask);
             NetworkSerializationUtils.SerializeGivenChangeMask(
-                binaryWriter, grenade.GetType(), grenade, uint.MaxValue
+                binaryWriter, grenade.GetType(), grenade, changeMask
             );
         });
         NetworkSerializationUtils.Serialize(writer, GrenadeSpawners, (binaryWriter, grenadeSpawner) =>
         {
+            var changeMask = uint.MaxValue;
+
+            binaryWriter.Write(changeMask);
             NetworkSerializationUtils.SerializeGivenChangeMask(
-                binaryWriter, grenadeSpawner.GetType(), grenadeSpawner, uint.MaxValue
+                binaryWriter, grenadeSpawner.GetType(), grenadeSpawner, changeMask
             );
         });
         NetworkSerializationUtils.Serialize(writer, Rockets, (binaryWriter, rocket) =>
         {
+            var changeMask = uint.MaxValue;
+
+            binaryWriter.Write(changeMask);
             NetworkSerializationUtils.SerializeGivenChangeMask(
-                binaryWriter, rocket.GetType(), rocket, uint.MaxValue
+                binaryWriter, rocket.GetType(), rocket, changeMask
             );
         });
     }
@@ -65,8 +86,8 @@ public class GameState : INetworkSerializable
         NetworkSerializationUtils.Deserialize(reader, Players, binaryReader =>
         {
             var playerState = new PlayerState();
-            NetworkSerializationUtils.DeserializeGivenChangeMask(
-                binaryReader, playerState.GetType(), playerState, uint.MaxValue
+            NetworkSerializationUtils.DeserializeDelta(
+                binaryReader, playerState.GetType(), playerState
             );
             return playerState;
         });
@@ -74,8 +95,8 @@ public class GameState : INetworkSerializable
         NetworkSerializationUtils.Deserialize(reader, PlayerObjects, binaryReader =>
         {
             var playerObjectState = new PlayerObjectState();
-            NetworkSerializationUtils.DeserializeGivenChangeMask(
-                binaryReader, playerObjectState.GetType(), playerObjectState, uint.MaxValue
+            NetworkSerializationUtils.DeserializeDelta(
+                binaryReader, playerObjectState.GetType(), playerObjectState
             );
             return playerObjectState;
         });
@@ -83,8 +104,8 @@ public class GameState : INetworkSerializable
         NetworkSerializationUtils.Deserialize(reader, WeaponObjects, binaryReader =>
         {
             var weaponObjectState = new WeaponObjectState();
-            NetworkSerializationUtils.DeserializeGivenChangeMask(
-                binaryReader, weaponObjectState.GetType(), weaponObjectState, uint.MaxValue
+            NetworkSerializationUtils.DeserializeDelta(
+                binaryReader, weaponObjectState.GetType(), weaponObjectState
             );
             return weaponObjectState;
         });
@@ -92,8 +113,8 @@ public class GameState : INetworkSerializable
         NetworkSerializationUtils.Deserialize(reader, WeaponSpawners, binaryReader =>
         {
             var weaponSpawnerState = new WeaponSpawnerState();
-            NetworkSerializationUtils.DeserializeGivenChangeMask(
-                binaryReader, weaponSpawnerState.GetType(), weaponSpawnerState, uint.MaxValue
+            NetworkSerializationUtils.DeserializeDelta(
+                binaryReader, weaponSpawnerState.GetType(), weaponSpawnerState
             );
             return weaponSpawnerState;
         });
@@ -101,8 +122,8 @@ public class GameState : INetworkSerializable
         NetworkSerializationUtils.Deserialize(reader, Grenades, binaryReader =>
         {
             var grenadeState = new GrenadeState();
-            NetworkSerializationUtils.DeserializeGivenChangeMask(
-                binaryReader, grenadeState.GetType(), grenadeState, uint.MaxValue
+            NetworkSerializationUtils.DeserializeDelta(
+                binaryReader, grenadeState.GetType(), grenadeState
             );
             return grenadeState;
         });
@@ -110,8 +131,8 @@ public class GameState : INetworkSerializable
         NetworkSerializationUtils.Deserialize(reader, GrenadeSpawners, binaryReader =>
         {
             var grenadeSpawnerState = new GrenadeSpawnerState();
-            NetworkSerializationUtils.DeserializeGivenChangeMask(
-                binaryReader, grenadeSpawnerState.GetType(), grenadeSpawnerState, uint.MaxValue
+            NetworkSerializationUtils.DeserializeDelta(
+                binaryReader, grenadeSpawnerState.GetType(), grenadeSpawnerState
             );
             return grenadeSpawnerState;
         });
@@ -119,8 +140,8 @@ public class GameState : INetworkSerializable
         NetworkSerializationUtils.Deserialize(reader, Rockets, binaryReader =>
         {
             var rocketState = new RocketState();
-            NetworkSerializationUtils.DeserializeGivenChangeMask(
-                binaryReader, rocketState.GetType(), rocketState, uint.MaxValue
+            NetworkSerializationUtils.DeserializeDelta(
+                binaryReader, rocketState.GetType(), rocketState
             );
             return rocketState;
         });

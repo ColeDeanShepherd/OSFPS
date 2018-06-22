@@ -28,29 +28,14 @@ public class GameStateScraperSystem
     public List<PlayerObjectState> GetPlayerObjectStates()
     {
         return Object.FindObjectsOfType<PlayerObjectComponent>()
-            .Select(poc =>
-            {
-                poc.State.Position = poc.transform.position;
-                poc.State.Velocity = poc.Rigidbody.velocity;
-                return poc.State;
-            })
+            .Select(poc => poc.State)
             .Where(pos => pos != null)
             .ToList();
     }
     public List<WeaponObjectState> GetWeaponObjectStates()
     {
         return Object.FindObjectsOfType<WeaponComponent>()
-            .Select(wc =>
-            {
-                if (wc.State != null)
-                {
-                    wc.State.RigidBodyState = (wc.Rigidbody != null)
-                        ? ToRigidBodyState(wc.Rigidbody)
-                        : new RigidBodyState();
-                }
-
-                return wc.State;
-            })
+            .Select(wc => wc.State)
             .Where(wos => wos != null)
             .ToList();
     }
@@ -64,13 +49,7 @@ public class GameStateScraperSystem
     public List<GrenadeState> GetGrenadeStates()
     {
         return Object.FindObjectsOfType<GrenadeComponent>()
-            .Select(gc =>
-            {
-                gc.State.RigidBodyState = (gc.Rigidbody != null)
-                    ? ToRigidBodyState(gc.Rigidbody)
-                    : new RigidBodyState();
-                return gc.State;
-            })
+            .Select(gc => gc.State)
             .Where(gs => gs != null)
             .ToList();
     }
@@ -84,18 +63,12 @@ public class GameStateScraperSystem
     public List<RocketState> GetRocketStates()
     {
         return Object.FindObjectsOfType<RocketComponent>()
-            .Select(rc =>
-            {
-                rc.State.RigidBodyState = (rc.Rigidbody != null)
-                    ? ToRigidBodyState(rc.Rigidbody)
-                    : new RigidBodyState();
-                return rc.State;
-            })
+            .Select(rc => rc.State)
             .Where(rs => rs != null)
             .ToList();
     }
 
-    public RigidBodyState ToRigidBodyState(Rigidbody rigidbody)
+    public static RigidBodyState ToRigidBodyState(Rigidbody rigidbody)
     {
         return new RigidBodyState
         {

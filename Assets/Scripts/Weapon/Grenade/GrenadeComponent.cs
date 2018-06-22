@@ -46,4 +46,10 @@ public class GrenadeComponent : MonoBehaviour
             }
         }
     }
+    private void LateUpdate()
+    {
+        State.RigidBodyState = (Rigidbody != null)
+            ? GameStateScraperSystem.ToRigidBodyState(Rigidbody)
+            : new RigidBodyState();
+    }
 }

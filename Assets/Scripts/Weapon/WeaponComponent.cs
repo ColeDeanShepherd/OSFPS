@@ -41,4 +41,13 @@ public class WeaponComponent : MonoBehaviour
             }
         }
     }
+    private void LateUpdate()
+    {
+        if (State != null)
+        {
+            State.RigidBodyState = (Rigidbody != null)
+                ? GameStateScraperSystem.ToRigidBodyState(Rigidbody)
+                : new RigidBodyState();
+        }
+    }
 }

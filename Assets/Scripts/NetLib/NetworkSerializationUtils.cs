@@ -703,4 +703,100 @@ public static class NetworkSerializationUtils
             return default(T);
         }
     }
+
+
+    public class NetworkSynchronizedComponentInfo
+    {
+        public System.Type StateType;
+        public System.Type MonoBehaviourType;
+        public System.Reflection.FieldInfo MonoBehaviourStateField;
+        public NetworkSynchronizedComponentAttribute SynchronizedComponentAttribute;
+    }
+
+    public static List<NetworkSynchronizedComponentInfo> GetNetworkSynchronizedComponentInfos()
+    {
+        var assembly = System.Reflection.Assembly.GetExecutingAssembly();
+
+        return assembly.GetTypes()
+            .Select(type =>
+            {
+                var synchronizedComponentAttribute = (NetworkSynchronizedComponentAttribute)type.GetCustomAttributes(
+                    typeof(NetworkSynchronizedComponentAttribute), inherit: false
+                ).FirstOrDefault();
+
+                if (synchronizedComponentAttribute == null)
+                {
+                    return null;
+                }
+
+                var monoBehaviourType = synchronizedComponentAttribute.MonoBehaviourType;
+                var stateField = monoBehaviourType.GetFields()
+                    .FirstOrDefault(f => f.FieldType.IsEquivalentTo(type));
+
+                return new NetworkSynchronizedComponentInfo
+                {
+                    StateType = type,
+                    MonoBehaviourType = monoBehaviourType,
+                    MonoBehaviourStateField = stateField,
+                    SynchronizedComponentAttribute = synchronizedComponentAttribute
+                };
+            })
+            .Where(t => t != null)
+            .ToList();
+    }
+    public static List<object> GetStateObjectsToSynchronize(NetworkSynchronizedComponentInfo synchronizedComponentInfo)
+    {
+        var monoBehaviours = UnityEngine.Object.FindObjectsOfType(synchronizedComponentInfo.MonoBehaviourType);
+
+        return monoBehaviours
+            .Select(mb => synchronizedComponentInfo.MonoBehaviourStateField.GetValue(mb))
+            .ToList();
+    }
+    public static List<List<object>> GetStateObjectListsToSynchronize(List<NetworkSynchronizedComponentInfo> synchronizedComponentInfos)
+    {
+        return synchronizedComponentInfos
+            .Select(GetStateObjectsToSynchronize)
+            .ToList();
+    }
+    public static void SerializeSynchronizedComponents(
+        BinaryWriter writer, List<NetworkSynchronizedComponentInfo> synchronizedComponentInfos
+    )
+    {
+        foreach (var stateObjects in GetStateObjectListsToSynchronize(synchronizedComponentInfos))
+        {
+            Serialize(writer, stateObjects, (binaryWriter, stateObject) =>
+            {
+                var changeMask = uint.MaxValue;
+
+                binaryWriter.Write(changeMask);
+                SerializeGivenChangeMask(
+                    binaryWriter, stateObject.GetType(), stateObject, changeMask
+                );
+            });
+        }
+    }
+    public static List<List<object>> DeserializeSynchronizedComponents(
+        BinaryReader reader, List<NetworkSynchronizedComponentInfo> synchronizedComponentInfos
+    )
+    {
+        var stateObjectLists = new List<List<object>>();
+
+        foreach (var synchronizedComponentInfo in synchronizedComponentInfos)
+        {
+            var stateObjects = new List<object>();
+
+            Deserialize(reader, stateObjects, binaryReader =>
+            {
+                var stateObject = System.Activator.CreateInstance(synchronizedComponentInfo.StateType);
+                DeserializeDelta(
+                    binaryReader, stateObject.GetType(), stateObject
+                );
+                return stateObject;
+            });
+
+            stateObjectLists.Add(stateObjects);
+        }
+
+        return stateObjectLists;
+    }
 }

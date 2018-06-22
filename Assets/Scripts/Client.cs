@@ -874,7 +874,52 @@ public class Client
         newRigidBodyState.AngularVelocity = correctedAngularVelocity;
     }
 
-    public void ApplyGameState(GameState newGameState)
+    public GameObject CreateGameObjectFromState(object state)
+    {
+        var stateType = state.GetType();
+
+        if (stateType.IsEquivalentTo(typeof(PlayerState)))
+        {
+            return PlayerSystem.Instance.CreateLocalPlayerDataObject((PlayerState)state);
+        }
+        else if (stateType.IsEquivalentTo(typeof(PlayerObjectState)))
+        {
+            return SpawnPlayer((PlayerObjectState)state);
+        }
+        else if (stateType.IsEquivalentTo(typeof(WeaponObjectState)))
+        {
+            return WeaponSpawnerSystem.Instance.SpawnLocalWeaponObject((WeaponObjectState)state);
+        }
+        else if (stateType.IsEquivalentTo(typeof(WeaponSpawnerState)))
+        {
+            var weaponSpawner = Object.Instantiate(OsFps.Instance.WeaponSpawnerPrefab);
+            var weaponSpawnerComponent = weaponSpawner.GetComponent<WeaponSpawnerComponent>();
+            weaponSpawnerComponent.State = (WeaponSpawnerState)state;
+
+            return weaponSpawner;
+        }
+        else if (stateType.IsEquivalentTo(typeof(GrenadeState)))
+        {
+            return GrenadeSpawnerSystem.Instance.SpawnLocalGrenadeObject((GrenadeState)state);
+        }
+        else if (stateType.IsEquivalentTo(typeof(GrenadeSpawnerState)))
+        {
+            var grenadeSpawner = Object.Instantiate(OsFps.Instance.GrenadeSpawnerPrefab);
+            var grenadeSpawnerComponent = grenadeSpawner.GetComponent<GrenadeSpawnerComponent>();
+            grenadeSpawnerComponent.State = (GrenadeSpawnerState)state;
+
+            return grenadeSpawner;
+        }
+        else if (stateType.IsEquivalentTo(typeof(RocketState)))
+        {
+            return RocketSystem.Instance.SpawnLocalRocketObject((RocketState)state);
+        }
+        else
+        {
+            throw new System.NotImplementedException();
+        }
+    }
+    /*public void ApplyGameState(GameState newGameState)
     {
         if (!PlayerId.HasValue) return; // Wait until the player ID has been set.
 
@@ -886,9 +931,62 @@ public class Client
         //ApplyWeaponSpawnerStates(oldGameState, newGameState);
         ApplyGrenadeStates(oldGameState, newGameState);
         ApplyRocketStates(oldGameState, newGameState);
+    }*/
+
+    private uint GetIdFromState(object state)
+    {
+        var stateType = state.GetType();
+        var idField = stateType.GetFields().FirstOrDefault(fieldInfo => fieldInfo.Name == "Id");
+        return (uint)idField.GetValue(state);
+    }
+    private void ApplyState(List<object> oldStates, List<object> newStates)
+    {
+        System.Func<object, object, bool> doIdsMatch =
+            (s1, s2) => GetIdFromState(s1) == GetIdFromState(s2);
+
+        System.Action<object> handleRemovedState = removedState =>
+        {
+            var removedStateId = GetIdFromState(removedState);
+            var synchronizedComponentInfo = OsFps.Instance.synchronizedComponentInfos
+                .FirstOrDefault(sci => sci.StateType.IsEquivalentTo(removedState.GetType()));
+            var monoBehaviour = (MonoBehaviour)Object.FindObjectsOfType(synchronizedComponentInfo.MonoBehaviourType)
+                .FirstOrDefault(o =>
+                {
+                    var state = synchronizedComponentInfo.MonoBehaviourStateField.GetValue(o);
+                    var stateId = GetIdFromState(state);
+
+                    return stateId == removedStateId;
+                });
+            Object.Destroy(monoBehaviour.gameObject);
+        };
+
+        System.Action<object> handleAddedState = addedState =>
+            CreateGameObjectFromState(addedState);
+
+        System.Action<object, object> handleUpdatedState =
+            (oldState, newState) =>
+            {
+                var oldStateId = GetIdFromState(oldState);
+                var synchronizedComponentInfo = OsFps.Instance.synchronizedComponentInfos
+                    .FirstOrDefault(sci => sci.StateType.IsEquivalentTo(oldState.GetType()));
+                var monoBehaviour = (MonoBehaviour)Object.FindObjectsOfType(synchronizedComponentInfo.MonoBehaviourType)
+                    .FirstOrDefault(o =>
+                    {
+                        var state = synchronizedComponentInfo.MonoBehaviourStateField.GetValue(o);
+                        var stateId = GetIdFromState(state);
+
+                        return stateId == oldStateId;
+                    });
+                synchronizedComponentInfo.MonoBehaviourStateField.SetValue(monoBehaviour, newState);
+            };
+
+        ApplyStates(
+            oldStates, newStates, doIdsMatch,
+            handleRemovedState, handleAddedState, handleUpdatedState
+        );
     }
 
-    private void ApplyPlayerStates(GameState oldGameState, GameState newGameState)
+    /*private void ApplyPlayerStates(GameState oldGameState, GameState newGameState)
     {
         System.Func<PlayerState, PlayerState, bool> doIdsMatch =
             (ps1, ps2) => ps1.Id == ps2.Id;
@@ -1164,57 +1262,77 @@ public class Client
             // Update state.
             rocketComponent.State = updatedRocketState;
         }
-    }
+    }*/
 
-    private void SpawnPlayer(PlayerObjectState playerState)
+    private GameObject SpawnPlayer(PlayerObjectState playerState)
     {
-        PlayerRespawnSystem.Instance.SpawnLocalPlayer(playerState);
+        var playerObject = PlayerRespawnSystem.Instance.SpawnLocalPlayer(playerState);
 
         if (playerState.Id == PlayerId)
         {
             AttachCameraToPlayer(playerState.Id);
         }
+
+        return playerObject;
     }
 
     #region Message Handlers
     private void OnReceiveDataFromServer(int channelId, byte[] bytesReceived)
     {
-        var reader = new BinaryReader(new MemoryStream(bytesReceived));
-        var messageTypeAsByte = reader.ReadByte();
-
-        RpcInfo rpcInfo;
-
-        if (OsFps.Instance.rpcInfoById.TryGetValue(messageTypeAsByte, out rpcInfo))
+        using (var memoryStream = new MemoryStream(bytesReceived))
         {
-            var rpcArguments = NetworkSerializationUtils.DeserializeRpcCallArguments(rpcInfo, reader);
-            OsFps.Instance.ExecuteRpc(rpcInfo.Id, rpcArguments);
-        }
-        else
-        {
-            throw new System.NotImplementedException("Unknown message type: " + messageTypeAsByte);
+            using (var reader = new BinaryReader(memoryStream))
+            {
+                var messageTypeAsByte = reader.ReadByte();
+
+                RpcInfo rpcInfo;
+
+                if (messageTypeAsByte == OsFps.StateSynchronizationMessageId)
+                {
+                    var sequenceNumber = reader.ReadUInt32();
+                    var componentLists = NetworkSerializationUtils.DeserializeSynchronizedComponents(
+                        reader, OsFps.Instance.synchronizedComponentInfos
+                    );
+                    
+                    ClientOnReceiveGameState(sequenceNumber, componentLists);
+                }
+                else if (OsFps.Instance.rpcInfoById.TryGetValue(messageTypeAsByte, out rpcInfo))
+                {
+                    var rpcArguments = NetworkSerializationUtils.DeserializeRpcCallArguments(rpcInfo, reader);
+                    OsFps.Instance.ExecuteRpc(rpcInfo.Id, rpcArguments);
+                }
+                else
+                {
+                    throw new System.NotImplementedException("Unknown message type: " + messageTypeAsByte);
+                }
+            }
         }
     }
 
-    [Rpc(ExecuteOn = NetworkPeerType.Client)]
-    public void ClientOnSetPlayerId(uint playerId)
-    {
-        PlayerId = playerId;
-    }
-
-    [Rpc(ExecuteOn = NetworkPeerType.Client)]
-    public void ClientOnReceiveGameState(GameState gameState)
+    public void ClientOnReceiveGameState(uint sequenceNumber, List<List<object>> componentLists)
     {
         if (PlayerId == null) return;
 
         OsFps.Instance.CallRpcOnServer("ServerOnReceiveClientGameStateAck", unreliableChannelId, new
         {
             playerId = PlayerId.Value,
-            gameStateSequenceNumber = gameState.SequenceNumber
+            gameStateSequenceNumber = sequenceNumber
         });
 
         if (OsFps.Instance.IsRemoteClient)
         {
-            ApplyGameState(gameState);
+            var oldComponentLists = NetworkSerializationUtils.GetStateObjectListsToSynchronize(
+                OsFps.Instance.synchronizedComponentInfos
+            );
+
+            foreach (var componentList in componentLists)
+            {
+                var componentType = componentList.FirstOrDefault()?.GetType();
+                var oldComponentList = oldComponentLists
+                    .FirstOrDefault(ocl => ocl.FirstOrDefault()?.GetType().IsEquivalentTo(componentType) ?? false)
+                    ?? new List<object>();
+                ApplyState(oldComponentList, componentList);
+            }
         }
         else
         {
@@ -1224,6 +1342,12 @@ public class Client
                 AttachCameraToPlayer(PlayerId.Value);
             }
         }
+    }
+
+    [Rpc(ExecuteOn = NetworkPeerType.Client)]
+    public void ClientOnSetPlayerId(uint playerId)
+    {
+        PlayerId = playerId;
     }
 
     [Rpc(ExecuteOn = NetworkPeerType.Client)]

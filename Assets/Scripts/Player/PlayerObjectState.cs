@@ -3,6 +3,7 @@ using System.Linq;
 using UnityEngine;
 
 [System.Serializable]
+[NetworkSynchronizedComponent(MonoBehaviourType = typeof(PlayerObjectComponent))]
 public class PlayerObjectState
 {
     public uint Id;

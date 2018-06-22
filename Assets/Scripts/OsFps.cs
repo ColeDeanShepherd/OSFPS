@@ -10,6 +10,7 @@ public class OsFps : MonoBehaviour
 {
     #region Constants
     public const string LocalHostIpv4Address = "127.0.0.1";
+    public const byte StateSynchronizationMessageId = 0;
 
     public const string StartSceneName = "Start";
     public const string SmallMapSceneName = "Small Map";
@@ -77,6 +78,7 @@ public class OsFps : MonoBehaviour
         }
     }
     public Settings Settings;
+    public List<NetworkSerializationUtils.NetworkSynchronizedComponentInfo> synchronizedComponentInfos;
 
     public bool IsServer
     {
@@ -113,6 +115,9 @@ public class OsFps : MonoBehaviour
 
     public GameObject[] WeaponDefinitionPrefabs;
     public GameObject[] GrenadeDefinitionPrefabs;
+
+    public GameObject WeaponSpawnerPrefab;
+    public GameObject GrenadeSpawnerPrefab;
 
     public AudioClip ReloadSound;
 
@@ -255,15 +260,10 @@ public class OsFps : MonoBehaviour
         CreateDataObject();
         CanvasObject = guiContainer.FindDescendant("Canvas");
 
+        synchronizedComponentInfos = NetworkSerializationUtils.GetNetworkSynchronizedComponentInfos();
         SetupRpcs();
 
         LoadSettings();
-
-        var type = typeof(PlayerState);
-        foreach (var fieldInfo in type.GetFields())
-        {
-            Debug.Log(fieldInfo.Name);
-        }
     }
     private GameObject CreateDataObject()
     {

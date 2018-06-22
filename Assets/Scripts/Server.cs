@@ -144,24 +144,34 @@ public class Server
             SendGameStateDiff(gameState, playersLatestAcknowledgedGameState, playerId);
         }
 
-        OsFps.Instance.CallRpcOnAllClients("ClientOnReceiveGameState", unreliableStateUpdateChannelId, new
-        {
-            gameState = gameState
-        });
-
         cachedSentGameStates.Add(gameState);
         if (cachedSentGameStates.Count > maxCachedSentGameStates)
         {
             cachedSentGameStates.RemoveAt(0);
         }
     }
+    
     private void SendGameStateDiff(GameState newGameState, GameState oldGameState, uint playerId)
     {
         var connectionId = GetConnectionIdByPlayerId(playerId);
-        OsFps.Instance.CallRpcOnClient("ClientOnReceiveGameState", connectionId.Value, unreliableStateUpdateChannelId, new
+
+        byte[] messageBytes;
+
+        using (var memoryStream = new MemoryStream())
         {
-            gameState = newGameState
-        });
+            using (var writer = new BinaryWriter(memoryStream))
+            {
+                writer.Write(OsFps.StateSynchronizationMessageId);
+                writer.Write(newGameState.SequenceNumber);
+                NetworkSerializationUtils.SerializeSynchronizedComponents(
+                    writer, OsFps.Instance.synchronizedComponentInfos
+                );
+            }
+
+            messageBytes = memoryStream.ToArray();
+        }
+
+        SendMessageToClient(connectionId.Value, unreliableStateUpdateChannelId, messageBytes);
     }
 
     private void SendMessageToClientHandleErrors(int connectionId, int channelId, byte[] serializedMessage)
@@ -226,21 +236,30 @@ public class Server
     private int TEMPORARY_HACK_CURRENT_CONNECTION_ID;
     private void OnReceiveDataFromClient(int connectionId, int channelId, byte[] bytesReceived)
     {
-        var reader = new BinaryReader(new MemoryStream(bytesReceived));
-        var messageTypeAsByte = reader.ReadByte();
-
-        RpcInfo rpcInfo;
-        
-        if (OsFps.Instance.rpcInfoById.TryGetValue(messageTypeAsByte, out rpcInfo))
+        using (var memoryStream = new MemoryStream(bytesReceived))
         {
-            var rpcArguments = NetworkSerializationUtils.DeserializeRpcCallArguments(rpcInfo, reader);
+            using (var reader = new BinaryReader(memoryStream))
+            {
+                var messageTypeAsByte = reader.ReadByte();
 
-            TEMPORARY_HACK_CURRENT_CONNECTION_ID = connectionId;
-            OsFps.Instance.ExecuteRpc(rpcInfo.Id, rpcArguments);
-        }
-        else
-        {
-            throw new System.NotImplementedException("Unknown message type: " + messageTypeAsByte);
+                RpcInfo rpcInfo;
+
+                if (messageTypeAsByte == OsFps.StateSynchronizationMessageId)
+                {
+                    throw new System.NotImplementedException("Servers don't support receiving state synchronization messages.");
+                }
+                else if (OsFps.Instance.rpcInfoById.TryGetValue(messageTypeAsByte, out rpcInfo))
+                {
+                    var rpcArguments = NetworkSerializationUtils.DeserializeRpcCallArguments(rpcInfo, reader);
+
+                    TEMPORARY_HACK_CURRENT_CONNECTION_ID = connectionId;
+                    OsFps.Instance.ExecuteRpc(rpcInfo.Id, rpcArguments);
+                }
+                else
+                {
+                    throw new System.NotImplementedException("Unknown message type: " + messageTypeAsByte);
+                }
+            }
         }
     }
 

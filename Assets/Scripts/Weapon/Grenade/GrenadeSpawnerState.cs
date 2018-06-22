@@ -1,4 +1,5 @@
 ﻿[System.Serializable]
+[NetworkSynchronizedComponent(MonoBehaviourType = typeof(GrenadeSpawnerComponent))]
 public class GrenadeSpawnerState
 {
     public uint Id;

@@ -20,4 +20,10 @@ public class RocketComponent : MonoBehaviour
     {
         RocketSystem.Instance.RocketOnCollisionEnter(this, collision);
     }
+    private void LateUpdate()
+    {
+        State.RigidBodyState = (Rigidbody != null)
+            ? GameStateScraperSystem.ToRigidBodyState(Rigidbody)
+            : new RigidBodyState();
+    }
 }

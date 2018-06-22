@@ -82,6 +82,10 @@ MonoBehaviour:
   GrenadeDefinitionPrefabs:
   - {fileID: 1945579007054130, guid: 1e1791f6157394c40b36b1bd2c2cf52a, type: 2}
   - {fileID: 1507198703594746, guid: 069ce0f66301ddd46974a414fe50d65d, type: 2}
+  WeaponSpawnerPrefab: {fileID: 1075180494737956, guid: 6627d5821b375794ba7eceb2d36d0dbf,
+    type: 2}
+  GrenadeSpawnerPrefab: {fileID: 1365179888196138, guid: f5b0c185d31179b488b75129171b7d96,
+    type: 2}
   ReloadSound: {fileID: 8300000, guid: 4798a30e1e2a66d47a27c83e6ef63bb1, type: 3}
   RocketPrefab: {fileID: 1194062123376506, guid: f6cbc1b0090d9784584f0e47bf443a0b,
     type: 2}

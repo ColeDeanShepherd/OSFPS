@@ -1,4 +1,5 @@
 ﻿[System.Serializable]
+[NetworkSynchronizedComponent(MonoBehaviourType = typeof(RocketComponent))]
 public class RocketState
 {
     public uint Id;
