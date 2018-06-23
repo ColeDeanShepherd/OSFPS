@@ -2,7 +2,7 @@
 using UnityEngine.Assertions;
 using UnityEngine.Networking;
 
-namespace NetLib
+namespace NetworkLibrary
 {
     public class ClientPeer : NetworkPeer
     {
@@ -44,7 +44,7 @@ namespace NetLib
             var hostTopology = new HostTopology(
                 connectionConfig, maxConnectionCount
             );
-            socketId = NetworkTransport.AddHost(hostTopology);
+            Start(null, hostTopology);
         }
         public override bool Stop()
         {
@@ -98,8 +98,21 @@ namespace NetLib
             }
         }
 
+        public void CallRpcOnServer(string name, int channelId, object argumentsObj)
+        {
+            var rpcId = NetLib.rpcIdByName[name];
+            var rpcInfo = NetLib.rpcInfoById[rpcId];
+
+            Assert.IsTrue(rpcInfo.ExecuteOn == NetworkPeerType.Server);
+
+            var messageBytes = NetworkSerializationUtils.SerializeRpcCall(rpcInfo, argumentsObj);
+            SendMessageToServer(channelId, messageBytes);
+        }
+
         protected override void OnPeerConnected(int connectionId)
         {
+            base.OnPeerConnected(connectionId);
+
             serverConnectionId = connectionId;
 
             if(OnConnectedToServer != null)
@@ -109,6 +122,7 @@ namespace NetLib
         }
         protected override void OnPeerDisconnected(int connectionId)
         {
+            base.OnPeerConnected(connectionId);
             serverConnectionId = null;
 
             if(OnDisconnectedFromServer != null)
@@ -118,6 +132,8 @@ namespace NetLib
         }
         protected override void OnReceiveData(int connectionId, int channelId, byte[] buffer, int numBytesReceived)
         {
+            base.OnReceiveData(connectionId, channelId, buffer, numBytesReceived);
+
             var bytesReceived = new byte[numBytesReceived];
             Array.Copy(buffer, bytesReceived, numBytesReceived);
 
@@ -125,6 +141,8 @@ namespace NetLib
         }
         protected override void OnNetworkErrorEvent(int connectionId, int channelId, NetworkError error, NetworkEventType eventType, byte[] buffer, int numBytesReceived)
         {
+            base.OnNetworkErrorEvent(connectionId, channelId, error, eventType, buffer, numBytesReceived);
+
             var errorMessage = string.Format(
                     "Network error. Error: {0}. Event Type: {1}",
                     error, eventType

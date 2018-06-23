@@ -1,14 +1,16 @@
-﻿using UnityEngine;
+﻿using System.Collections.Generic;
+using UnityEngine;
 using UnityEngine.Assertions;
 using UnityEngine.Networking;
 
-namespace NetLib
+namespace NetworkLibrary
 {
     public class NetworkPeer
     {
         public const int ReceiveBufferSize = 65535;
 
         public int? socketId;
+        public List<int> connectionIds;
 
         public bool IsStarted
         {
@@ -30,6 +32,8 @@ namespace NetLib
             {
                 socketId = NetworkTransport.AddHost(hostTopology);
             }
+
+            connectionIds = new List<int>();
         }
         public virtual bool Stop()
         {
@@ -90,8 +94,14 @@ namespace NetLib
         }
 
         protected virtual void OnReceiveBroadcast() { }
-        protected virtual void OnPeerConnected(int connectionId) { }
-        protected virtual void OnPeerDisconnected(int connectionId) { }
+        protected virtual void OnPeerConnected(int connectionId)
+        {
+            connectionIds.Add(connectionId);
+        }
+        protected virtual void OnPeerDisconnected(int connectionId)
+        {
+            connectionIds.Remove(connectionId);
+        }
         protected virtual void OnReceiveData(int connectionId, int channelId, byte[] buffer, int numBytesReceived) { }
         protected virtual void OnNetworkErrorEvent(int connectionId, int channelId, NetworkError error, NetworkEventType eventType, byte[] buffer, int numBytesReceived) { }
 

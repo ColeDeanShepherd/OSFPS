@@ -5,6 +5,7 @@ using UnityEngine;
 using UnityEngine.Assertions;
 using UnityEngine.Networking;
 using UnityEngine.SceneManagement;
+using NetworkLibrary;
 
 public class OsFps : MonoBehaviour
 {
@@ -66,7 +67,91 @@ public class OsFps : MonoBehaviour
 
     public static OsFps Instance;
     public static CustomLogger Logger = new CustomLogger(Debug.unityLogger.logHandler);
-    
+
+    public static RigidBodyState ToRigidBodyState(Rigidbody rigidbody)
+    {
+        return new RigidBodyState
+        {
+            Position = rigidbody.transform.position,
+            EulerAngles = rigidbody.transform.eulerAngles,
+            Velocity = rigidbody.velocity,
+            AngularVelocity = rigidbody.angularVelocity
+        };
+    }
+    public static void ApplyRigidbodyState(RigidBodyState newRigidBodyState, RigidBodyState oldRigidBodyState, Rigidbody rigidbody, float roundTripTime)
+    {
+        // Correct position.
+        var correctedPosition = CorrectedPosition(
+            newRigidBodyState.Position, newRigidBodyState.Velocity,
+            roundTripTime, rigidbody.transform.position
+        );
+        rigidbody.transform.position = correctedPosition;
+        newRigidBodyState.Position = correctedPosition;
+
+        // Correct orientation.
+        var correctedEulerAngles = CorrectedEulerAngles(
+            newRigidBodyState.EulerAngles, newRigidBodyState.AngularVelocity,
+            roundTripTime, rigidbody.transform.eulerAngles
+        );
+        rigidbody.transform.eulerAngles = correctedEulerAngles;
+        newRigidBodyState.EulerAngles = correctedEulerAngles;
+
+        // Correct velocity.
+        var correctedVelocity = CorrectedVelocity(
+            newRigidBodyState.Velocity, roundTripTime, rigidbody.velocity
+        );
+        rigidbody.velocity = correctedVelocity;
+        newRigidBodyState.Velocity = correctedVelocity;
+
+        // Correct angular velocity.
+        var correctedAngularVelocity = CorrectedAngularVelocity(
+            newRigidBodyState.AngularVelocity, roundTripTime, rigidbody.angularVelocity
+        );
+        rigidbody.angularVelocity = correctedAngularVelocity;
+        newRigidBodyState.AngularVelocity = correctedAngularVelocity;
+    }
+    public static Vector3 CorrectedPosition(Vector3 serverPosition, Vector3 serverVelocity, float roundTripTime, Vector3 clientPosition)
+    {
+        var serverToClientLatency = roundTripTime / 2;
+        var predictedPosition = serverPosition + (serverToClientLatency * serverVelocity);
+        var positionDifference = predictedPosition - clientPosition;
+        var percentOfDiffToCorrect = 1f / 3;
+        var positionDelta = percentOfDiffToCorrect * positionDifference;
+        return clientPosition + positionDelta;
+    }
+    public static Vector3 CorrectedEulerAngles(Vector3 serverEulerAngles, Vector3 serverAngularVelocity, float roundTripTime, Vector3 clientEulerAngles)
+    {
+        const bool correctSmoothly = false;
+
+        if (!correctSmoothly)
+        {
+            return serverEulerAngles;
+        }
+        else
+        {
+            var serverToClientLatency = roundTripTime / 2;
+            var predictedEulerAngles = serverEulerAngles + (serverToClientLatency * serverAngularVelocity);
+            var eulerAnglesDifference = predictedEulerAngles - clientEulerAngles;
+            var percentOfDiffToCorrect = 1f / 3;
+            var eulerAnglesDelta = percentOfDiffToCorrect * eulerAnglesDifference;
+            return clientEulerAngles + eulerAnglesDelta;
+        }
+    }
+    public static Vector3 CorrectedVelocity(Vector3 serverVelocity, float roundTripTime, Vector3 clientVelocity)
+    {
+        var serverToClientLatency = roundTripTime / 2;
+        var percentOfDiffToCorrect = 1f / 2;
+        var velocityDiff = percentOfDiffToCorrect * (serverVelocity - clientVelocity);
+        return clientVelocity + velocityDiff;
+    }
+    public static Vector3 CorrectedAngularVelocity(Vector3 serverAngularVelocity, float roundTripTime, Vector3 clientAngularVelocity)
+    {
+        var serverToClientLatency = roundTripTime / 2;
+        var percentOfDiffToCorrect = 1f / 2;
+        var angularVelocityDiff = percentOfDiffToCorrect * (serverAngularVelocity - clientAngularVelocity);
+        return clientAngularVelocity + angularVelocityDiff;
+    }
+
     public Server Server;
     public Client Client;
     public Stack<MonoBehaviour> MenuStack;
@@ -78,7 +163,7 @@ public class OsFps : MonoBehaviour
         }
     }
     public Settings Settings;
-    public List<NetworkSerializationUtils.NetworkSynchronizedComponentInfo> synchronizedComponentInfos;
+    public List<NetworkSynchronizedComponentInfo> synchronizedComponentInfos;
 
     public bool IsServer
     {
@@ -226,7 +311,7 @@ public class OsFps : MonoBehaviour
             }
         }
     }
-    
+
     public MainMenuComponent CreateMainMenu()
     {
         var mainMenuObject = Instantiate(MainMenuPrefab, CanvasObject.transform);
@@ -260,8 +345,8 @@ public class OsFps : MonoBehaviour
         CreateDataObject();
         CanvasObject = guiContainer.FindDescendant("Canvas");
 
-        synchronizedComponentInfos = NetworkSerializationUtils.GetNetworkSynchronizedComponentInfos();
-        SetupRpcs();
+        synchronizedComponentInfos = NetLib.GetNetworkSynchronizedComponentInfos();
+        NetLib.SetupRpcs();
 
         LoadSettings();
     }
@@ -394,58 +479,6 @@ public class OsFps : MonoBehaviour
     {
         System.IO.File.WriteAllText(SettingsFilePath, JsonUtility.ToJson(Settings));
     }
-    
-    public void CallRpcOnServer(string name, int channelId, object argumentsObj)
-    {
-        var rpcId = rpcIdByName[name];
-        var rpcInfo = rpcInfoById[rpcId];
-
-        Assert.IsTrue(rpcInfo.ExecuteOn == NetworkPeerType.Server);
-
-        var messageBytes = NetworkSerializationUtils.SerializeRpcCall(rpcInfo, argumentsObj);
-        Client.ClientPeer.SendMessageToServer(channelId, messageBytes);
-    }
-    public void CallRpcOnAllClients(string name, int channelId, object argumentsObj)
-    {
-        var rpcId = rpcIdByName[name];
-        var rpcInfo = rpcInfoById[rpcId];
-
-        Assert.IsTrue(rpcInfo.ExecuteOn == NetworkPeerType.Client);
-
-        var messageBytes = NetworkSerializationUtils.SerializeRpcCall(rpcInfo, argumentsObj);
-        Server.SendMessageToAllClients(channelId, messageBytes);
-    }
-    public void CallRpcOnAllClientsExcept(string name, int exceptClientConnectionId, int channelId, object argumentsObj)
-    {
-        var rpcId = rpcIdByName[name];
-        var rpcInfo = rpcInfoById[rpcId];
-
-        Assert.IsTrue(rpcInfo.ExecuteOn == NetworkPeerType.Client);
-
-        var messageBytes = NetworkSerializationUtils.SerializeRpcCall(rpcInfo, argumentsObj);
-        Server.SendMessageToAllClientsExcept(exceptClientConnectionId, channelId, messageBytes);
-    }
-    public void CallRpcOnClient(string name, int clientConnectionId, int channelId, object argumentsObj)
-    {
-        var rpcId = rpcIdByName[name];
-        var rpcInfo = rpcInfoById[rpcId];
-
-        Assert.IsTrue(rpcInfo.ExecuteOn == NetworkPeerType.Client);
-
-        var messageBytes = NetworkSerializationUtils.SerializeRpcCall(rpcInfo, argumentsObj);
-        Server.SendMessageToClient(clientConnectionId, channelId, messageBytes);
-    }
-
-    public void ExecuteRpc(byte id, params object[] arguments)
-    {
-        var rpcInfo = rpcInfoById[id];
-        var objContainingRpc = (rpcInfo.ExecuteOn == NetworkPeerType.Server)
-            ? (object)Server
-            : (object)Client;
-        rpcInfo.MethodInfo.Invoke(objContainingRpc, arguments);
-
-        OsFps.Logger.Log($"Executed RPC {rpcInfo.Name}");
-    }
 
     public void CreateHitScanShotDebugLine(Ray ray, Material material)
     {
@@ -463,51 +496,7 @@ public class OsFps : MonoBehaviour
 
         Object.Destroy(hitScanShotObject, OsFps.HitScanShotDebugLineLifetime);
     }
-
-    public Dictionary<string, byte> rpcIdByName;
-    public Dictionary<byte, RpcInfo> rpcInfoById;
-    private void SetupRpcs()
-    {
-        rpcIdByName = new Dictionary<string, byte>();
-        rpcInfoById = new Dictionary<byte, RpcInfo>();
-
-        var assembly = System.Reflection.Assembly.GetExecutingAssembly();
-
-        foreach (var type in assembly.GetTypes())
-        {
-            var methodBindingFlags =
-                System.Reflection.BindingFlags.Public |
-                System.Reflection.BindingFlags.NonPublic |
-                System.Reflection.BindingFlags.Instance;
-
-            foreach (var methodInfo in type.GetMethods(methodBindingFlags))
-            {
-                var rpcAttribute = (RpcAttribute)methodInfo.GetCustomAttributes(typeof(RpcAttribute), inherit: false)
-                    .FirstOrDefault();
-                var parameterInfos = methodInfo.GetParameters();
-
-                if (rpcAttribute != null)
-                {
-                    var rpcInfo = new RpcInfo
-                    {
-                        Id = (byte)(1 + rpcInfoById.Count),
-                        Name = methodInfo.Name,
-                        ExecuteOn = rpcAttribute.ExecuteOn,
-                        MethodInfo = methodInfo,
-                        ParameterNames = parameterInfos
-                            .Select(parameterInfo => parameterInfo.Name)
-                            .ToArray(),
-                        ParameterTypes = parameterInfos
-                            .Select(parameterInfo => parameterInfo.ParameterType)
-                            .ToArray()
-                    };
-
-                    rpcIdByName.Add(rpcInfo.Name, rpcInfo.Id);
-                    rpcInfoById.Add(rpcInfo.Id, rpcInfo);
-                }
-            }
-        }
-    }
+    
     private void ShutdownNetworkPeers()
     {
         if (Client != null)
@@ -526,32 +515,6 @@ public class OsFps : MonoBehaviour
         }
     }
 
-    private bool ParseIpAddressAndPort(
-        string ipAddressAndPort, ushort defaultPortNumber, out string ipAddress, out ushort portNumber
-    )
-    {
-        var splitIpAddressAndPort = ipAddressAndPort.Split(new[] { ':' });
-
-        if (splitIpAddressAndPort.Length == 1)
-        {
-            ipAddress = splitIpAddressAndPort[0];
-            portNumber = defaultPortNumber;
-            return true;
-
-        }
-        else if (splitIpAddressAndPort.Length == 2)
-        {
-            ipAddress = splitIpAddressAndPort[0];
-            return ushort.TryParse(splitIpAddressAndPort[1], out portNumber);
-        }
-        else
-        {
-            ipAddress = "";
-            portNumber = 0;
-            return false;
-        }
-    }
-
     public string EnteredClientIpAddressAndPort;
     public void OnMapLoadedAsClient(Scene scene, LoadSceneMode loadSceneMode)
     {
@@ -563,7 +526,7 @@ public class OsFps : MonoBehaviour
 
         string ipAddress;
         ushort portNumber;
-        var succeededParsing = ParseIpAddressAndPort(
+        var succeededParsing = NetLib.ParseIpAddressAndPort(
             EnteredClientIpAddressAndPort, Server.PortNumber, out ipAddress, out portNumber
         );
 

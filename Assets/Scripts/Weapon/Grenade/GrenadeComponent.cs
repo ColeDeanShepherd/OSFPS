@@ -49,7 +49,20 @@ public class GrenadeComponent : MonoBehaviour
     private void LateUpdate()
     {
         State.RigidBodyState = (Rigidbody != null)
-            ? GameStateScraperSystem.ToRigidBodyState(Rigidbody)
+            ? OsFps.ToRigidBodyState(Rigidbody)
             : new RigidBodyState();
+    }
+    private void ApplyStateFromServer(object newState)
+    {
+        var newGrenadeState = (GrenadeState)newState;
+
+        OsFps.ApplyRigidbodyState(
+            newGrenadeState.RigidBodyState,
+            State.RigidBodyState,
+            Rigidbody,
+            OsFps.Instance.Client.ClientPeer.RoundTripTime ?? 0
+        );
+
+        State = newGrenadeState;
     }
 }

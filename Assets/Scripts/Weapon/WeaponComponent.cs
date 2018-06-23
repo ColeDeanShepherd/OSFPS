@@ -46,8 +46,21 @@ public class WeaponComponent : MonoBehaviour
         if (State != null)
         {
             State.RigidBodyState = (Rigidbody != null)
-                ? GameStateScraperSystem.ToRigidBodyState(Rigidbody)
+                ? OsFps.ToRigidBodyState(Rigidbody)
                 : new RigidBodyState();
         }
+    }
+    private void ApplyStateFromServer(object newState)
+    {
+        var newWeaponObjectState = (WeaponObjectState)newState;
+
+        OsFps.ApplyRigidbodyState(
+            newWeaponObjectState.RigidBodyState,
+            State.RigidBodyState,
+            Rigidbody,
+            OsFps.Instance.Client.ClientPeer.RoundTripTime ?? 0
+        );
+
+        State = newWeaponObjectState;
     }
 }

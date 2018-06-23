@@ -23,7 +23,20 @@ public class RocketComponent : MonoBehaviour
     private void LateUpdate()
     {
         State.RigidBodyState = (Rigidbody != null)
-            ? GameStateScraperSystem.ToRigidBodyState(Rigidbody)
+            ? OsFps.ToRigidBodyState(Rigidbody)
             : new RigidBodyState();
+    }
+    private void ApplyStateFromServer(object newState)
+    {
+        var newRocketState = (RocketState)newState;
+
+        OsFps.ApplyRigidbodyState(
+            newRocketState.RigidBodyState,
+            State.RigidBodyState,
+            Rigidbody,
+            OsFps.Instance.Client.ClientPeer.RoundTripTime ?? 0
+        );
+        
+        State = newRocketState;
     }
 }

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Linq;
 using UnityEngine;
+using NetworkLibrary;
 
 [System.Serializable]
 [NetworkSynchronizedComponent(MonoBehaviourType = typeof(PlayerObjectComponent))]

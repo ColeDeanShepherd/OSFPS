@@ -1,5 +1,5 @@
 ﻿using UnityEngine;
-using NetLib;
+using NetworkLibrary;
 using UnityEngine.SceneManagement;
 using System.Collections.Generic;
 using System.Linq;
@@ -16,8 +16,6 @@ public class Server
     public event ServerStartedHandler OnServerStarted;
 
     public ServerPeer ServerPeer;
-
-    public GameStateScraperSystem gameStateScraperSystem = new GameStateScraperSystem();
 
     public void Start()
     {
@@ -77,36 +75,11 @@ public class Server
         Object.Destroy(playerComponent.gameObject);
 
         // Send out a chat message.
-        OsFps.Instance.CallRpcOnAllClients("ClientOnReceiveChatMessage", reliableSequencedChannelId, new
+        ServerPeer.CallRpcOnAllClients("ClientOnReceiveChatMessage", reliableSequencedChannelId, new
         {
             playerId = (uint?)null,
             message = $"{playerComponent.State.Name} left."
         });
-    }
-
-    public void SendMessageToAllClients(int channelId, byte[] serializedMessage)
-    {
-        var connectionIds = playerIdsByConnectionId.Keys.Select(x => x);
-
-        foreach (var connectionId in connectionIds)
-        {
-            SendMessageToClientHandleErrors(connectionId, channelId, serializedMessage);
-        }
-    }
-    public void SendMessageToAllClientsExcept(int exceptConnectionId, int channelId, byte[] serializedMessage)
-    {
-        var connectionIds = playerIdsByConnectionId.Keys.Select(x => x);
-
-        foreach (var connectionId in connectionIds)
-        {
-            if (connectionId == exceptConnectionId) continue;
-
-            SendMessageToClientHandleErrors(connectionId, channelId, serializedMessage);
-        }
-    }
-    public void SendMessageToClient(int connectionId, int channelId, byte[] serializedMessage)
-    {
-        SendMessageToClientHandleErrors(connectionId, channelId, serializedMessage);
     }
     
     public int reliableSequencedChannelId;
@@ -128,30 +101,35 @@ public class Server
     }
 
     private const int maxCachedSentGameStates = 60;
-    private List<GameState> cachedSentGameStates = new List<GameState>();
+    //private List<GameState> cachedSentGameStates = new List<GameState>();
     private Dictionary<uint, uint> _latestAcknowledgedGameStateSequenceNumberByPlayerId = new Dictionary<uint, uint>();
     private void SendGameState()
     {
-        var gameState = gameStateScraperSystem.GetGameState();
-
         foreach (var playerId in playerIdsByConnectionId.Values)
         {
             var playersLatestAcknowledgedGameStateSequenceNumber = _latestAcknowledgedGameStateSequenceNumberByPlayerId
                 .GetValueOrDefault(playerId);
-            var playersLatestAcknowledgedGameState = cachedSentGameStates
-                .FirstOrDefault(gs => gs.SequenceNumber == playersLatestAcknowledgedGameStateSequenceNumber);
 
-            SendGameStateDiff(gameState, playersLatestAcknowledgedGameState, playerId);
+            SendGameStateDiff(playerId, GenerateSequenceNumber());
         }
 
+        /*
         cachedSentGameStates.Add(gameState);
         if (cachedSentGameStates.Count > maxCachedSentGameStates)
         {
             cachedSentGameStates.RemoveAt(0);
-        }
+        }*/
     }
-    
-    private void SendGameStateDiff(GameState newGameState, GameState oldGameState, uint playerId)
+
+    private uint _nextSequenceNumber = 1;
+    public uint GenerateSequenceNumber()
+    {
+        var generatedSequenceNumber = _nextSequenceNumber;
+        _nextSequenceNumber++;
+        return generatedSequenceNumber;
+    }
+
+    private void SendGameStateDiff(uint playerId, uint sequenceNumber)
     {
         var connectionId = GetConnectionIdByPlayerId(playerId);
 
@@ -162,7 +140,7 @@ public class Server
             using (var writer = new BinaryWriter(memoryStream))
             {
                 writer.Write(OsFps.StateSynchronizationMessageId);
-                writer.Write(newGameState.SequenceNumber);
+                writer.Write(sequenceNumber);
                 NetworkSerializationUtils.SerializeSynchronizedComponents(
                     writer, OsFps.Instance.synchronizedComponentInfos
                 );
@@ -171,17 +149,7 @@ public class Server
             messageBytes = memoryStream.ToArray();
         }
 
-        SendMessageToClient(connectionId.Value, unreliableStateUpdateChannelId, messageBytes);
-    }
-
-    private void SendMessageToClientHandleErrors(int connectionId, int channelId, byte[] serializedMessage)
-    {
-        var networkError = ServerPeer.SendMessageToClient(connectionId, channelId, serializedMessage);
-        
-        if (networkError != NetworkError.Ok)
-        {
-            OsFps.Logger.LogError(string.Format("Failed sending message to client. Error: {0}", networkError));
-        }
+        ServerPeer.SendMessageToClient(connectionId.Value, unreliableStateUpdateChannelId, messageBytes);
     }
 
     private uint _nextNetworkId = 1;
@@ -248,12 +216,12 @@ public class Server
                 {
                     throw new System.NotImplementedException("Servers don't support receiving state synchronization messages.");
                 }
-                else if (OsFps.Instance.rpcInfoById.TryGetValue(messageTypeAsByte, out rpcInfo))
+                else if (NetLib.rpcInfoById.TryGetValue(messageTypeAsByte, out rpcInfo))
                 {
                     var rpcArguments = NetworkSerializationUtils.DeserializeRpcCallArguments(rpcInfo, reader);
 
                     TEMPORARY_HACK_CURRENT_CONNECTION_ID = connectionId;
-                    OsFps.Instance.ExecuteRpc(rpcInfo.Id, rpcArguments);
+                    NetLib.ExecuteRpc(rpcInfo.Id, this, null, rpcArguments);
                 }
                 else
                 {
@@ -263,7 +231,7 @@ public class Server
         }
     }
 
-    [Rpc(ExecuteOn = NetworkPeerType.Server)]
+    [Rpc(ExecuteOn = NetworkLibrary.NetworkPeerType.Server)]
     public void ServerOnReceivePlayerInfo(string playerName)
     {
         var connectionId = TEMPORARY_HACK_CURRENT_CONNECTION_ID;
@@ -283,7 +251,7 @@ public class Server
         PlayerSystem.Instance.CreateLocalPlayerDataObject(playerState);
 
         // Let the client know its player ID.
-        OsFps.Instance.CallRpcOnClient("ClientOnSetPlayerId", connectionId, reliableSequencedChannelId, new
+        ServerPeer.CallRpcOnClient("ClientOnSetPlayerId", connectionId, reliableSequencedChannelId, new
         {
             playerId = playerId
         });
@@ -292,14 +260,14 @@ public class Server
         PlayerRespawnSystem.Instance.ServerSpawnPlayer(this, playerId);
 
         // Send out a chat message.
-        OsFps.Instance.CallRpcOnAllClientsExcept("ClientOnReceiveChatMessage", connectionId, reliableSequencedChannelId, new
+        ServerPeer.CallRpcOnAllClientsExcept("ClientOnReceiveChatMessage", connectionId, reliableSequencedChannelId, new
         {
             playerId = (uint?)null,
             message = $"{playerName} joined."
         });
     }
 
-    [Rpc(ExecuteOn = NetworkPeerType.Server)]
+    [Rpc(ExecuteOn = NetworkLibrary.NetworkPeerType.Server)]
     public void ServerOnReceiveClientGameStateAck(uint playerId, uint gameStateSequenceNumber)
     {
         var latestSequenceNumber =
@@ -311,7 +279,7 @@ public class Server
         }
     }
 
-    [Rpc(ExecuteOn = NetworkPeerType.Server)]
+    [Rpc(ExecuteOn = NetworkLibrary.NetworkPeerType.Server)]
     public void ServerOnPlayerReloadPressed(uint playerId)
     {
         // TODO: Make sure the player ID is correct.
@@ -325,7 +293,7 @@ public class Server
         // TODO: Send to all other players???
     }
 
-    [Rpc(ExecuteOn = NetworkPeerType.Server)]
+    [Rpc(ExecuteOn = NetworkLibrary.NetworkPeerType.Server)]
     public void ServerOnPlayerTriggerPulled(uint playerId, Ray shotRay)
     {
         // TODO: Make sure the player ID is correct.
@@ -334,7 +302,7 @@ public class Server
         var secondsToRewind = 50 * (ServerPeer.GetRoundTripTimeToClient(connectionId.Value) ?? 0);
         PlayerSystem.Instance.ServerShoot(this, playerObjectComponent, shotRay, secondsToRewind);
 
-        OsFps.Instance.CallRpcOnAllClientsExcept("ClientOnTriggerPulled", connectionId.Value, reliableSequencedChannelId, new
+        ServerPeer.CallRpcOnAllClientsExcept("ClientOnTriggerPulled", connectionId.Value, reliableSequencedChannelId, new
         {
             playerId,
             shotRay
@@ -347,7 +315,7 @@ public class Server
         }
     }
 
-    [Rpc(ExecuteOn = NetworkPeerType.Server)]
+    [Rpc(ExecuteOn = NetworkLibrary.NetworkPeerType.Server)]
     public void ServerOnPlayerThrowGrenade(uint playerId)
     {
         // TODO: Make sure the player ID is correct.
@@ -355,7 +323,7 @@ public class Server
         GrenadeSystem.Instance.ServerPlayerThrowGrenade(this, playerObjectComponent);
     }
     
-    [Rpc(ExecuteOn = NetworkPeerType.Server)]
+    [Rpc(ExecuteOn = NetworkLibrary.NetworkPeerType.Server)]
     public void ServerOnPlayerSwitchGrenadeType(uint playerId)
     {
         var playerObjectComponent = PlayerSystem.Instance.FindPlayerObjectComponent(playerId);
@@ -379,7 +347,7 @@ public class Server
         }
     }
 
-    [Rpc(ExecuteOn = NetworkPeerType.Server)]
+    [Rpc(ExecuteOn = NetworkLibrary.NetworkPeerType.Server)]
     public void ServerOnPlayerTryPickupWeapon(uint playerId, uint weaponId)
     {
         var playerObjectComponent = PlayerSystem.Instance.FindPlayerObjectComponent(playerId);
@@ -402,7 +370,7 @@ public class Server
         }
     }
 
-    [Rpc(ExecuteOn = NetworkPeerType.Server)]
+    [Rpc(ExecuteOn = NetworkLibrary.NetworkPeerType.Server)]
     public void ServerOnChatMessage(uint? playerId, string message)
     {
         var rpcChannelId = reliableSequencedChannelId;
@@ -411,10 +379,10 @@ public class Server
             playerId,
             message
         };
-        OsFps.Instance.CallRpcOnAllClients("ClientOnReceiveChatMessage", rpcChannelId, rpcArgs);
+        ServerPeer.CallRpcOnAllClients("ClientOnReceiveChatMessage", rpcChannelId, rpcArgs);
     }
 
-    [Rpc(ExecuteOn = NetworkPeerType.Server)]
+    [Rpc(ExecuteOn = NetworkLibrary.NetworkPeerType.Server)]
     public void ServerOnChangeWeapon(uint playerId, byte weaponIndex)
     {
         var connectionId = GetConnectionIdByPlayerId(playerId);
@@ -423,7 +391,7 @@ public class Server
             playerId = playerId,
             weaponIndex = weaponIndex
         };
-        OsFps.Instance.CallRpcOnAllClientsExcept(
+        ServerPeer.CallRpcOnAllClientsExcept(
             "ClientOnChangeWeapon", connectionId.Value, reliableSequencedChannelId, rpcArgs
         );
 
@@ -441,7 +409,7 @@ public class Server
         }
     }
 
-    [Rpc(ExecuteOn = NetworkPeerType.Server)]
+    [Rpc(ExecuteOn = NetworkLibrary.NetworkPeerType.Server)]
     public void ServerOnReceivePlayerInput(uint playerId, PlayerInput playerInput, Vector2 lookDirAngles)
     {
         // TODO: Make sure the player ID is correct.
@@ -453,7 +421,7 @@ public class Server
         playerObjectState.LookDirAngles = lookDirAngles;
     }
     
-    [Rpc(ExecuteOn = NetworkPeerType.Server)]
+    [Rpc(ExecuteOn = NetworkLibrary.NetworkPeerType.Server)]
     public void ServerOnPlayerTryJump(uint playerId)
     {
         var playerObjectComponent = PlayerSystem.Instance.FindPlayerObjectComponent(playerId);

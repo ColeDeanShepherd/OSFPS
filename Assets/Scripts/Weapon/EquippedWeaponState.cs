@@ -2,7 +2,7 @@
 using UnityEngine;
 
 [System.Serializable]
-public class EquippedWeaponState : INetworkSerializable
+public class EquippedWeaponState : NetworkLibrary.INetworkSerializable
 {
     public WeaponType Type = WeaponType.Pistol;
     public ushort BulletsLeftInMagazine;

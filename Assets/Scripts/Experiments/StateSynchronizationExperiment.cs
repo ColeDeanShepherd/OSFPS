@@ -5,6 +5,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using UnityEngine;
+using NetworkLibrary;
 
 public class StateSynchronizationExperiment : MonoBehaviour
 {
@@ -122,7 +123,7 @@ public class StateSynchronizationExperiment : MonoBehaviour
             }
 
             SentUpdate = memoryStream.ToArray();
-            Debug.Log("Packet Size: " + SentUpdate.Length);
+            OsFps.Logger.Log("Packet Size: " + SentUpdate.Length);
         }
         
         lastAcknowledgedState = serverState.DeepCopy();

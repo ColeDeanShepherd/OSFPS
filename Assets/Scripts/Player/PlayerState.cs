@@ -1,4 +1,6 @@
-﻿[System.Serializable]
+﻿using NetworkLibrary;
+
+[System.Serializable]
 [NetworkSynchronizedComponent(MonoBehaviourType = typeof(PlayerComponent))]
 public class PlayerState
 {

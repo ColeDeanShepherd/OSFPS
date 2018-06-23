@@ -1,8 +1,9 @@
 ﻿using System;
 using UnityEngine;
+using UnityEngine.Assertions;
 using UnityEngine.Networking;
 
-namespace NetLib
+namespace NetworkLibrary
 {
     public class ServerPeer : NetworkPeer
     {
@@ -25,7 +26,7 @@ namespace NetLib
             return succeeded;
         }
 
-        public NetworkError SendMessageToClient(int connectionId, int channelId, byte[] messageBytes)
+        public NetworkError SendMessageToClientReturnError(int connectionId, int channelId, byte[] messageBytes)
         {
             var networkError = SendMessage(connectionId, channelId, messageBytes);
             if (networkError != NetworkError.Ok)
@@ -35,7 +36,66 @@ namespace NetLib
 
             return networkError;
         }
+        private void SendMessageToClientHandleErrors(int connectionId, int channelId, byte[] serializedMessage)
+        {
+            var networkError = SendMessageToClientReturnError(connectionId, channelId, serializedMessage);
 
+            if (networkError != NetworkError.Ok)
+            {
+                OsFps.Logger.LogError(string.Format("Failed sending message to client. Error: {0}", networkError));
+            }
+        }
+        public void SendMessageToAllClients(int channelId, byte[] serializedMessage)
+        {
+            foreach (var connectionId in connectionIds)
+            {
+                SendMessageToClientHandleErrors(connectionId, channelId, serializedMessage);
+            }
+        }
+        public void SendMessageToAllClientsExcept(int exceptConnectionId, int channelId, byte[] serializedMessage)
+        {
+            foreach (var connectionId in connectionIds)
+            {
+                if (connectionId == exceptConnectionId) continue;
+
+                SendMessageToClientHandleErrors(connectionId, channelId, serializedMessage);
+            }
+        }
+        public void SendMessageToClient(int connectionId, int channelId, byte[] serializedMessage)
+        {
+            SendMessageToClientHandleErrors(connectionId, channelId, serializedMessage);
+        }
+
+        public void CallRpcOnAllClients(string name, int channelId, object argumentsObj)
+        {
+            var rpcId = NetLib.rpcIdByName[name];
+            var rpcInfo = NetLib.rpcInfoById[rpcId];
+
+            Assert.IsTrue(rpcInfo.ExecuteOn == NetworkPeerType.Client);
+
+            var messageBytes = NetworkSerializationUtils.SerializeRpcCall(rpcInfo, argumentsObj);
+            SendMessageToAllClients(channelId, messageBytes);
+        }
+        public void CallRpcOnAllClientsExcept(string name, int exceptClientConnectionId, int channelId, object argumentsObj)
+        {
+            var rpcId = NetLib.rpcIdByName[name];
+            var rpcInfo = NetLib.rpcInfoById[rpcId];
+
+            Assert.IsTrue(rpcInfo.ExecuteOn == NetworkPeerType.Client);
+
+            var messageBytes = NetworkSerializationUtils.SerializeRpcCall(rpcInfo, argumentsObj);
+            SendMessageToAllClientsExcept(exceptClientConnectionId, channelId, messageBytes);
+        }
+        public void CallRpcOnClient(string name, int clientConnectionId, int channelId, object argumentsObj)
+        {
+            var rpcId = NetLib.rpcIdByName[name];
+            var rpcInfo = NetLib.rpcInfoById[rpcId];
+
+            Assert.IsTrue(rpcInfo.ExecuteOn == NetworkPeerType.Client);
+
+            var messageBytes = NetworkSerializationUtils.SerializeRpcCall(rpcInfo, argumentsObj);
+            SendMessageToClient(clientConnectionId, channelId, messageBytes);
+        }
 
         public float? GetRoundTripTimeToClient(int clientConnectionId)
         {
@@ -50,6 +110,8 @@ namespace NetLib
 
         protected override void OnPeerConnected(int connectionId)
         {
+            base.OnPeerConnected(connectionId);
+
             if(OnClientConnected != null)
             {
                 OnClientConnected(connectionId);
@@ -57,13 +119,17 @@ namespace NetLib
         }
         protected override void OnPeerDisconnected(int connectionId)
         {
-            if(OnClientDisconnected != null)
+            base.OnPeerDisconnected(connectionId);
+
+            if (OnClientDisconnected != null)
             {
                 OnClientDisconnected(connectionId);
             }
         }
         protected override void OnReceiveData(int connectionId, int channelId, byte[] buffer, int numBytesReceived)
         {
+            base.OnReceiveData(connectionId, channelId, buffer, numBytesReceived);
+
             var bytesReceived = new byte[numBytesReceived];
             Array.Copy(buffer, bytesReceived, numBytesReceived);
 
@@ -74,12 +140,13 @@ namespace NetLib
         }
         protected override void OnNetworkErrorEvent(int connectionId, int channelId, NetworkError error, NetworkEventType eventType, byte[] buffer, int numBytesReceived)
         {
+            base.OnNetworkErrorEvent(connectionId, channelId, error, eventType, buffer, numBytesReceived);
+
             var errorMessage = string.Format(
                 "Network error. Error: {0}. Event Type: {1}",
                 error, eventType
             );
             OsFps.Logger.LogError(errorMessage);
         }
-
     }
 }

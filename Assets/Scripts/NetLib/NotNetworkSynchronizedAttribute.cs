@@ -1,6 +1,9 @@
 ﻿using System;
 
-[AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
-public class NotNetworkSynchronizedAttribute : Attribute
+namespace NetworkLibrary
 {
+    [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
+    public class NotNetworkSynchronizedAttribute : Attribute
+    {
+    }
 }

@@ -1,5 +1,8 @@
-﻿public enum NetworkPeerType
+﻿namespace NetworkLibrary
 {
-    Server,
-    Client
+    public enum NetworkPeerType
+    {
+        Server,
+        Client
+    }
 }
