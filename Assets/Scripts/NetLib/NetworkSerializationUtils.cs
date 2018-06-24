@@ -697,23 +697,23 @@ namespace NetworkLibrary
             BinaryReader reader, List<NetworkSynchronizedComponentInfo> synchronizedComponentInfos
         )
         {
-            var stateObjectLists = new List<List<object>>();
-
-            foreach (var synchronizedComponentInfo in synchronizedComponentInfos)
-            {
-                var stateObjects = new List<object>();
-
-                Deserialize(reader, stateObjects, binaryReader =>
+            var stateObjectLists = synchronizedComponentInfos
+                .Select(synchronizedComponentInfo =>
                 {
-                    var stateObject = System.Activator.CreateInstance(synchronizedComponentInfo.StateType);
-                    DeserializeDelta(
-                        binaryReader, stateObject.GetType(), stateObject
-                    );
-                    return stateObject;
-                });
+                    var stateObjects = new List<object>();
 
-                stateObjectLists.Add(stateObjects);
-            }
+                    Deserialize(reader, stateObjects, binaryReader =>
+                    {
+                        var stateObject = System.Activator.CreateInstance(synchronizedComponentInfo.StateType);
+                        DeserializeDelta(
+                            binaryReader, stateObject.GetType(), stateObject
+                        );
+                        return stateObject;
+                    });
+
+                    return stateObjects;
+                })
+                .ToList();
 
             return stateObjectLists;
         }

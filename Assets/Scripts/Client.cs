@@ -219,6 +219,18 @@ public class Client
             ChatBox.ScrollableMessagesText.text = chatMessagesText;
 
             SendInputPeriodicFunction.TryToCall();
+
+            if (PlayerId != null)
+            {
+                if (!OsFps.Instance.IsRemoteClient && (Camera.transform.parent == null))
+                {
+                    var playerObjectComponent = PlayerSystem.Instance.FindPlayerObjectComponent(PlayerId.Value);
+                    if (playerObjectComponent != null)
+                    {
+                        AttachCameraToPlayer(PlayerId.Value);
+                    }
+                }
+            }
         }
     }
     public void LateUpdate()
@@ -869,7 +881,6 @@ public class Client
                 var monoBehaviour = NetLib.GetMonoBehaviourByStateId(synchronizedComponentInfo, stateId);
                 
                 synchronizedComponentInfo.MonoBehaviourApplyStateMethod.Invoke(monoBehaviour, new[] { addedState });
-
             }
         };
 
@@ -904,6 +915,7 @@ public class Client
     }
 
     #region Message Handlers
+    private uint latestStateSequenceNumber = 0;
     private void OnReceiveDataFromServer(int channelId, byte[] bytesReceived)
     {
         using (var memoryStream = new MemoryStream(bytesReceived))
@@ -917,11 +929,15 @@ public class Client
                 if (messageTypeAsByte == OsFps.StateSynchronizationMessageId)
                 {
                     var sequenceNumber = reader.ReadUInt32();
-                    var componentLists = NetworkSerializationUtils.DeserializeSynchronizedComponents(
-                        reader, OsFps.Instance.synchronizedComponentInfos
-                    );
-                    
-                    ClientOnReceiveGameState(sequenceNumber, componentLists);
+
+                    if (sequenceNumber > latestStateSequenceNumber)
+                    {
+                        var componentLists = NetworkSerializationUtils.DeserializeSynchronizedComponents(
+                            reader, OsFps.Instance.synchronizedComponentInfos
+                        );
+
+                        ClientOnReceiveGameState(sequenceNumber, componentLists);
+                    }
                 }
                 else if (NetLib.rpcInfoById.TryGetValue(messageTypeAsByte, out rpcInfo))
                 {
@@ -946,27 +962,22 @@ public class Client
             gameStateSequenceNumber = sequenceNumber
         });
 
+        latestStateSequenceNumber = sequenceNumber;
+
         if (OsFps.Instance.IsRemoteClient)
         {
             var oldComponentLists = NetLib.GetStateObjectListsToSynchronize(
                 OsFps.Instance.synchronizedComponentInfos
             );
 
-            foreach (var componentList in componentLists)
+            for (var i = 0; i < componentLists.Count; i++)
             {
-                var componentType = componentList.FirstOrDefault()?.GetType();
+                var componentList = componentLists[i];
+                var componentType = OsFps.Instance.synchronizedComponentInfos[i].StateType;
                 var oldComponentList = oldComponentLists
                     .FirstOrDefault(ocl => ocl.FirstOrDefault()?.GetType().IsEquivalentTo(componentType) ?? false)
                     ?? new List<object>();
                 ApplyState(oldComponentList, componentList);
-            }
-        }
-        else
-        {
-            var playerObjectComponent = PlayerSystem.Instance.FindPlayerObjectComponent(PlayerId.Value);
-            if (playerObjectComponent != null)
-            {
-                AttachCameraToPlayer(PlayerId.Value);
             }
         }
     }

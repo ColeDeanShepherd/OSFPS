@@ -149,7 +149,7 @@ public class Server
             messageBytes = memoryStream.ToArray();
         }
 
-        ServerPeer.SendMessageToClient(connectionId.Value, unreliableStateUpdateChannelId, messageBytes);
+        ServerPeer.SendMessageToClient(connectionId.Value, unreliableFragmentedChannelId, messageBytes);
     }
 
     private uint _nextNetworkId = 1;
