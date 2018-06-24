@@ -83,10 +83,10 @@ public class Client
         {
             if (PlayerId != null)
             {
+                var playerObjectComponent = PlayerSystem.Instance.FindPlayerObjectComponent(PlayerId.Value);
+
                 if (Input.GetKeyDown(KeyCode.Alpha1))
                 {
-                    var playerObjectComponent = PlayerSystem.Instance.FindPlayerObjectComponent(PlayerId.Value);
-
                     if (playerObjectComponent != null)
                     {
                         SwitchWeapons(playerObjectComponent, 0);
@@ -95,8 +95,6 @@ public class Client
 
                 if (Input.GetKeyDown(KeyCode.Alpha2))
                 {
-                    var playerObjectComponent = PlayerSystem.Instance.FindPlayerObjectComponent(PlayerId.Value);
-
                     if (playerObjectComponent != null)
                     {
                         SwitchWeapons(playerObjectComponent, 1);
@@ -106,7 +104,6 @@ public class Client
                 var mouseScrollDirection = Input.GetAxis("Mouse ScrollWheel");
                 if (mouseScrollDirection > 0)
                 {
-                    var playerObjectComponent = PlayerSystem.Instance.FindPlayerObjectComponent(PlayerId.Value);
                     if (playerObjectComponent != null)
                     {
                         var newWeaponIndex = MathfExtensions.Wrap(
@@ -121,7 +118,6 @@ public class Client
                 }
                 else if (mouseScrollDirection < 0)
                 {
-                    var playerObjectComponent = PlayerSystem.Instance.FindPlayerObjectComponent(PlayerId.Value);
                     if (playerObjectComponent != null)
                     {
                         var newWeaponIndex = MathfExtensions.Wrap(
@@ -137,8 +133,6 @@ public class Client
 
                 if (Input.GetButtonDown("Jump"))
                 {
-                    var playerObjectComponent = PlayerSystem.Instance.FindPlayerObjectComponent(PlayerId.Value);
-
                     if ((playerObjectComponent != null) && PlayerSystem.Instance.IsPlayerGrounded(playerObjectComponent))
                     {
                         PlayerSystem.Instance.Jump(playerObjectComponent);
@@ -149,24 +143,35 @@ public class Client
                     }
                 }
 
-                if (Input.GetButton("Pickup Weapon"))
+                // Pickup Weapon
+                if (playerObjectComponent != null)
                 {
-                    var playerObjectComponent = PlayerSystem.Instance.FindPlayerObjectComponent(PlayerId.Value);
+                    var playerId = playerObjectComponent.State.Id;
+                    var playersClosestWeaponInfo = WeaponObjectSystem.Instance.ClosestWeaponInfoByPlayerId
+                        .GetValueOrDefault(playerId);
 
-                    if (playerObjectComponent != null)
+                    if (playersClosestWeaponInfo != null)
                     {
-                        var playerId = playerObjectComponent.State.Id;
-                        var playersClosestWeaponInfo = WeaponObjectSystem.Instance.ClosestWeaponInfoByPlayerId
-                            .GetValueOrDefault(playerId);
+                        var closestWeaponId = playersClosestWeaponInfo.Item1;
+                        var closestWeaponComponent = WeaponSystem.Instance.FindWeaponComponent(closestWeaponId);
+                        var closestWeaponType = closestWeaponComponent.State.Type;
 
-                        if (playersClosestWeaponInfo != null)
+                        var playersWeaponOfSameType = playerObjectComponent.State.Weapons.FirstOrDefault(
+                            w => w?.Type == closestWeaponType
+                        );
+                        var playerHasWeaponOfTypeWithRoomForAmmo =
+                            (playersWeaponOfSameType != null) &&
+                            (playersWeaponOfSameType.BulletsUsed > 0);
+                        var playerHasEmptyWeaponSlot = playerObjectComponent.State.Weapons.Any(
+                            w => w == null
+                        );
+
+                        if (playerHasWeaponOfTypeWithRoomForAmmo || playerHasEmptyWeaponSlot || Input.GetButtonDown("Pickup Weapon"))
                         {
-                            var weaponId = playersClosestWeaponInfo.Item1;
-
                             ClientPeer.CallRpcOnServer("ServerOnPlayerTryPickupWeapon", reliableChannelId, new
                             {
                                 playerId = playerId,
-                                weaponId = weaponId
+                                weaponId = closestWeaponId
                             });
                         }
                     }

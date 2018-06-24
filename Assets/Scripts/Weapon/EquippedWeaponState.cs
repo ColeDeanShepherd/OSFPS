@@ -30,6 +30,13 @@ public class EquippedWeaponState : NetworkLibrary.INetworkSerializable
             return (ushort)(Definition.BulletsPerMagazine - BulletsLeftInMagazine);
         }
     }
+    public ushort BulletsUsed
+    {
+        get
+        {
+            return (ushort)(Definition.MaxAmmo - BulletsLeft);
+        }
+    }
     public WeaponDefinition Definition
     {
         get

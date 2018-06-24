@@ -4,9 +4,9 @@
 
 #### Current
 
+* 
+* 
 * Create a cool map.
-* Prevent picking up the same weapon twice.
-* Show shotgun bullet holes correctly.
 * Implement delta game state sending.
 * Rethink state compression
   - Compress game state?
@@ -29,9 +29,8 @@
 
 #### High-Priority
 
-* Add bullet spread to all weapons.
+* Pick up weapons when in range if already holding key and didn't just drop them.	
 * Implement winning/losing, and game restarts.
-* Auto pickup weapon if empty or matches type
 * Improve networked shot intervals (send time shot)
 * Add more weapons.
   - plasma pistol?

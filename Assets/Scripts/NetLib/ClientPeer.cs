@@ -107,6 +107,8 @@ namespace NetworkLibrary
 
             var messageBytes = NetworkSerializationUtils.SerializeRpcCall(rpcInfo, argumentsObj);
             SendMessageToServer(channelId, messageBytes);
+
+            OsFps.Logger.Log($"Called RPC \"{name}\" on server.");
         }
 
         protected override void OnPeerConnected(int connectionId)
