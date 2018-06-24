@@ -9,6 +9,8 @@ using UnityEngine.Profiling;
 
 public class Client
 {
+    public const float SendPlayerInputInterval = 1.0f / 30;
+
     public ClientPeer ClientPeer;
     public uint? PlayerId;
     public GameObject Camera;
@@ -34,7 +36,7 @@ public class Client
         );
         ClientPeer.Start(connectionConfig);
 
-        SendInputPeriodicFunction = new ThrottledAction(SendPlayerInput, 1.0f / 30);
+        SendInputPeriodicFunction = new ThrottledAction(SendPlayerInput, SendPlayerInputInterval);
 
         Camera = Object.Instantiate(OsFps.Instance.CameraPrefab);
 
@@ -307,6 +309,7 @@ public class Client
             if (Input.GetButton("Show Scoreboard"))
             {
                 DrawScoreBoard();
+                DrawNetworkStats();
             }
 
             if (PlayerId.HasValue)
@@ -383,6 +386,12 @@ public class Client
                 grenadeHudPosition.y += weaponHudHeight;
             }
         }
+    }
+    private void DrawNetworkStats()
+    {
+        var networkStats = ClientPeer.GetNetworkStats(ClientPeer.serverConnectionId);
+        var position = new Vector2(30, 30);
+        GUI.Label(new Rect(position, new Vector2(800, 800)), JsonUtils.ToPrettyJson(networkStats));
     }
     private void DrawWeaponHud(EquippedWeaponState weapon, Vector2 position)
     {
@@ -809,8 +818,7 @@ public class Client
             updateStateObject(oldState, updatedState);
         }
     }
-
-
+    
     public GameObject CreateGameObjectFromState(object state)
     {
         var stateType = state.GetType();
@@ -892,8 +900,14 @@ public class Client
                 var oldStateId = NetLib.GetIdFromState(synchronizedComponentInfo, oldState);
                 var monoBehaviour = NetLib.GetMonoBehaviourByStateId(synchronizedComponentInfo, oldStateId);
 
-                synchronizedComponentInfo.MonoBehaviourStateField.SetValue(monoBehaviour, newState);
-                synchronizedComponentInfo.MonoBehaviourApplyStateMethod?.Invoke(monoBehaviour, new[] { newState });
+                if (synchronizedComponentInfo.MonoBehaviourApplyStateMethod == null)
+                {
+                    synchronizedComponentInfo.MonoBehaviourStateField.SetValue(monoBehaviour, newState);
+                }
+                else
+                {
+                    synchronizedComponentInfo.MonoBehaviourApplyStateMethod?.Invoke(monoBehaviour, new[] { newState });
+                }
             };
 
         ApplyStates(

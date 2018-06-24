@@ -1,0 +1,30 @@
+﻿public struct NetworkStats
+{
+    public int AckBufferCount;
+    public int CurrentRTT;
+    public int IncomingMessageQueueSize;
+    public int IncomingPacketCount;
+    public int IncomingPacketCountForAllHosts;
+    public int IncomingPacketDropCountForAllHosts;
+    public int IncomingPacketLossCount;
+    public int MaxAllowedBandwidth;
+    public int NetworkTimestamp;
+    public int OutgoingFullBytesCount;
+    public int OutgoingFullBytesCountForConnection;
+    public int OutgoingFullBytesCountForHost;
+    public int OutgoingMessageCount;
+    public int OutgoingMessageCountForConnection;
+    public int OutgoingMessageCountForHost;
+    public int OutgoingMessageQueueSize;
+    public int OutgoingPacketCount;
+    public int OutgoingPacketCountForConnection;
+    public int OutgoingPacketCountForHost;
+    public int OutgoingPacketNetworkLossPercent;
+    public int OutgoingPacketOverflowLossPercent;
+    public int OutgoingSystemBytesCount;
+    public int OutgoingSystemBytesCountForConnection;
+    public int OutgoingSystemBytesCountForHost;
+    public int OutgoingUserBytesCount;
+    public int OutgoingUserBytesCountForConnection;
+    public int OutgoingUserBytesCountForHost;
+}

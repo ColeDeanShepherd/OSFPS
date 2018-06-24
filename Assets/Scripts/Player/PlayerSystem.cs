@@ -46,6 +46,8 @@ public class PlayerSystem : ComponentSystem
             {
                 ServerPlayerFinishReload(entity.PlayerObjectComponent);
             }
+
+            DrawPlayerInput(entity.PlayerObjectComponent);
         }
     }
     public void ServerOnLateUpdate(Server server)
@@ -75,6 +77,15 @@ public class PlayerSystem : ComponentSystem
             Position = playerObjectComponent.transform.position,
             LookDirAngles = GetPlayerLookDirAngles(playerObjectComponent)
         };
+    }
+
+    private void DrawPlayerInput(PlayerObjectComponent playerObjectComponent)
+    {
+        var relativeMoveDirection = GetRelativeMoveDirection(playerObjectComponent.State.Input);
+        var playerYAngle = playerObjectComponent.transform.eulerAngles.y;
+        var horizontalMoveDirection = Quaternion.Euler(new Vector3(0, playerYAngle, 0)) * relativeMoveDirection;
+        var moveRay = new Ray(playerObjectComponent.transform.position + Vector3.up, horizontalMoveDirection);
+        Debug.DrawLine(moveRay.origin, moveRay.origin + moveRay.direction);
     }
 
     public void ServerDamagePlayer(Server server, PlayerObjectComponent playerObjectComponent, float damage, PlayerObjectComponent attackingPlayerObjectComponent)
@@ -609,6 +620,7 @@ public class PlayerSystem : ComponentSystem
             }
 
             UpdatePlayer(playerObjectComponent);
+            DrawPlayerInput(playerObjectComponent);
         }
     }
     private void ClientUpdateThisPlayer(Client client, PlayerObjectComponent playerObjectComponent)

@@ -98,6 +98,52 @@ namespace NetworkLibrary
             }
         }
 
+        public NetworkStats GetNetworkStats(int? connectionId)
+        {
+            byte errorAsByte;
+
+            var networkStats = new NetworkStats
+            {
+                IncomingPacketCountForAllHosts = NetworkTransport.GetIncomingPacketCountForAllHosts(),
+                IncomingPacketDropCountForAllHosts = NetworkTransport.GetIncomingPacketDropCountForAllHosts(),
+                NetworkTimestamp = NetworkTransport.GetNetworkTimestamp(),
+                OutgoingFullBytesCount = NetworkTransport.GetOutgoingFullBytesCount(),
+                OutgoingMessageCount = NetworkTransport.GetOutgoingMessageCount(),
+                OutgoingPacketCount = NetworkTransport.GetOutgoingPacketCount(),
+                OutgoingSystemBytesCount = NetworkTransport.GetOutgoingSystemBytesCount(),
+                OutgoingUserBytesCount = NetworkTransport.GetOutgoingUserBytesCount(),
+            };
+
+            if (socketId.HasValue)
+            {
+                networkStats.IncomingMessageQueueSize = NetworkTransport.GetIncomingMessageQueueSize(socketId.Value, out errorAsByte);
+                networkStats.OutgoingFullBytesCountForHost = NetworkTransport.GetOutgoingFullBytesCountForHost(socketId.Value, out errorAsByte);
+                networkStats.OutgoingMessageCountForHost = NetworkTransport.GetOutgoingMessageCountForHost(socketId.Value, out errorAsByte);
+                networkStats.OutgoingMessageQueueSize = NetworkTransport.GetOutgoingMessageQueueSize(socketId.Value, out errorAsByte);
+                networkStats.OutgoingPacketCountForHost = NetworkTransport.GetOutgoingPacketCountForHost(socketId.Value, out errorAsByte);
+                networkStats.OutgoingSystemBytesCountForHost = NetworkTransport.GetOutgoingSystemBytesCountForHost(socketId.Value, out errorAsByte);
+                networkStats.OutgoingUserBytesCountForHost = NetworkTransport.GetOutgoingUserBytesCountForHost(socketId.Value, out errorAsByte);
+
+                if (connectionId.HasValue)
+                {
+                    networkStats.AckBufferCount = NetworkTransport.GetAckBufferCount(socketId.Value, connectionId.Value, out errorAsByte);
+                    networkStats.CurrentRTT = NetworkTransport.GetCurrentRTT(socketId.Value, connectionId.Value, out errorAsByte);
+                    networkStats.IncomingPacketCount = NetworkTransport.GetIncomingPacketCount(socketId.Value, connectionId.Value, out errorAsByte);
+                    networkStats.IncomingPacketLossCount = NetworkTransport.GetIncomingPacketLossCount(socketId.Value, connectionId.Value, out errorAsByte);
+                    networkStats.MaxAllowedBandwidth = NetworkTransport.GetMaxAllowedBandwidth(socketId.Value, connectionId.Value, out errorAsByte);
+                    networkStats.OutgoingFullBytesCountForConnection = NetworkTransport.GetOutgoingFullBytesCountForConnection(socketId.Value, connectionId.Value, out errorAsByte);
+                    networkStats.OutgoingMessageCountForConnection = NetworkTransport.GetOutgoingMessageCountForConnection(socketId.Value, connectionId.Value, out errorAsByte);
+                    networkStats.OutgoingPacketCountForConnection = NetworkTransport.GetOutgoingPacketCountForConnection(socketId.Value, connectionId.Value, out errorAsByte);
+                    networkStats.OutgoingPacketNetworkLossPercent = NetworkTransport.GetOutgoingPacketNetworkLossPercent(socketId.Value, connectionId.Value, out errorAsByte);
+                    networkStats.OutgoingPacketOverflowLossPercent = NetworkTransport.GetOutgoingPacketOverflowLossPercent(socketId.Value, connectionId.Value, out errorAsByte);
+                    networkStats.OutgoingSystemBytesCountForConnection = NetworkTransport.GetOutgoingSystemBytesCountForConnection(socketId.Value, connectionId.Value, out errorAsByte);
+                    networkStats.OutgoingUserBytesCountForConnection = NetworkTransport.GetOutgoingUserBytesCountForConnection(socketId.Value, connectionId.Value, out errorAsByte);
+                }
+            }
+
+            return networkStats;
+        }
+
         protected virtual void OnReceiveBroadcast() { }
         protected virtual void OnPeerConnected(int connectionId)
         {

@@ -312,6 +312,18 @@ public class OsFps : MonoBehaviour
         }
     }
 
+    public static byte PlayerInputAsBits(PlayerInput playerInput)
+    {
+        byte bits = 0;
+        BitUtilities.SetBit(ref bits, 0, playerInput.IsMoveFowardPressed);
+        BitUtilities.SetBit(ref bits, 1, playerInput.IsMoveBackwardPressed);
+        BitUtilities.SetBit(ref bits, 2, playerInput.IsMoveRightPressed);
+        BitUtilities.SetBit(ref bits, 3, playerInput.IsMoveLeftPressed);
+        BitUtilities.SetBit(ref bits, 4, playerInput.IsFirePressed);
+
+        return bits;
+    }
+
     public MainMenuComponent CreateMainMenu()
     {
         var mainMenuObject = Instantiate(MainMenuPrefab, CanvasObject.transform);
@@ -420,6 +432,11 @@ public class OsFps : MonoBehaviour
     {
         if(!((Server == null) && (Client == null)))
         {
+            if (Server != null)
+            {
+                Server.OnGui();
+            }
+
             if (Client != null)
             {
                 Client.OnGui();

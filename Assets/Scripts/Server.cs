@@ -56,6 +56,17 @@ public class Server
 
         PlayerSystem.Instance.ServerOnLateUpdate(this);
     }
+    public void OnGui()
+    {
+        DrawNetworkStats();
+    }
+    private void DrawNetworkStats()
+    {
+        var connectionId = ServerPeer.connectionIds.FirstOrDefault();
+        var networkStats = ServerPeer.GetNetworkStats((connectionId > 0) ? connectionId : (int?)null);
+        var position = new Vector2(30, 30);
+        GUI.Label(new Rect(position, new Vector2(800, 800)), JsonUtils.ToPrettyJson(networkStats));
+    }
 
     public void OnClientConnected(int connectionId)
     {
@@ -96,6 +107,9 @@ public class Server
         SceneManager.sceneLoaded -= OnMapLoaded;
         
         SendGameStatePeriodicFunction = new ThrottledAction(SendGameState, SendGameStateInterval);
+
+        var camera = Object.Instantiate(OsFps.Instance.CameraPrefab);
+        camera.GetComponent<Camera>().cullingMask = 1 << 5;
 
         OnServerStarted?.Invoke();
     }
