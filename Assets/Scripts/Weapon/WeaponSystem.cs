@@ -1,6 +1,7 @@
 ﻿using UnityEngine;
 using Unity.Entities;
 using System.Linq;
+using System.Collections.Generic;
 
 public class WeaponSystem : ComponentSystem
 {
@@ -33,8 +34,7 @@ public class WeaponSystem : ComponentSystem
         {
         }
     }
-
-
+    
     public int ServerAddBullets(EquippedWeaponState weaponState, int numBulletsToTryToAdd)
     {
         var numBulletsCanAdd = weaponState.Definition.MaxAmmo - weaponState.BulletsLeft;
@@ -94,5 +94,25 @@ public class WeaponSystem : ComponentSystem
         return OsFps.Instance.WeaponDefinitionComponents
             .FirstOrDefault(wdc => wdc.Definition.Type == type)
             ?.Definition;
+    }
+    public IEnumerable<Ray> ShotRays(WeaponDefinition weaponDefinition, Ray aimRay)
+    {
+        if (weaponDefinition.Type == WeaponType.Shotgun)
+        {
+            for (var i = 0; i < OsFps.ShotgunBulletsPerShot; i++)
+            {
+                var currentShotRay = MathfExtensions.GetRandomRayInCone(aimRay, OsFps.ShotgunShotConeAngleInDegrees);
+                yield return currentShotRay;
+            }
+        }
+        else if (weaponDefinition.Type == WeaponType.Smg)
+        {
+            var shotRay = MathfExtensions.GetRandomRayInCone(aimRay, OsFps.SmgShotConeAngleInDegrees);
+            yield return shotRay;
+        }
+        else
+        {
+            yield return aimRay;
+        }
     }
 }

@@ -325,40 +325,19 @@ public class PlayerSystem : ComponentSystem
     }
     public void ServerFireHitscanWeapon(
         Server server, PlayerObjectComponent shootingPlayerObjectComponent,
-        WeaponDefinition weaponDefinition, Ray shotRay, float secondsToRewind
+        WeaponDefinition weaponDefinition, Ray aimRay, float secondsToRewind
     )
     {
         var shootingPlayerObjectState = shootingPlayerObjectComponent.State;
 
         ServerRewindPlayers(secondsToRewind);
 
-        if (weaponDefinition.Type == WeaponType.Shotgun)
-        {
-            for (var i = 0; i < OsFps.ShotgunBulletsPerShot; i++)
-            {
-                var currentShotRay = GetRandomRayInCone(shotRay, OsFps.ShotgunShotConeAngleInDegrees);
-                ServerApplyHitscanShot(server, shootingPlayerObjectComponent, weaponDefinition, currentShotRay);
-            }
-        }
-        else
+        foreach (var shotRay in WeaponSystem.Instance.ShotRays(weaponDefinition, aimRay))
         {
             ServerApplyHitscanShot(server, shootingPlayerObjectComponent, weaponDefinition, shotRay);
         }
 
         ServerUnRewindPlayers();
-    }
-    public Ray GetRandomRayInCone(Ray centerRay, float coneAngleInDegrees)
-    {
-        var angleFromCenterInDegrees = coneAngleInDegrees * Random.value;
-        var angleFromHorizontalInDegrees = 360 * Random.value;
-
-        var localRotation =
-            Quaternion.AngleAxis(angleFromHorizontalInDegrees, Vector3.forward) *
-            Quaternion.AngleAxis(angleFromCenterInDegrees, Vector3.up);
-        var localDirection = localRotation * Vector3.forward;
-        var globalDirection = Quaternion.LookRotation(centerRay.direction, Vector3.up) * localDirection;
-
-        return new Ray(centerRay.origin, globalDirection);
     }
     public void ServerApplyHitscanShot(
         Server server, PlayerObjectComponent shootingPlayerObjectComponent,
@@ -629,7 +608,7 @@ public class PlayerSystem : ComponentSystem
         playerObjectState.Input = GetCurrentPlayersInput();
 
         var unscaledDeltaMouse = new Vector2(Input.GetAxis("Mouse X"), Input.GetAxis("Mouse Y"));
-        var deltaMouse = OsFps.Instance.Settings.MouseSensitivity * unscaledDeltaMouse;
+        var deltaMouse = client.GetMouseSensitivityForZoomLevel() * unscaledDeltaMouse;
 
         playerObjectState.LookDirAngles = new Vector2(
             Mathf.Clamp(MathfExtensions.ToSignedAngleDegrees(playerObjectState.LookDirAngles.x - deltaMouse.y), -90, 90),

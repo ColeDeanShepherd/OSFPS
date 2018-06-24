@@ -555,6 +555,24 @@ public class Client
             ZoomLevel = 0;
         }
     }
+    public float GetMouseSensitivityMultiplierForZoomLevel()
+    {
+        switch (ZoomLevel)
+        {
+            case 0:
+                return 1;
+            case 1:
+                return 0.5f;
+            case 2:
+                return 0.25f;
+            default:
+                throw new System.NotImplementedException("Unimplemented zoom level.");
+        }
+    }
+    public float GetMouseSensitivityForZoomLevel()
+    {
+        return GetMouseSensitivityMultiplierForZoomLevel() * OsFps.Instance.Settings.MouseSensitivity;
+    }
     private void AttachCameraToPlayer(uint playerId)
     {
         var playerObject = PlayerSystem.Instance.FindPlayerObject(playerId);
@@ -641,7 +659,7 @@ public class Client
 
         Object.Destroy(muzzleFlashObject, OsFps.MuzzleFlashDuration);
     }
-    public void ShowWeaponFireEffects(PlayerObjectComponent playerObjectComponent, Ray shotRay)
+    public void ShowWeaponFireEffects(PlayerObjectComponent playerObjectComponent, Ray aimRay)
     {
         ShowMuzzleFlash(playerObjectComponent);
 
@@ -650,7 +668,7 @@ public class Client
         {
             if (weapon.Type == WeaponType.SniperRifle)
             {
-                WeaponSystem.Instance.CreateSniperBulletTrail(shotRay);
+                WeaponSystem.Instance.CreateSniperBulletTrail(aimRay);
             }
 
             var equippedWeaponComponent = GetEquippedWeaponComponent(playerObjectComponent);
@@ -662,7 +680,10 @@ public class Client
 
             if (weapon.Definition.IsHitScan)
             {
-                CreateBulletHole(shotRay);
+                foreach (var shotRay in WeaponSystem.Instance.ShotRays(weapon.Definition, aimRay))
+                {
+                    CreateBulletHole(shotRay);
+                }
             }
         }
     }

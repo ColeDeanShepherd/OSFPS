@@ -39,8 +39,7 @@ public static class MathfExtensions
     {
         return Mathf.Acos(((a * a) + (b * b) + -(c * c)) / (2 * a * b));
     }
-
-
+    
     public static void GetTwoBoneIkAngles(
         float bone1Length, float bone2Length, float targetDistance, bool getPositiveAngleSolution,
         out float theta1InRadians, out float theta2InRadians)
@@ -74,5 +73,19 @@ public static class MathfExtensions
                 theta2InRadians = Mathf.PI - C;
             }
         }
+    }
+    
+    public static Ray GetRandomRayInCone(Ray centerRay, float coneAngleInDegrees)
+    {
+        var angleFromCenterInDegrees = coneAngleInDegrees * Random.value;
+        var angleFromHorizontalInDegrees = 360 * Random.value;
+
+        var localRotation =
+            Quaternion.AngleAxis(angleFromHorizontalInDegrees, Vector3.forward) *
+            Quaternion.AngleAxis(angleFromCenterInDegrees, Vector3.up);
+        var localDirection = localRotation * Vector3.forward;
+        var globalDirection = Quaternion.LookRotation(centerRay.direction, Vector3.up) * localDirection;
+
+        return new Ray(centerRay.origin, globalDirection);
     }
 }
