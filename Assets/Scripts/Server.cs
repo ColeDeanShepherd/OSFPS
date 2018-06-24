@@ -142,7 +142,7 @@ public class Server
                 writer.Write(OsFps.StateSynchronizationMessageId);
                 writer.Write(sequenceNumber);
                 NetworkSerializationUtils.SerializeSynchronizedComponents(
-                    writer, OsFps.Instance.synchronizedComponentInfos
+                    writer, NetLib.synchronizedComponentInfos
                 );
             }
 
@@ -202,9 +202,9 @@ public class Server
 
     #region Message Handlers
     private int TEMPORARY_HACK_CURRENT_CONNECTION_ID;
-    private void OnReceiveDataFromClient(int connectionId, int channelId, byte[] bytesReceived)
+    private void OnReceiveDataFromClient(int connectionId, int channelId, byte[] bytesReceived, int numBytesReceived)
     {
-        using (var memoryStream = new MemoryStream(bytesReceived))
+        using (var memoryStream = new MemoryStream(bytesReceived, 0, numBytesReceived))
         {
             using (var reader = new BinaryReader(memoryStream))
             {

@@ -10,7 +10,7 @@ namespace NetworkLibrary
         public event ServerConnectionChangeEventHandler OnConnectedToServer;
         public event ServerConnectionChangeEventHandler OnDisconnectedFromServer;
 
-        public delegate void ReceiveDataFromServerHandler(int channelId, byte[] bytesReceived);
+        public delegate void ReceiveDataFromServerHandler(int channelId, byte[] bytesReceived, int numBytesReceived);
         public event ReceiveDataFromServerHandler OnReceiveDataFromServer;
 
         public int? serverConnectionId;
@@ -133,11 +133,7 @@ namespace NetworkLibrary
         protected override void OnReceiveData(int connectionId, int channelId, byte[] buffer, int numBytesReceived)
         {
             base.OnReceiveData(connectionId, channelId, buffer, numBytesReceived);
-
-            var bytesReceived = new byte[numBytesReceived];
-            Array.Copy(buffer, bytesReceived, numBytesReceived);
-
-            OnReceiveDataFromServer(channelId, bytesReceived);
+            OnReceiveDataFromServer(channelId, buffer, numBytesReceived);
         }
         protected override void OnNetworkErrorEvent(int connectionId, int channelId, NetworkError error, NetworkEventType eventType, byte[] buffer, int numBytesReceived)
         {

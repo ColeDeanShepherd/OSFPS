@@ -5,6 +5,7 @@ using UnityEngine;
 using UnityEngine.Assertions;
 using UnityEngine.Networking;
 using NetworkLibrary;
+using UnityEngine.Profiling;
 
 public class Client
 {
@@ -72,7 +73,9 @@ public class Client
     {
         Camera.GetComponent<Camera>().fieldOfView = GetCurrentFieldOfViewY();
 
+        Profiler.BeginSample("ReceiveAndHandleNetworkEvents");
         ClientPeer.ReceiveAndHandleNetworkEvents();
+        Profiler.EndSample();
 
         if (ClientPeer.IsConnectedToServer)
         {
@@ -854,14 +857,16 @@ public class Client
         }
     }
 
-    private void ApplyState(List<object> oldStates, List<object> newStates)
+    private void ApplyState(
+        NetworkSynchronizedComponentInfo synchronizedComponentInfo, List<object> oldStates, List<object> newStates
+    )
     {
         System.Func<object, object, bool> doIdsMatch =
-            (s1, s2) => NetLib.GetIdFromState(s1) == NetLib.GetIdFromState(s2);
+            (s1, s2) => NetLib.GetIdFromState(synchronizedComponentInfo, s1) == NetLib.GetIdFromState(synchronizedComponentInfo, s2);
 
         System.Action<object> handleRemovedState = removedState =>
         {
-            var monoBehaviour = NetLib.GetMonoBehaviourByState(removedState);
+            var monoBehaviour = NetLib.GetMonoBehaviourByState(synchronizedComponentInfo, removedState);
             Object.Destroy(monoBehaviour.gameObject);
         };
 
@@ -869,15 +874,12 @@ public class Client
         {
             var gameObject = CreateGameObjectFromState(addedState);
             
-            var synchronizedComponentInfo = OsFps.Instance.synchronizedComponentInfos
-                .FirstOrDefault(sci => sci.StateType.IsEquivalentTo(addedState.GetType()));
-
             if (
                 (synchronizedComponentInfo != null) &&
                 (synchronizedComponentInfo.MonoBehaviourApplyStateMethod != null)
             )
             {
-                var stateId = NetLib.GetIdFromState(addedState);
+                var stateId = NetLib.GetIdFromState(synchronizedComponentInfo, addedState);
                 var monoBehaviour = NetLib.GetMonoBehaviourByStateId(synchronizedComponentInfo, stateId);
                 
                 synchronizedComponentInfo.MonoBehaviourApplyStateMethod.Invoke(monoBehaviour, new[] { addedState });
@@ -887,9 +889,7 @@ public class Client
         System.Action<object, object> handleUpdatedState =
             (oldState, newState) =>
             {
-                var oldStateId = NetLib.GetIdFromState(oldState);
-                var synchronizedComponentInfo = OsFps.Instance.synchronizedComponentInfos
-                    .FirstOrDefault(sci => sci.StateType.IsEquivalentTo(oldState.GetType()));
+                var oldStateId = NetLib.GetIdFromState(synchronizedComponentInfo, oldState);
                 var monoBehaviour = NetLib.GetMonoBehaviourByStateId(synchronizedComponentInfo, oldStateId);
 
                 synchronizedComponentInfo.MonoBehaviourStateField.SetValue(monoBehaviour, newState);
@@ -916,9 +916,10 @@ public class Client
 
     #region Message Handlers
     private uint latestStateSequenceNumber = 0;
-    private void OnReceiveDataFromServer(int channelId, byte[] bytesReceived)
+    private void OnReceiveDataFromServer(int channelId, byte[] bytesReceived, int numBytesReceived)
     {
-        using (var memoryStream = new MemoryStream(bytesReceived))
+        Profiler.BeginSample("OnReceiveDataFromServer");
+        using (var memoryStream = new MemoryStream(bytesReceived, 0, numBytesReceived))
         {
             using (var reader = new BinaryReader(memoryStream))
             {
@@ -932,17 +933,23 @@ public class Client
 
                     if (sequenceNumber > latestStateSequenceNumber)
                     {
+                        Profiler.BeginSample("State Deserialization");
                         var componentLists = NetworkSerializationUtils.DeserializeSynchronizedComponents(
-                            reader, OsFps.Instance.synchronizedComponentInfos
+                            reader, NetLib.synchronizedComponentInfos
                         );
+                        Profiler.EndSample();
 
+                        Profiler.BeginSample("ClientOnReceiveGameState");
                         ClientOnReceiveGameState(sequenceNumber, componentLists);
+                        Profiler.EndSample();
                     }
                 }
                 else if (NetLib.rpcInfoById.TryGetValue(messageTypeAsByte, out rpcInfo))
                 {
+                    Profiler.BeginSample("Deserialize & Execute RPC");
                     var rpcArguments = NetworkSerializationUtils.DeserializeRpcCallArguments(rpcInfo, reader);
                     NetLib.ExecuteRpc(rpcInfo.Id, null, this, rpcArguments);
+                    Profiler.EndSample();
                 }
                 else
                 {
@@ -950,6 +957,7 @@ public class Client
                 }
             }
         }
+        Profiler.EndSample();
     }
 
     public void ClientOnReceiveGameState(uint sequenceNumber, List<List<object>> componentLists)
@@ -966,18 +974,22 @@ public class Client
 
         if (OsFps.Instance.IsRemoteClient)
         {
+            Profiler.BeginSample("NetLib.GetStateObjectListsToSynchronize");
             var oldComponentLists = NetLib.GetStateObjectListsToSynchronize(
-                OsFps.Instance.synchronizedComponentInfos
+                NetLib.synchronizedComponentInfos
             );
+            Profiler.EndSample();
 
             for (var i = 0; i < componentLists.Count; i++)
             {
                 var componentList = componentLists[i];
-                var componentType = OsFps.Instance.synchronizedComponentInfos[i].StateType;
-                var oldComponentList = oldComponentLists
-                    .FirstOrDefault(ocl => ocl.FirstOrDefault()?.GetType().IsEquivalentTo(componentType) ?? false)
-                    ?? new List<object>();
-                ApplyState(oldComponentList, componentList);
+                var synchronizedComponentInfo = NetLib.synchronizedComponentInfos[i];
+                var componentType = synchronizedComponentInfo.StateType;
+                var oldComponentList = oldComponentLists[i];
+
+                Profiler.BeginSample("ClientApplyState");
+                ApplyState(synchronizedComponentInfo, oldComponentList, componentList);
+                Profiler.EndSample();
             }
         }
     }

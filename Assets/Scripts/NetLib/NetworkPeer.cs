@@ -2,6 +2,7 @@
 using UnityEngine;
 using UnityEngine.Assertions;
 using UnityEngine.Networking;
+using UnityEngine.Profiling;
 
 namespace NetworkLibrary
 {
@@ -65,6 +66,7 @@ namespace NetworkLibrary
             {
                 if (!socketId.HasValue) return;
 
+                Profiler.BeginSample("NetworkTransport.ReceiveFromHost");
                 int connectionId;
                 int channelId;
                 int numBytesReceived;
@@ -73,6 +75,7 @@ namespace NetworkLibrary
                    socketId.Value, out connectionId, out channelId, _netReceiveBuffer,
                    _netReceiveBuffer.Length, out numBytesReceived, out networkErrorAsByte
                 );
+                Profiler.EndSample();
 
                 if (networkEventType == NetworkEventType.Nothing)
                 {
@@ -86,10 +89,12 @@ namespace NetworkLibrary
                     throw new System.Exception("A message was too long for the read buffer!");
                 }
 
+                Profiler.BeginSample("HandleNetworkEvent");
                 HandleNetworkEvent(
                     networkEventType, connectionId, channelId,
                     _netReceiveBuffer, numBytesReceived, networkError
                 );
+                Profiler.EndSample();
             }
         }
 

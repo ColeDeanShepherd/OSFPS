@@ -6,6 +6,7 @@ using UnityEngine.Assertions;
 using UnityEngine.Networking;
 using UnityEngine.SceneManagement;
 using NetworkLibrary;
+using UnityEngine.Profiling;
 
 public class OsFps : MonoBehaviour
 {
@@ -163,7 +164,6 @@ public class OsFps : MonoBehaviour
         }
     }
     public Settings Settings;
-    public List<NetworkSynchronizedComponentInfo> synchronizedComponentInfos;
 
     public bool IsServer
     {
@@ -344,9 +344,8 @@ public class OsFps : MonoBehaviour
 
         CreateDataObject();
         CanvasObject = guiContainer.FindDescendant("Canvas");
-
-        synchronizedComponentInfos = NetLib.GetNetworkSynchronizedComponentInfos();
-        NetLib.SetupRpcs();
+        
+        NetLib.Setup();
 
         LoadSettings();
     }
@@ -393,12 +392,16 @@ public class OsFps : MonoBehaviour
 
         if (Server != null)
         {
+            Profiler.BeginSample("Server Update");
             Server.Update();
+            Profiler.EndSample();
         }
 
         if (Client != null)
         {
+            Profiler.BeginSample("Client Update");
             Client.Update();
+            Profiler.EndSample();
         }
     }
     private void LateUpdate()

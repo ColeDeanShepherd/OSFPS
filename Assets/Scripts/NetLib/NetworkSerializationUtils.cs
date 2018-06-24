@@ -288,110 +288,125 @@ namespace NetworkLibrary
             }
         }
 
-        public static uint GetChangeMask(Type type, object oldValue, object newValue)
+        public static uint GetChangeMask(
+            NetworkSynchronizedComponentInfo synchronizedComponentInfo, object oldValue, object newValue
+        )
         {
-            var typeInfo = NetLib.GetTypeToNetworkSynchronizeInfo(type);
-            Assert.IsTrue(typeInfo.NumberOfThingsToSynchronize <= (8 * sizeof(uint)));
+            Assert.IsTrue(synchronizedComponentInfo.ThingsToSynchronize.Count <= (8 * sizeof(uint)));
 
             uint changeMask = 0;
             uint changeMaskBitIndex = 0;
 
-            foreach (var field in typeInfo.FieldsToSynchronize)
+            foreach (var field in synchronizedComponentInfo.ThingsToSynchronize)
             {
-                var oldFieldValue = field.GetValue(oldValue);
-                var newFieldValue = field.GetValue(newValue);
+                object oldFieldValue, newFieldValue;
+
+                if (field.FieldInfo != null)
+                {
+                    oldFieldValue = field.FieldInfo.GetValue(oldValue);
+                    newFieldValue = field.FieldInfo.GetValue(newValue);
+                }
+                else if (field.PropertyInfo != null)
+                {
+                    oldFieldValue = field.PropertyInfo.GetValue(oldValue);
+                    newFieldValue = field.PropertyInfo.GetValue(newValue);
+                }
+                else
+                {
+                    throw new Exception("Invalid field to synchronize.");
+                }
 
                 BitUtilities.SetBit(ref changeMask, (byte)changeMaskBitIndex, !object.Equals(newFieldValue, oldFieldValue));
-                changeMaskBitIndex++;
-            }
-
-            foreach (var property in typeInfo.PropertiesToSynchronize)
-            {
-                var oldPropertyValue = property.GetValue(oldValue);
-                var newPropertyValue = property.GetValue(newValue);
-
-                BitUtilities.SetBit(ref changeMask, (byte)changeMaskBitIndex, !object.Equals(newPropertyValue, oldPropertyValue));
                 changeMaskBitIndex++;
             }
 
             return changeMask;
         }
 
-        public static void SerializeGivenChangeMask(BinaryWriter writer, Type type, object value, uint changeMask)
+        public static void SerializeGivenChangeMask(
+            BinaryWriter writer, NetworkSynchronizedComponentInfo synchronizedComponentInfo,
+            object value, uint changeMask
+        )
         {
-            var typeInfo = NetLib.GetTypeToNetworkSynchronizeInfo(type);
             uint changeMaskBitIndex = 0;
 
-            foreach (var field in typeInfo.FieldsToSynchronize)
+            foreach (var field in synchronizedComponentInfo.ThingsToSynchronize)
             {
                 if (BitUtilities.GetBit(changeMask, (byte)changeMaskBitIndex))
                 {
-                    var isNullableIfReferenceType = field.FieldType.IsClass && !Attribute.IsDefined(field, typeof(NonNullableAttribute));
-                    var areElementsNullableIfReferenceType = !Attribute.IsDefined(field, typeof(NonNullableElementAttribute));
-                    SerializeObject(
-                        writer, field.GetValue(value), field.FieldType, isNullableIfReferenceType, areElementsNullableIfReferenceType
-                    );
-                }
-                changeMaskBitIndex++;
-            }
+                    object fieldValue;
+                    Type fieldType;
 
-            foreach (var property in typeInfo.PropertiesToSynchronize)
-            {
-                if (BitUtilities.GetBit(changeMask, (byte)changeMaskBitIndex))
-                {
-                    var isNullableIfReferenceType = property.PropertyType.IsClass && !Attribute.IsDefined(property, typeof(NonNullableAttribute));
-                    var areElementsNullableIfReferenceType = !Attribute.IsDefined(property, typeof(NonNullableElementAttribute));
+                    if (field.FieldInfo != null)
+                    {
+                        fieldValue = field.FieldInfo.GetValue(value);
+                        fieldType = field.FieldInfo.FieldType;
+                    }
+                    else if (field.PropertyInfo != null)
+                    {
+                        fieldValue = field.PropertyInfo.GetValue(value);
+                        fieldType = field.PropertyInfo.PropertyType;
+                    }
+                    else
+                    {
+                        throw new Exception("Invalid field to synchronize.");
+                    }
+                    
                     SerializeObject(
-                        writer, property.GetValue(value), property.PropertyType, isNullableIfReferenceType, areElementsNullableIfReferenceType
+                        writer, fieldValue, fieldType,
+                        field.IsNullableIfReferenceType, field.AreElementsNullableIfReferenceType
                     );
                 }
                 changeMaskBitIndex++;
             }
         }
-        public static void SerializeDelta(BinaryWriter writer, Type type, object oldValue, object newValue)
+        public static void SerializeDelta(
+            BinaryWriter writer, NetworkSynchronizedComponentInfo synchronizedComponentInfo,
+            object oldValue, object newValue
+        )
         {
-            var changeMask = GetChangeMask(type, oldValue, newValue);
+            var changeMask = GetChangeMask(synchronizedComponentInfo, oldValue, newValue);
             writer.Write(changeMask);
-            SerializeGivenChangeMask(writer, type, newValue, changeMask);
+            SerializeGivenChangeMask(writer, synchronizedComponentInfo, newValue, changeMask);
         }
 
-        public static void DeserializeGivenChangeMask(BinaryReader reader, Type type, object oldValue, uint changeMask)
+        public static void DeserializeGivenChangeMask(
+            BinaryReader reader, NetworkSynchronizedComponentInfo synchronizedComponentInfo,
+            object oldValue, uint changeMask
+        )
         {
-            var typeInfo = NetLib.GetTypeToNetworkSynchronizeInfo(type);
             byte changeMaskBitIndex = 0;
 
-            foreach (var field in typeInfo.FieldsToSynchronize)
+            foreach (var field in synchronizedComponentInfo.ThingsToSynchronize)
             {
                 if (BitUtilities.GetBit(changeMask, changeMaskBitIndex))
                 {
-                    var isNullableIfReferenceType = field.FieldType.IsClass && !Attribute.IsDefined(field, typeof(NonNullableAttribute));
-                    var areElementsNullableIfReferenceType = !Attribute.IsDefined(field, typeof(NonNullableElementAttribute));
-                    var newFieldValue = Deserialize(
-                        reader, field.FieldType, isNullableIfReferenceType, areElementsNullableIfReferenceType
-                    );
-                    field.SetValue(oldValue, newFieldValue);
-                }
-                changeMaskBitIndex++;
-            }
-
-            foreach (var property in typeInfo.PropertiesToSynchronize)
-            {
-                if (BitUtilities.GetBit(changeMask, changeMaskBitIndex))
-                {
-                    var isNullableIfReferenceType = property.PropertyType.IsClass && !Attribute.IsDefined(property, typeof(NonNullableAttribute));
-                    var areElementsNullableIfReferenceType = !Attribute.IsDefined(property, typeof(NonNullableElementAttribute));
-                    var newPropertyValue = Deserialize(
-                        reader, property.PropertyType, isNullableIfReferenceType, areElementsNullableIfReferenceType
-                    );
-                    property.SetValue(oldValue, newPropertyValue);
+                    if (field.FieldInfo != null)
+                    {
+                        var newFieldValue = Deserialize(
+                            reader, field.FieldInfo.FieldType,
+                            field.IsNullableIfReferenceType, field.AreElementsNullableIfReferenceType
+                        );
+                        field.FieldInfo.SetValue(oldValue, newFieldValue);
+                    }
+                    else if (field.PropertyInfo != null)
+                    {
+                        var newFieldValue = Deserialize(
+                            reader, field.PropertyInfo.PropertyType,
+                            field.IsNullableIfReferenceType, field.AreElementsNullableIfReferenceType
+                        );
+                        field.PropertyInfo.SetValue(oldValue, newFieldValue);
+                    }
                 }
                 changeMaskBitIndex++;
             }
         }
-        public static void DeserializeDelta(BinaryReader reader, Type type, object oldValue)
+        public static void DeserializeDelta(
+            BinaryReader reader, NetworkSynchronizedComponentInfo synchronizedComponentInfo, object oldValue
+        )
         {
             var changeMask = reader.ReadUInt32();
-            DeserializeGivenChangeMask(reader, type, oldValue, changeMask);
+            DeserializeGivenChangeMask(reader, synchronizedComponentInfo, oldValue, changeMask);
         }
 
         public static object Deserialize(
@@ -680,15 +695,20 @@ namespace NetworkLibrary
             BinaryWriter writer, List<NetworkSynchronizedComponentInfo> synchronizedComponentInfos
         )
         {
-            foreach (var stateObjects in NetLib.GetStateObjectListsToSynchronize(synchronizedComponentInfos))
+            var stateObjectLists = NetLib.GetStateObjectListsToSynchronize(synchronizedComponentInfos);
+
+            for (var i = 0; i < stateObjectLists.Count; i++)
             {
+                var stateObjects = stateObjectLists[i];
+                var synchronizedComponentInfo = synchronizedComponentInfos[i];
+
                 Serialize(writer, stateObjects, (binaryWriter, stateObject) =>
                 {
                     var changeMask = uint.MaxValue;
-
                     binaryWriter.Write(changeMask);
+
                     SerializeGivenChangeMask(
-                        binaryWriter, stateObject.GetType(), stateObject, changeMask
+                        binaryWriter, synchronizedComponentInfo, stateObject, changeMask
                     );
                 });
             }
@@ -704,9 +724,10 @@ namespace NetworkLibrary
 
                     Deserialize(reader, stateObjects, binaryReader =>
                     {
-                        var stateObject = System.Activator.CreateInstance(synchronizedComponentInfo.StateType);
+                        var stateType = synchronizedComponentInfo.StateType;
+                        var stateObject = System.Activator.CreateInstance(stateType);
                         DeserializeDelta(
-                            binaryReader, stateObject.GetType(), stateObject
+                            binaryReader, synchronizedComponentInfo, stateObject
                         );
                         return stateObject;
                     });

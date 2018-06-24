@@ -35,7 +35,14 @@ namespace NetworkLibrary
 
         public static Dictionary<string, byte> rpcIdByName;
         public static Dictionary<byte, RpcInfo> rpcInfoById;
-        public static void SetupRpcs()
+        public static List<NetworkSynchronizedComponentInfo> synchronizedComponentInfos;
+        public static void Setup()
+        {
+            GetRpcInfo(out rpcIdByName, out rpcInfoById);
+            synchronizedComponentInfos = GetNetworkSynchronizedComponentInfos();
+        }
+
+        public static void GetRpcInfo(out Dictionary<string, byte> rpcIdByName, out Dictionary<byte, RpcInfo> rpcInfoById)
         {
             rpcIdByName = new Dictionary<string, byte>();
             rpcInfoById = new Dictionary<byte, RpcInfo>();
@@ -78,60 +85,78 @@ namespace NetworkLibrary
             }
         }
 
-        public static TypeToNetworkSynchronizeInfo GetTypeToNetworkSynchronizeInfo(Type type)
-        {
-            return new TypeToNetworkSynchronizeInfo
-            {
-                FieldsToSynchronize = type.GetFields()
-                    .Where(field => !Attribute.IsDefined(field, typeof(NotNetworkSynchronizedAttribute)))
-                    .ToArray(),
-                PropertiesToSynchronize = type.GetProperties()
-                    .Where(property =>
-                        property.CanRead &&
-                        property.CanWrite &&
-                        !Attribute.IsDefined(property, typeof(NotNetworkSynchronizedAttribute))
-                    )
-                    .ToArray()
-            };
-        }
-
         public static List<NetworkSynchronizedComponentInfo> GetNetworkSynchronizedComponentInfos()
         {
             var assembly = System.Reflection.Assembly.GetExecutingAssembly();
 
             return assembly.GetTypes()
-                .Select(type =>
-                {
-                    var synchronizedComponentAttribute = (NetworkSynchronizedComponentAttribute)type.GetCustomAttributes(
-                        typeof(NetworkSynchronizedComponentAttribute), inherit: false
-                    ).FirstOrDefault();
-
-                    if (synchronizedComponentAttribute == null)
-                    {
-                        return null;
-                    }
-
-                    var monoBehaviourType = synchronizedComponentAttribute.MonoBehaviourType;
-                    var stateField = monoBehaviourType.GetFields()
-                        .FirstOrDefault(f => f.FieldType.IsEquivalentTo(type));
-                    var applyStateMethod = monoBehaviourType.GetMethods(
-                            System.Reflection.BindingFlags.Public |
-                            System.Reflection.BindingFlags.NonPublic |
-                            System.Reflection.BindingFlags.Instance
-                        )
-                        .FirstOrDefault(IsApplyStateFromServerMethod);
-
-                    return new NetworkSynchronizedComponentInfo
-                    {
-                        StateType = type,
-                        MonoBehaviourType = monoBehaviourType,
-                        MonoBehaviourStateField = stateField,
-                        MonoBehaviourApplyStateMethod = applyStateMethod,
-                        SynchronizedComponentAttribute = synchronizedComponentAttribute
-                    };
-                })
+                .Select(GetNetworkSynchronizedComponentInfo)
                 .Where(t => t != null)
                 .ToList();
+        }
+        public static NetworkSynchronizedComponentInfo GetNetworkSynchronizedComponentInfo(Type type)
+        {
+            var synchronizedComponentAttribute = (NetworkSynchronizedComponentAttribute)type.GetCustomAttributes(
+                           typeof(NetworkSynchronizedComponentAttribute), inherit: false
+                       ).FirstOrDefault();
+
+            if (synchronizedComponentAttribute == null)
+            {
+                return null;
+            }
+
+            var thingsToSynchronize = new List<NetworkSynchronizedFieldInfo>();
+
+            thingsToSynchronize.AddRange(
+                type.GetFields()
+                    .Where(field => !Attribute.IsDefined(field, typeof(NotNetworkSynchronizedAttribute)))
+                    .Select(fieldInfo => new NetworkSynchronizedFieldInfo
+                    {
+                        FieldInfo = fieldInfo,
+                        IsNullableIfReferenceType =
+                            fieldInfo.FieldType.IsClass &&
+                            !Attribute.IsDefined(fieldInfo, typeof(NonNullableAttribute)),
+                        AreElementsNullableIfReferenceType = !Attribute.IsDefined(fieldInfo, typeof(NonNullableElementAttribute))
+                    })
+            );
+            
+            thingsToSynchronize.AddRange(
+                type.GetProperties()
+                    .Where(property =>
+                        property.CanRead &&
+                        property.CanWrite &&
+                        !Attribute.IsDefined(property, typeof(NotNetworkSynchronizedAttribute))
+                    )
+                    .Select(propertyInfo => new NetworkSynchronizedFieldInfo
+                    {
+                        PropertyInfo = propertyInfo,
+                        IsNullableIfReferenceType =
+                            propertyInfo.PropertyType.IsClass
+                            && !Attribute.IsDefined(propertyInfo, typeof(NonNullableAttribute)),
+                        AreElementsNullableIfReferenceType = !Attribute.IsDefined(propertyInfo, typeof(NonNullableElementAttribute))
+                    })
+            );
+
+            var monoBehaviourType = synchronizedComponentAttribute.MonoBehaviourType;
+            var applyStateMethod = monoBehaviourType.GetMethods(
+                    System.Reflection.BindingFlags.Public |
+                    System.Reflection.BindingFlags.NonPublic |
+                    System.Reflection.BindingFlags.Instance
+                )
+                .FirstOrDefault(IsApplyStateFromServerMethod);
+            var stateField = monoBehaviourType.GetFields()
+                .FirstOrDefault(f => f.FieldType.IsEquivalentTo(type));
+
+            return new NetworkSynchronizedComponentInfo
+            {
+                StateType = type,
+                StateIdField = type.GetFields().FirstOrDefault(fieldInfo => fieldInfo.Name == "Id"),
+                ThingsToSynchronize = thingsToSynchronize,
+                MonoBehaviourType = monoBehaviourType,
+                MonoBehaviourStateField = stateField,
+                MonoBehaviourApplyStateMethod = applyStateMethod,
+                SynchronizedComponentAttribute = synchronizedComponentAttribute
+            };
         }
         private static bool IsApplyStateFromServerMethod(System.Reflection.MethodInfo methodInfo)
         {
@@ -172,11 +197,9 @@ namespace NetworkLibrary
             OsFps.Logger.Log($"Executed RPC {rpcInfo.Name}");
         }
 
-        public static UnityEngine.MonoBehaviour GetMonoBehaviourByState(object state)
+        public static UnityEngine.MonoBehaviour GetMonoBehaviourByState(NetworkSynchronizedComponentInfo synchronizedComponentInfo, object state)
         {
-            var synchronizedComponentInfo = OsFps.Instance.synchronizedComponentInfos
-                .FirstOrDefault(sci => sci.StateType.IsEquivalentTo(state.GetType()));
-            var stateId = GetIdFromState(state);
+            var stateId = GetIdFromState(synchronizedComponentInfo, state);
             return GetMonoBehaviourByStateId(synchronizedComponentInfo, stateId);
         }
         public static UnityEngine.MonoBehaviour GetMonoBehaviourByStateId(
@@ -187,7 +210,7 @@ namespace NetworkLibrary
                 .FirstOrDefault(o =>
                 {
                     var state = synchronizedComponentInfo.MonoBehaviourStateField.GetValue(o);
-                    var currentStateId = GetIdFromState(state);
+                    var currentStateId = GetIdFromState(synchronizedComponentInfo, state);
 
                     return currentStateId == stateId;
                 });
@@ -195,11 +218,9 @@ namespace NetworkLibrary
             return monoBehaviour;
         }
 
-        public static uint GetIdFromState(object state)
+        public static uint GetIdFromState(NetworkSynchronizedComponentInfo synchronizedComponentInfo, object state)
         {
-            var stateType = state.GetType();
-            var idField = stateType.GetFields().FirstOrDefault(fieldInfo => fieldInfo.Name == "Id");
-            return (uint)idField.GetValue(state);
+            return (uint)synchronizedComponentInfo.StateIdField.GetValue(state);
         }
     }
 }
