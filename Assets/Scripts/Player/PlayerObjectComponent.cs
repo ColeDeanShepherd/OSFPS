@@ -103,7 +103,6 @@ public class PlayerObjectComponent : MonoBehaviour
                 1
             );
             equippedWeaponComponent.Animator.SetFloat("Normalized Time", percentDoneWithRecoil);
-            Debug.Log("Recoil: " + percentDoneWithRecoil);
         }
 
         // Update shields.

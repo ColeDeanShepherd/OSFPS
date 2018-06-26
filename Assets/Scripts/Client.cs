@@ -654,6 +654,8 @@ public class Client
             playerId = playerObjectComponent.State.Id
         });
 
+        playerObjectComponent.State.ReloadTimeLeft = playerObjectComponent.State.CurrentWeapon.Definition.ReloadTime;
+
         var equippedWeaponComponent = GetEquippedWeaponComponent(playerObjectComponent);
 
         var audioSource = equippedWeaponComponent?.GetComponent<AudioSource>();
