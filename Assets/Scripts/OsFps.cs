@@ -196,6 +196,7 @@ public class OsFps : MonoBehaviour
     public GameObject PauseScreenPrefab;
     public GameObject ConnectingScreenPrefab;
     public GameObject ChatBoxPrefab;
+    public GameObject HealthBarPrefab;
 
     public GameObject PlayerPrefab;
     public GameObject CameraPrefab;

@@ -69,6 +69,8 @@ MonoBehaviour:
     type: 2}
   ChatBoxPrefab: {fileID: 1043985891111226, guid: a752e8ee14cd39e44a742b7733476a15,
     type: 2}
+  HealthBarPrefab: {fileID: 1980398575313094, guid: 0393e9228f2eb9444bf7692b3765481c,
+    type: 2}
   PlayerPrefab: {fileID: 1884725033880392, guid: dfcdd0cce8eced1418b0e59689f81abf,
     type: 2}
   CameraPrefab: {fileID: 1878530499864850, guid: 0ff536ec9b5a64a44ace81754935e61b,

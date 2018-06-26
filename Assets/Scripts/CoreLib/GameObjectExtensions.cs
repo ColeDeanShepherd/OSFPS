@@ -37,6 +37,18 @@ public static class GameObjectExtensions
 
         return null;
     }
+    public static IEnumerable<Transform> ThisAndDescendantsDepthFirst(this Transform transform)
+    {
+        yield return transform;
+
+        foreach (Transform child in transform)
+        {
+            foreach (var descendant in child.ThisAndDescendantsDepthFirst())
+            {
+                yield return descendant;
+            }
+        }
+    }
 
     public static Vector3 GetHorizontalVelocity(Rigidbody rigidbody)
     {

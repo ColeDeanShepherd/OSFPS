@@ -16,6 +16,8 @@ public class Client
     public GameObject Camera;
     public GameObject GuiContainer;
     public ChatBoxComponent ChatBox;
+    public HealthBarComponent ShieldBar;
+    public HealthBarComponent HealthBar;
     public int ZoomLevel;
 
     public event ClientPeer.ServerConnectionChangeEventHandler OnDisconnectedFromServer;
@@ -179,6 +181,24 @@ public class Client
                 {
                     ChangeZoomLevel();
                 }
+
+                if (playerObjectComponent?.State.IsAlive ?? false)
+                {
+                    ShieldBar.gameObject.SetActive(true);
+
+                    var shieldPercent = playerObjectComponent.State.Shield / OsFps.MaxPlayerShield;
+                    ShieldBar.HealthPercent = shieldPercent;
+
+                    HealthBar.gameObject.SetActive(true);
+                    
+                    var healthPercent = playerObjectComponent.State.Health / OsFps.MaxPlayerHealth;
+                    HealthBar.HealthPercent = healthPercent;
+                }
+                else
+                {
+                    ShieldBar.gameObject.SetActive(false);
+                    HealthBar.gameObject.SetActive(false);
+                }
             }
 
             if (Input.GetButtonDown("Chat"))
@@ -290,6 +310,23 @@ public class Client
         ChatBox = Object.Instantiate(OsFps.Instance.ChatBoxPrefab).GetComponent<ChatBoxComponent>();
         ChatBox.transform.SetParent(GuiContainer.transform, worldPositionStays: false);
         SetChatBoxIsVisible(false);
+
+        ShieldBar = Object.Instantiate(OsFps.Instance.HealthBarPrefab).GetComponent<HealthBarComponent>();
+        ShieldBar.transform.SetParent(GuiContainer.transform, worldPositionStays: false);
+        var shieldBarRectTransform = ShieldBar.GetComponent<RectTransform>();
+        shieldBarRectTransform.anchorMin = new Vector2(0.5f, 1);
+        shieldBarRectTransform.anchorMax = new Vector2(0.5f, 1);
+        shieldBarRectTransform.pivot = new Vector2(0.5f, 1);
+        shieldBarRectTransform.anchoredPosition = new Vector2(0, -15);
+
+        HealthBar = Object.Instantiate(OsFps.Instance.HealthBarPrefab).GetComponent<HealthBarComponent>();
+        HealthBar.transform.SetParent(GuiContainer.transform, worldPositionStays: false);
+        var healthBarRectTransform = HealthBar.GetComponent<RectTransform>();
+        healthBarRectTransform.anchorMin = new Vector2(0.5f, 1);
+        healthBarRectTransform.anchorMax = new Vector2(0.5f, 1);
+        healthBarRectTransform.pivot = new Vector2(0.5f, 1);
+        healthBarRectTransform.anchoredPosition = new Vector2(0, -40);
+        HealthBar.Color = new Color32(253, 74, 74, 255);
     }
 
     private void SetChatBoxIsVisible(bool isVisible)
@@ -350,13 +387,7 @@ public class Client
 
         var playerObjectState = playerObjectComponent.State;
 
-        var shieldLabelRect = new Rect(hudMargin, hudMargin + lineHeight, 200, lineHeight);
-        GUI.Label(shieldLabelRect, "Shield: " + Mathf.RoundToInt(playerObjectState.Shield));
-
-        var healthLabelRect = new Rect(hudMargin, hudMargin, 200, lineHeight);
-        GUI.Label(healthLabelRect, "Health: " + Mathf.RoundToInt(playerObjectState.Health));
-
-        var weaponHudPosition = new Vector2(hudMargin + 110, hudMargin);
+        var weaponHudPosition = new Vector2(hudMargin, hudMargin);
 
         if (playerObjectState.CurrentWeapon != null)
         {
@@ -373,7 +404,7 @@ public class Client
             }
         }
 
-        var grenadeHudPosition = new Vector2(hudMargin + 280, hudMargin);
+        var grenadeHudPosition = new Vector2(hudMargin, hudMargin + 60);
         if (playerObjectState.CurrentGrenadeSlot != null)
         {
             DrawGrenadeSlotHud(playerObjectState.CurrentGrenadeSlot, grenadeHudPosition);
