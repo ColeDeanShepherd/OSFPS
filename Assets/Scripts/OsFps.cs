@@ -45,6 +45,7 @@ public class OsFps : MonoBehaviour
     public const int ShotgunBulletsPerShot = 15;
     public const float ShotgunShotConeAngleInDegrees = 15;
     public const float SmgShotConeAngleInDegrees = 5;
+    public const float AssaultRifleShotConeAngleInDegrees = 2.5f;
 
     public const float RocketSpeed = 15;
     public const float RocketExplosionRadius = 4;

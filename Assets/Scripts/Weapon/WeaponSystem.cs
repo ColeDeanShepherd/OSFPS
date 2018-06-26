@@ -110,6 +110,11 @@ public class WeaponSystem : ComponentSystem
             var shotRay = MathfExtensions.GetRandomRayInCone(aimRay, OsFps.SmgShotConeAngleInDegrees);
             yield return shotRay;
         }
+        else if (weaponDefinition.Type == WeaponType.AssaultRifle)
+        {
+            var shotRay = MathfExtensions.GetRandomRayInCone(aimRay, OsFps.AssaultRifleShotConeAngleInDegrees);
+            yield return shotRay;
+        }
         else
         {
             yield return aimRay;

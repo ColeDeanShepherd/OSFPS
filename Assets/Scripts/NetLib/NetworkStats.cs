@@ -1,5 +1,6 @@
 ﻿public struct NetworkStats
 {
+    public float RecentOutgoingBandwidthInBytes;
     public int AckBufferCount;
     public int CurrentRTT;
     public int IncomingMessageQueueSize;

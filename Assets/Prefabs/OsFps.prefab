@@ -79,6 +79,7 @@ MonoBehaviour:
   - {fileID: 1166234133293192, guid: 2eac096525f4264489567183dc38b53f, type: 2}
   - {fileID: 1287177587395792, guid: 29982d1034a570942a8bc502dc6b2015, type: 2}
   - {fileID: 1598785561678136, guid: 81007f8ee0801a54089d8391a59cdb85, type: 2}
+  - {fileID: 1166234133293192, guid: 8bc4119a3213f3846b681412188aee9f, type: 2}
   GrenadeDefinitionPrefabs:
   - {fileID: 1945579007054130, guid: 1e1791f6157394c40b36b1bd2c2cf52a, type: 2}
   - {fileID: 1507198703594746, guid: 069ce0f66301ddd46974a414fe50d65d, type: 2}

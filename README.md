@@ -4,10 +4,9 @@
 
 #### Current
 
-* Implement bandwidth moving average.
+* 
 * Set is fire pressed to false when switching weapons.
 * Animate switching weapons.
-* Add assault rifle.
 * Improve client prediction.
   * Do correction in the past
 * 

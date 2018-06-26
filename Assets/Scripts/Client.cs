@@ -75,9 +75,7 @@ public class Client
     {
         Camera.GetComponent<Camera>().fieldOfView = GetCurrentFieldOfViewY();
 
-        Profiler.BeginSample("ReceiveAndHandleNetworkEvents");
-        ClientPeer.ReceiveAndHandleNetworkEvents();
-        Profiler.EndSample();
+        ClientPeer.Update();
 
         if (ClientPeer.IsConnectedToServer)
         {
@@ -314,7 +312,6 @@ public class Client
             if (Input.GetButton("Show Scoreboard"))
             {
                 DrawScoreBoard();
-                DrawNetworkStats();
             }
 
             if (PlayerId.HasValue)

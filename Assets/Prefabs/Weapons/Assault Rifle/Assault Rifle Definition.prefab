@@ -1,0 +1,67 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1001 &100100000
+Prefab:
+  m_ObjectHideFlags: 1
+  serializedVersion: 2
+  m_Modification:
+    m_TransformParent: {fileID: 0}
+    m_Modifications: []
+    m_RemovedComponents: []
+  m_ParentPrefab: {fileID: 0}
+  m_RootGameObject: {fileID: 1166234133293192}
+  m_IsPrefabParent: 1
+--- !u!1 &1166234133293192
+GameObject:
+  m_ObjectHideFlags: 0
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 100100000}
+  serializedVersion: 5
+  m_Component:
+  - component: {fileID: 4696026676933700}
+  - component: {fileID: 114993803382471530}
+  m_Layer: 0
+  m_Name: Assault Rifle Definition
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &4696026676933700
+Transform:
+  m_ObjectHideFlags: 1
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 100100000}
+  m_GameObject: {fileID: 1166234133293192}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_RootOrder: 0
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &114993803382471530
+MonoBehaviour:
+  m_ObjectHideFlags: 1
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 100100000}
+  m_GameObject: {fileID: 1166234133293192}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1f6bc4de853780f45957a91ba80e33e6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  Definition:
+    Type: 5
+    MaxAmmo: 128
+    BulletsPerMagazine: 32
+    DamagePerBullet: 10
+    HeadShotDamagePerBullet: 20
+    ReloadTime: 1
+    ShotInterval: 0.15
+    IsAutomatic: 1
+    IsHitScan: 1
+    SpawnInterval: 30
+    RecoilTime: 0.25
+    Prefab: {fileID: 1277544913490836, guid: 81ea3c45656caed42872909f128e53c0, type: 2}
+    ShotSound: {fileID: 8300000, guid: 36c36706bd5241e4daa533e92f48e99f, type: 3}

@@ -35,6 +35,8 @@ namespace NetworkLibrary
             }
 
             connectionIds = new List<int>();
+
+            bandwidthAverager = new BandwidthMovingAverager();
         }
         public virtual bool Stop()
         {
@@ -98,12 +100,22 @@ namespace NetworkLibrary
             }
         }
 
+        public void Update()
+        {
+            Profiler.BeginSample("ReceiveAndHandleNetworkEvents");
+            ReceiveAndHandleNetworkEvents();
+            Profiler.EndSample();
+
+            bandwidthAverager.Update();
+        }
+
         public NetworkStats GetNetworkStats(int? connectionId)
         {
             byte errorAsByte;
 
             var networkStats = new NetworkStats
             {
+                RecentOutgoingBandwidthInBytes = bandwidthAverager.OutgoingBandwidthInBytes,
                 IncomingPacketCountForAllHosts = NetworkTransport.GetIncomingPacketCountForAllHosts(),
                 IncomingPacketDropCountForAllHosts = NetworkTransport.GetIncomingPacketDropCountForAllHosts(),
                 NetworkTimestamp = NetworkTransport.GetNetworkTimestamp(),
@@ -155,6 +167,8 @@ namespace NetworkLibrary
         }
         protected virtual void OnReceiveData(int connectionId, int channelId, byte[] buffer, int numBytesReceived) { }
         protected virtual void OnNetworkErrorEvent(int connectionId, int channelId, NetworkError error, NetworkEventType eventType, byte[] buffer, int numBytesReceived) { }
+
+        private BandwidthMovingAverager bandwidthAverager;
 
         private void HandleNetworkEvent(
             NetworkEventType networkEventType, int connectionId, int channelId,

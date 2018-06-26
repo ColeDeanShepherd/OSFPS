@@ -4,5 +4,6 @@
     Smg,
     RocketLauncher,
     Shotgun,
-    SniperRifle
+    SniperRifle,
+    AssaultRifle
 }

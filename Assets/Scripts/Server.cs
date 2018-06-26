@@ -45,7 +45,7 @@ public class Server
     }
     public void Update()
     {
-        ServerPeer.ReceiveAndHandleNetworkEvents();
+        ServerPeer.Update();
     }
     public void LateUpdate()
     {
