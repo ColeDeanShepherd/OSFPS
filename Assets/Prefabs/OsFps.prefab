@@ -110,4 +110,6 @@ MonoBehaviour:
   ShieldDownMaterial: {fileID: 2100000, guid: 2ada08ed2571bfc47a259dc51dbfc69e, type: 2}
   BulletHolePrefab: {fileID: 1997577755475280, guid: e1f8a790e4b5cc54cafc3153d2ab22bb,
     type: 2}
+  RecoilAnimatorController: {fileID: 9100000, guid: 327c82c5d0d40c54893e8bb71630bb86,
+    type: 2}
   EnteredClientIpAddressAndPort: 

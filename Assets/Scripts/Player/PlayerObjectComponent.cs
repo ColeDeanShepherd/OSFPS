@@ -39,6 +39,20 @@ public class PlayerObjectComponent : MonoBehaviour
         var roundTripTime = client.ClientPeer.RoundTripTime.Value;
         var playerObjectComponent = this;
 
+        // Update state.
+        if (isPlayerMe)
+        {
+            if ((updatedPlayerObjectState.CurrentWeapon != null) && (State.CurrentWeapon != null))
+            {
+                updatedPlayerObjectState.CurrentWeapon.TimeSinceLastShot =
+                    State.CurrentWeapon.TimeSinceLastShot;
+            }
+
+            updatedPlayerObjectState.ReloadTimeLeft = State.ReloadTimeLeft;
+            updatedPlayerObjectState.TimeUntilCanThrowGrenade = State.TimeUntilCanThrowGrenade;
+            updatedPlayerObjectState.Input = State.Input;
+        }
+
         // Handle weapon pickup.
         var equippedWeaponType = client.GetEquippedWeaponComponent(playerObjectComponent)?.State.Type;
         var newWeaponType = updatedPlayerObjectState.CurrentWeapon?.Type;
@@ -77,42 +91,24 @@ public class PlayerObjectComponent : MonoBehaviour
         if ((equippedWeaponComponent != null) && updatedPlayerObjectState.IsReloading)
         {
             var percentDoneReloading = updatedPlayerObjectState.ReloadTimeLeft / updatedPlayerObjectState.CurrentWeapon.Definition.ReloadTime;
-
-            var y = -(1.0f - Mathf.Abs((2 * percentDoneReloading) - 1));
-            var z = equippedWeaponComponent.transform.localPosition.z;
-            equippedWeaponComponent.transform.localPosition = new Vector3(0, y, z);
+            equippedWeaponComponent.Animator.SetFloat("Normalized Time", percentDoneReloading);
         }
 
         // Update weapon recoil.
-        if ((equippedWeaponComponent != null) && (updatedPlayerObjectState.CurrentWeapon != null))
+        if ((equippedWeaponComponent != null) && (updatedPlayerObjectState.CurrentWeapon != null) && !updatedPlayerObjectState.IsReloading)
         {
             var percentDoneWithRecoil = Mathf.Min(
                 updatedPlayerObjectState.CurrentWeapon.TimeSinceLastShot /
                 updatedPlayerObjectState.CurrentWeapon.Definition.RecoilTime,
                 1
             );
-            var y = equippedWeaponComponent.transform.localPosition.y;
-            var z = Mathf.Lerp(-0.1f, 0, percentDoneWithRecoil);
-            equippedWeaponComponent.transform.localPosition = new Vector3(0, y, z);
+            equippedWeaponComponent.Animator.SetFloat("Normalized Time", percentDoneWithRecoil);
+            Debug.Log("Recoil: " + percentDoneWithRecoil);
         }
 
         // Update shields.
         var shieldAlpha = 1.0f - (playerObjectComponent.State.Shield / OsFps.MaxPlayerShield);
         PlayerSystem.Instance.SetShieldAlpha(playerObjectComponent, shieldAlpha);
-
-        // Update state.
-        if (isPlayerMe)
-        {
-            if ((updatedPlayerObjectState.CurrentWeapon != null) && (State.CurrentWeapon != null))
-            {
-                updatedPlayerObjectState.CurrentWeapon.TimeSinceLastShot =
-                    State.CurrentWeapon.TimeSinceLastShot;
-            }
-
-            updatedPlayerObjectState.TimeUntilCanThrowGrenade = State.TimeUntilCanThrowGrenade;
-
-            updatedPlayerObjectState.Input = State.Input;
-        }
         
         State = updatedPlayerObjectState;
     }

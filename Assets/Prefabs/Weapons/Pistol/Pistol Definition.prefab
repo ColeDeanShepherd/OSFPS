@@ -62,6 +62,6 @@ MonoBehaviour:
     IsAutomatic: 0
     IsHitScan: 1
     SpawnInterval: 10
-    RecoilTime: 1
+    RecoilTime: 0.5
     Prefab: {fileID: 1010797790457592, guid: 5d87d3b5c75bc3949a4c736ad3313d75, type: 2}
     ShotSound: {fileID: 8300000, guid: 36c36706bd5241e4daa533e92f48e99f, type: 3}

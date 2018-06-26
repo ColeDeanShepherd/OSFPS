@@ -225,6 +225,8 @@ public class OsFps : MonoBehaviour
     public Material ShieldDownMaterial;
 
     public GameObject BulletHolePrefab;
+
+    public RuntimeAnimatorController RecoilAnimatorController;
     #endregion
 
     public ConnectionConfig CreateConnectionConfig(

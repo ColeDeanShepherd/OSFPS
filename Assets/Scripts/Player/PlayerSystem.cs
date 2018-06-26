@@ -401,7 +401,6 @@ public class PlayerSystem : ComponentSystem
         if (weapon == null) return;
 
         playerObjectState.ReloadTimeLeft = weapon.Definition.ReloadTime;
-        weapon.TimeSinceLastShot = weapon.Definition.ShotInterval;
     }
     public void ServerPlayerFinishReload(PlayerObjectComponent playerObjectComponent)
     {
@@ -702,16 +701,35 @@ public class PlayerSystem : ComponentSystem
     {
         var playerObjectState = playerObjectComponent.State;
 
+        var client = OsFps.Instance?.Client;
+        var equippedWeaponComponent = client?.GetEquippedWeaponComponent(playerObjectComponent);
+
         // reload
         if (playerObjectState.IsReloading)
         {
             playerObjectState.ReloadTimeLeft -= Time.deltaTime;
+
+            if (equippedWeaponComponent != null)
+            {
+                var percentDoneReloading = playerObjectState.ReloadTimeLeft / playerObjectState.CurrentWeapon.Definition.ReloadTime;
+                equippedWeaponComponent.Animator.SetFloat("Normalized Time", percentDoneReloading);
+            }
         }
 
         // shot interval
-        if ((playerObjectState.CurrentWeapon != null) && (playerObjectState.CurrentWeapon.TimeUntilCanShoot > 0))
+        if (playerObjectState.CurrentWeapon != null)
         {
             playerObjectState.CurrentWeapon.TimeSinceLastShot += Time.deltaTime;
+
+            if ((equippedWeaponComponent != null) && !playerObjectState.IsReloading)
+            {
+                var percentDoneWithRecoil = Mathf.Min(
+                    playerObjectState.CurrentWeapon.TimeSinceLastShot /
+                    playerObjectState.CurrentWeapon.Definition.RecoilTime,
+                    1
+                );
+                equippedWeaponComponent.Animator.SetFloat("Normalized Time", percentDoneWithRecoil);
+            }
         }
 
         // grenade throw interval

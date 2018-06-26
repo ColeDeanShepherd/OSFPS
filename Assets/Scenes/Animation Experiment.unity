@@ -140,6 +140,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 87d26db3e60ed544f9c682324793fbac, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  IsRightFootPlanted: 0
+  LeftFootTargetPosition: {x: 0, y: 0, z: 0}
+  RightFootTargetPosition: {x: 0, y: 0, z: 0}
 --- !u!4 &794907475
 Transform:
   m_ObjectHideFlags: 0

@@ -619,7 +619,11 @@ public class Client
         if (playerObjectState.CurrentWeapon != null)
         {
             var weaponPrefab = WeaponSystem.Instance.GetWeaponDefinitionByType(playerObjectState.CurrentWeapon.Type).Prefab;
+
             GameObject weaponObject = Object.Instantiate(weaponPrefab, Vector3.zero, Quaternion.identity);
+            var animator = weaponObject.AddComponent<Animator>();
+            animator.runtimeAnimatorController = OsFps.Instance.RecoilAnimatorController;
+
             weaponObject.transform.SetParent(playerObjectComponent.HandsPointObject.transform, false);
 
             var weaponComponent = weaponObject.GetComponent<WeaponComponent>();
@@ -630,6 +634,7 @@ public class Client
             equippedWeaponComponent = weaponObject.AddComponent<EquippedWeaponComponent>();
             equippedWeaponComponent.State = playerObjectState.CurrentWeapon;
             equippedWeaponComponent.State.TimeSinceLastShot = equippedWeaponComponent.State.Definition.ShotInterval;
+            equippedWeaponComponent.Animator = animator;
 
             playerObjectState.CurrentWeapon.TimeSinceLastShot = playerObjectState.CurrentWeapon.Definition.ShotInterval;
         }
@@ -650,8 +655,11 @@ public class Client
         });
 
         var equippedWeaponComponent = GetEquippedWeaponComponent(playerObjectComponent);
+
         var audioSource = equippedWeaponComponent?.GetComponent<AudioSource>();
         audioSource?.PlayOneShot(OsFps.Instance.ReloadSound);
+
+        equippedWeaponComponent.Animator.Play("Reload");
     }
 
     public void ShowMuzzleFlash(PlayerObjectComponent playerObjectComponent)
@@ -681,6 +689,8 @@ public class Client
             {
                 var weaponAudioSource = equippedWeaponComponent.GetComponent<AudioSource>();
                 weaponAudioSource?.PlayOneShot(weapon.Definition.ShotSound);
+                
+                equippedWeaponComponent.Animator.Play("Recoil");
             }
 
             if (weapon.Definition.IsHitScan)
