@@ -562,7 +562,6 @@ public class Client
     }
     private bool CanZoomIn()
     {
-        //if (ZoomLevel == 0) return true;
         if (ZoomLevel == 2) return false;
 
         if (PlayerId == null) return false;
@@ -788,8 +787,6 @@ public class Client
         ShowWeaponFireEffects(playerObjectComponent, shotRay);
 
         playerObjectComponent.State.CurrentWeapon.TimeSinceLastShot = 0;
-
-        OsFps.Instance.CreateHitScanShotDebugLine(shotRay, OsFps.Instance.ClientShotRayMaterial);
     }
 
     public void ThrowGrenade(PlayerObjectState playerObjectState)

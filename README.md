@@ -10,6 +10,7 @@
 
 * Improve client prediction.
   * Do correction in the past
+  * Track timestamp on server, sync. with client, send with game states
 
 
 
@@ -40,6 +41,8 @@
 
 * Make sniper rifle shots visible if you shoot and don't move.
 * Add listen servers.
+  * Make sure systems aren't updated twice.
+  * Make sure changes to the game state aren't done twice.
 * Improve server-side verification (use round trip time).
 * Remove ECS system instances.
 * Implement dead bodies.

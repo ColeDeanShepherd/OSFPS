@@ -64,13 +64,18 @@ public class PlayerObjectComponent : MonoBehaviour
 
         // Update player object.
         // Correct position.
-        var correctedPosition = OsFps.CorrectedPosition(
-            updatedPlayerObjectState.Position, updatedPlayerObjectState.Velocity,
-            roundTripTime, playerObjectComponent.transform.position
-        );
+        var serverPosition = updatedPlayerObjectState.Position;
+        var rewindTimeAmount = roundTripTime;
+        var rewoundTime = Time.realtimeSinceStartup - rewindTimeAmount;
+        var rewoundSnapshot = PlayerSystem.Instance.GetInterpolatedLagCompensationSnapshot(this, rewoundTime);
+        var rewoundPosToServerPosDelta = serverPosition - rewoundSnapshot.Position;
+        var positionCorrectionFactor = 1f / 10;
+        var positionCorrection = positionCorrectionFactor * rewoundPosToServerPosDelta;
+        var correctedPosition = playerObjectComponent.transform.position + positionCorrection;
+
         playerObjectComponent.transform.position = correctedPosition;
         updatedPlayerObjectState.Position = correctedPosition;
-
+        
         // Correct velocity.
         var correctedVelocity = OsFps.CorrectedVelocity(
             updatedPlayerObjectState.Velocity, roundTripTime, playerObjectComponent.Rigidbody.velocity

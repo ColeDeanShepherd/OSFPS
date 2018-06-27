@@ -43,13 +43,13 @@ namespace NetworkLibrary
         {
             return new BandwidthSample
             {
-                Time = UnityEngine.Time.unscaledTime,
+                Time = UnityEngine.Time.realtimeSinceStartup,
                 SentByteCount = NetworkTransport.GetOutgoingFullBytesCount()
             };
         }
         private void RemoveOldSamples()
         {
-            var currentTime = UnityEngine.Time.unscaledTime;
+            var currentTime = UnityEngine.Time.realtimeSinceStartup;
             var indexOfLastSampleToRemove = samples.FindLastIndex(bs => (currentTime - bs.Time) > windowDuration);
 
             if (indexOfLastSampleToRemove >= 0)

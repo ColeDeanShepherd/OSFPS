@@ -53,8 +53,6 @@ public class Server
         {
             SendGameStatePeriodicFunction.TryToCall();
         }
-
-        PlayerSystem.Instance.ServerOnLateUpdate(this);
     }
     public void OnGui()
     {

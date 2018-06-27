@@ -423,6 +423,11 @@ public class OsFps : MonoBehaviour
     }
     private void LateUpdate()
     {
+        if (PlayerSystem.Instance != null)
+        {
+            PlayerSystem.Instance.OnLateUpdate();
+        }
+
         if (Server != null)
         {
             Server.LateUpdate();

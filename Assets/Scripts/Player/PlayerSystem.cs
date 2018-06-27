@@ -32,6 +32,20 @@ public class PlayerSystem : ComponentSystem
             ClientOnUpdate(client);
         }
     }
+    public void OnLateUpdate()
+    {
+        var server = OsFps.Instance?.Server;
+        if (server != null)
+        {
+            ServerOnLateUpdate(server);
+        }
+
+        var client = OsFps.Instance?.Client;
+        if (client != null)
+        {
+            ClientOnLateUpdate(client);
+        }
+    }
 
     private void ServerOnUpdate(Server server)
     {
@@ -52,6 +66,14 @@ public class PlayerSystem : ComponentSystem
     }
     public void ServerOnLateUpdate(Server server)
     {
+        UpdateLagCompensationSnapshots();
+    }
+    public void ClientOnLateUpdate(Client client)
+    {
+        UpdateLagCompensationSnapshots();
+    }
+    private void UpdateLagCompensationSnapshots()
+    {
         foreach (var entity in GetEntities<Group>())
         {
             var playerObjectComponent = entity.PlayerObjectComponent;
@@ -65,8 +87,18 @@ public class PlayerSystem : ComponentSystem
             playerObjectComponent.LagCompensationSnapshots.Add(
                 GetLagCompensationSnapshot(playerObjectComponent, currentTime)
             );
-
-            //OsFps.Logger.Log(playerObjectComponent.LagCompensationSnapshots.Count);
+        }
+    }
+    private void DrawLagCompensationSnapshots()
+    {
+        foreach (var entity in GetEntities<Group>())
+        {
+            foreach (var snapshot in entity.PlayerObjectComponent.LagCompensationSnapshots)
+            {
+                var rayOrigin = snapshot.Position + Vector3.up;
+                var rayDirection = Quaternion.Euler(snapshot.LookDirAngles.x, snapshot.LookDirAngles.y, 0) * Vector3.forward;
+                Debug.DrawRay(rayOrigin, rayDirection);
+            }
         }
     }
     private PlayerLagCompensationSnapshot GetLagCompensationSnapshot(PlayerObjectComponent playerObjectComponent, float currentTime)
