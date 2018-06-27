@@ -1,5 +1,7 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
+using UnityEngine.Assertions;
 
 public static class GameObjectExtensions
 {
@@ -78,5 +80,30 @@ public static class GameObjectExtensions
         // Apply thetas.
         bone1Transform.Rotate(-Vector3.right, Mathf.Rad2Deg * theta1InRadians, Space.Self);
         bone2Transform.localRotation = Quaternion.AngleAxis(Mathf.Rad2Deg * theta2InRadians, -Vector3.right);
+    }
+
+    public static IEnumerable<Collider> ThisAndDescendantsColliders(GameObject gameObject)
+    {
+        foreach (var transform in gameObject.transform.ThisAndDescendantsDepthFirst())
+        {
+            var collider = transform.gameObject.GetComponent<Collider>();
+            if (collider != null)
+            {
+                yield return collider;
+            }
+        }
+    }
+    public static void IgnoreCollisionsRecursive(GameObject g1, GameObject g2)
+    {
+        Assert.IsNotNull(g1);
+        Assert.IsNotNull(g2);
+
+        foreach (var g1Collider in ThisAndDescendantsColliders(g1))
+        {
+            foreach (var g2Collider in ThisAndDescendantsColliders(g2))
+            {
+                Physics.IgnoreCollision(g1Collider, g2Collider);
+            }
+        }
     }
 }

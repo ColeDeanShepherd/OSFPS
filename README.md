@@ -5,10 +5,14 @@
 #### Current
 
 * Animate switching weapons.
+
+
+
 * Improve client prediction.
   * Do correction in the past
-* Improve throwing grenade straight down.
-* Improve rocket launcher firing straight down
+
+
+
 * Implement delta game state sending.
   - server & client cache previous snapshots
   - server delta encodes current state relative to each client's latest ack'ed snapshot

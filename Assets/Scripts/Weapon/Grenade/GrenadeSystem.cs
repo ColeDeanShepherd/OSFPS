@@ -107,6 +107,9 @@ public class GrenadeSystem : ComponentSystem
         };
         var grenadeObject = GrenadeSpawnerSystem.Instance.SpawnLocalGrenadeObject(grenadeState);
 
+        // Make grenade ignore collisions with thrower.
+        GameObjectExtensions.IgnoreCollisionsRecursive(grenadeObject, playerObjectComponent.gameObject);
+
         currentGrenadeSlot.GrenadeCount--;
         playerObjectState.TimeUntilCanThrowGrenade = OsFps.GrenadeThrowInterval;
     }

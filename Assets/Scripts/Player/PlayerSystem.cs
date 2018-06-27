@@ -391,6 +391,9 @@ public class PlayerSystem : ComponentSystem
             ShooterPlayerId = shootingPlayerObjectComponent.State.Id
         };
         var rocket = RocketSystem.Instance.SpawnLocalRocketObject(rocketState);
+
+        // Make grenade ignore collisions with thrower.
+        GameObjectExtensions.IgnoreCollisionsRecursive(rocket, shootingPlayerObjectComponent.gameObject);
     }
     public void ServerPlayerStartReload(PlayerObjectComponent playerObjectComponent)
     {

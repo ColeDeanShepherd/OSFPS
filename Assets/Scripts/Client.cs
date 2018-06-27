@@ -727,22 +727,28 @@ public class Client
             {
                 foreach (var shotRay in WeaponSystem.Instance.ShotRays(weapon.Definition, aimRay))
                 {
-                    CreateBulletHole(shotRay);
+                    CreateBulletHole(playerObjectComponent, shotRay);
                 }
             }
         }
     }
-    private void CreateBulletHole(Ray shotRay)
+    private void CreateBulletHole(PlayerObjectComponent playerObjectComponent, Ray shotRay)
     {
-        RaycastHit raycastHit;
-        if (Physics.Raycast(shotRay, out raycastHit))
+        var raycastHits = Physics.RaycastAll(shotRay);
+
+        foreach (var raycastHit in raycastHits)
         {
-            var bulletHolePosition = raycastHit.point + (0.01f * raycastHit.normal);
-            var bulletHoleOrientation = Quaternion.LookRotation(-raycastHit.normal);
-            var bulletHole = GameObject.Instantiate(
-                OsFps.Instance.BulletHolePrefab, bulletHolePosition, bulletHoleOrientation, raycastHit.transform
-            );
-            Object.Destroy(bulletHole, 5);
+            var hitPlayerObject = raycastHit.collider.gameObject.FindObjectOrAncestorWithTag(OsFps.PlayerTag);
+
+            if (hitPlayerObject != playerObjectComponent.gameObject)
+            {
+                var bulletHolePosition = raycastHit.point + (0.01f * raycastHit.normal);
+                var bulletHoleOrientation = Quaternion.LookRotation(-raycastHit.normal);
+                var bulletHole = GameObject.Instantiate(
+                    OsFps.Instance.BulletHolePrefab, bulletHolePosition, bulletHoleOrientation, raycastHit.transform
+                );
+                Object.Destroy(bulletHole, 5);
+            }
         }
     }
     public void ShowGrenadeExplosion(Vector3 position, GrenadeType grenadeType)
@@ -778,9 +784,12 @@ public class Client
         });
 
         // predict the shot
-        ShowWeaponFireEffects(playerObjectComponent, PlayerSystem.Instance.GetShotRay(playerObjectComponent));
+        var shotRay = PlayerSystem.Instance.GetShotRay(playerObjectComponent);
+        ShowWeaponFireEffects(playerObjectComponent, shotRay);
 
         playerObjectComponent.State.CurrentWeapon.TimeSinceLastShot = 0;
+
+        OsFps.Instance.CreateHitScanShotDebugLine(shotRay, OsFps.Instance.ClientShotRayMaterial);
     }
 
     public void ThrowGrenade(PlayerObjectState playerObjectState)
