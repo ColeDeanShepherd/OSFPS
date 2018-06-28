@@ -35,11 +35,11 @@ namespace NetworkLibrary
 
         public static Dictionary<string, byte> rpcIdByName;
         public static Dictionary<byte, RpcInfo> rpcInfoById;
-        public static List<NetworkSynchronizedComponentInfo> synchronizedComponentInfos;
+        public static List<NetworkedComponentTypeInfo> networkedComponentTypeInfos;
         public static void Setup()
         {
             GetRpcInfo(out rpcIdByName, out rpcInfoById);
-            synchronizedComponentInfos = GetNetworkSynchronizedComponentInfos();
+            networkedComponentTypeInfos = GetNetworkedComponentTypeInfos();
         }
 
         public static void GetRpcInfo(out Dictionary<string, byte> rpcIdByName, out Dictionary<byte, RpcInfo> rpcInfoById)
@@ -85,19 +85,19 @@ namespace NetworkLibrary
             }
         }
 
-        public static List<NetworkSynchronizedComponentInfo> GetNetworkSynchronizedComponentInfos()
+        public static List<NetworkedComponentTypeInfo> GetNetworkedComponentTypeInfos()
         {
             var assembly = System.Reflection.Assembly.GetExecutingAssembly();
 
             return assembly.GetTypes()
-                .Select(GetNetworkSynchronizedComponentInfo)
+                .Select(GetNetworkedComponentTypeInfo)
                 .Where(t => t != null)
                 .ToList();
         }
-        public static NetworkSynchronizedComponentInfo GetNetworkSynchronizedComponentInfo(Type type)
+        public static NetworkedComponentTypeInfo GetNetworkedComponentTypeInfo(Type type)
         {
-            var synchronizedComponentAttribute = (NetworkSynchronizedComponentAttribute)type.GetCustomAttributes(
-                           typeof(NetworkSynchronizedComponentAttribute), inherit: false
+            var synchronizedComponentAttribute = (NetworkedComponentAttribute)type.GetCustomAttributes(
+                           typeof(NetworkedComponentAttribute), inherit: false
                        ).FirstOrDefault();
 
             if (synchronizedComponentAttribute == null)
@@ -105,12 +105,12 @@ namespace NetworkLibrary
                 return null;
             }
 
-            var thingsToSynchronize = new List<NetworkSynchronizedFieldInfo>();
+            var thingsToSynchronize = new List<NetworkedTypeFieldInfo>();
 
             thingsToSynchronize.AddRange(
                 type.GetFields()
                     .Where(field => !Attribute.IsDefined(field, typeof(NotNetworkSynchronizedAttribute)))
-                    .Select(fieldInfo => new NetworkSynchronizedFieldInfo
+                    .Select(fieldInfo => new NetworkedTypeFieldInfo
                     {
                         FieldInfo = fieldInfo,
                         IsNullableIfReferenceType =
@@ -127,7 +127,7 @@ namespace NetworkLibrary
                         property.CanWrite &&
                         !Attribute.IsDefined(property, typeof(NotNetworkSynchronizedAttribute))
                     )
-                    .Select(propertyInfo => new NetworkSynchronizedFieldInfo
+                    .Select(propertyInfo => new NetworkedTypeFieldInfo
                     {
                         PropertyInfo = propertyInfo,
                         IsNullableIfReferenceType =
@@ -147,7 +147,7 @@ namespace NetworkLibrary
             var stateField = monoBehaviourType.GetFields()
                 .FirstOrDefault(f => f.FieldType.IsEquivalentTo(type));
 
-            return new NetworkSynchronizedComponentInfo
+            return new NetworkedComponentTypeInfo
             {
                 StateType = type,
                 StateIdField = type.GetFields().FirstOrDefault(fieldInfo => fieldInfo.Name == "Id"),
@@ -170,19 +170,46 @@ namespace NetworkLibrary
 
             return true;
         }
-
-        public static List<object> GetStateObjectsToSynchronize(NetworkSynchronizedComponentInfo synchronizedComponentInfo)
+        
+        public static NetworkedGameState GetEmptyNetworkedGameStateForDiffing()
         {
-            var monoBehaviours = UnityEngine.Object.FindObjectsOfType(synchronizedComponentInfo.MonoBehaviourType);
+            var networkedComponentStateLists = new List<List<object>>(networkedComponentTypeInfos.Count);
+            foreach (var networkedComponentTypeInfo in networkedComponentTypeInfos)
+            {
+                networkedComponentStateLists.Add(new List<object>());
+            }
 
-            return monoBehaviours
-                .Select(mb => synchronizedComponentInfo.MonoBehaviourStateField.GetValue(mb))
+            return new NetworkedGameState
+            {
+                SequenceNumber = 0,
+                NetworkedComponentTypeInfos = networkedComponentTypeInfos,
+                NetworkedComponentStateLists = networkedComponentStateLists
+            };
+        }
+        public static NetworkedGameState GetCurrentNetworkedGameState(bool generateSequenceNumber)
+        {
+            var sequenceNumber = generateSequenceNumber ? GenerateGameStateSequenceNumber() : 0;
+            var networkedGameState = new NetworkedGameState
+            {
+                SequenceNumber = sequenceNumber,
+                NetworkedComponentTypeInfos = networkedComponentTypeInfos,
+                NetworkedComponentStateLists = GetComponentStateListsToSynchronize(networkedComponentTypeInfos)
+            };
+
+            return networkedGameState;
+        }
+        public static List<List<object>> GetComponentStateListsToSynchronize(List<NetworkedComponentTypeInfo> networkedComponentTypeInfos)
+        {
+            return networkedComponentTypeInfos
+                .Select(GetStateObjectsToSynchronize)
                 .ToList();
         }
-        public static List<List<object>> GetStateObjectListsToSynchronize(List<NetworkSynchronizedComponentInfo> synchronizedComponentInfos)
+        public static List<object> GetStateObjectsToSynchronize(NetworkedComponentTypeInfo networkedComponentTypeInfo)
         {
-            return synchronizedComponentInfos
-                .Select(GetStateObjectsToSynchronize)
+            var monoBehaviours = UnityEngine.Object.FindObjectsOfType(networkedComponentTypeInfo.MonoBehaviourType);
+
+            return monoBehaviours
+                .Select(mb => networkedComponentTypeInfo.MonoBehaviourStateField.GetValue(mb))
                 .ToList();
         }
 
@@ -197,20 +224,20 @@ namespace NetworkLibrary
             OsFps.Logger.Log($"Executed RPC {rpcInfo.Name}");
         }
 
-        public static UnityEngine.MonoBehaviour GetMonoBehaviourByState(NetworkSynchronizedComponentInfo synchronizedComponentInfo, object state)
+        public static UnityEngine.MonoBehaviour GetMonoBehaviourByState(NetworkedComponentTypeInfo networkedComponentTypeInfo, object state)
         {
-            var stateId = GetIdFromState(synchronizedComponentInfo, state);
-            return GetMonoBehaviourByStateId(synchronizedComponentInfo, stateId);
+            var stateId = GetIdFromState(networkedComponentTypeInfo, state);
+            return GetMonoBehaviourByStateId(networkedComponentTypeInfo, stateId);
         }
         public static UnityEngine.MonoBehaviour GetMonoBehaviourByStateId(
-            NetworkSynchronizedComponentInfo synchronizedComponentInfo, uint stateId
+            NetworkedComponentTypeInfo networkedComponentTypeInfo, uint stateId
         )
         {
-            var monoBehaviour = (UnityEngine.MonoBehaviour)UnityEngine.Object.FindObjectsOfType(synchronizedComponentInfo.MonoBehaviourType)
+            var monoBehaviour = (UnityEngine.MonoBehaviour)UnityEngine.Object.FindObjectsOfType(networkedComponentTypeInfo.MonoBehaviourType)
                 .FirstOrDefault(o =>
                 {
-                    var state = synchronizedComponentInfo.MonoBehaviourStateField.GetValue(o);
-                    var currentStateId = GetIdFromState(synchronizedComponentInfo, state);
+                    var state = networkedComponentTypeInfo.MonoBehaviourStateField.GetValue(o);
+                    var currentStateId = GetIdFromState(networkedComponentTypeInfo, state);
 
                     return currentStateId == stateId;
                 });
@@ -218,9 +245,17 @@ namespace NetworkLibrary
             return monoBehaviour;
         }
 
-        public static uint GetIdFromState(NetworkSynchronizedComponentInfo synchronizedComponentInfo, object state)
+        public static uint GetIdFromState(NetworkedComponentTypeInfo networkedComponentTypeInfo, object state)
         {
-            return (uint)synchronizedComponentInfo.StateIdField.GetValue(state);
+            return (uint)networkedComponentTypeInfo.StateIdField.GetValue(state);
+        }
+        
+        private static uint _nextGameStateSequenceNumber = 1;
+        public static uint GenerateGameStateSequenceNumber()
+        {
+            var generatedGameStateSequenceNumber = _nextGameStateSequenceNumber;
+            _nextGameStateSequenceNumber++;
+            return generatedGameStateSequenceNumber;
         }
     }
 }

@@ -4,7 +4,7 @@ using UnityEngine;
 using NetworkLibrary;
 
 [System.Serializable]
-[NetworkSynchronizedComponent(MonoBehaviourType = typeof(PlayerObjectComponent))]
+[NetworkedComponent(MonoBehaviourType = typeof(PlayerObjectComponent))]
 public class PlayerObjectState
 {
     public uint Id;

@@ -4,18 +4,18 @@ using System.Reflection;
 
 namespace NetworkLibrary
 {
-    public class NetworkSynchronizedComponentInfo
+    public class NetworkedComponentTypeInfo
     {
         public Type StateType;
         public FieldInfo StateIdField;
-        public List<NetworkSynchronizedFieldInfo> ThingsToSynchronize;
+        public List<NetworkedTypeFieldInfo> ThingsToSynchronize;
 
         public Type MonoBehaviourType;
         public FieldInfo MonoBehaviourStateField;
         public MethodInfo MonoBehaviourApplyStateMethod;
-        public NetworkSynchronizedComponentAttribute SynchronizedComponentAttribute;
+        public NetworkedComponentAttribute SynchronizedComponentAttribute;
     }
-    public class NetworkSynchronizedFieldInfo
+    public class NetworkedTypeFieldInfo
     {
         public FieldInfo FieldInfo;
         public PropertyInfo PropertyInfo;

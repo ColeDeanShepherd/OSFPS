@@ -112,39 +112,43 @@ public class Server
         OnServerStarted?.Invoke();
     }
 
-    private const int maxCachedSentGameStates = 60;
-    //private List<GameState> cachedSentGameStates = new List<GameState>();
+    private const int maxCachedSentGameStates = 100;
+    private List<NetworkedGameState> cachedSentGameStates = new List<NetworkedGameState>();
     private Dictionary<uint, uint> _latestAcknowledgedGameStateSequenceNumberByPlayerId = new Dictionary<uint, uint>();
     private void SendGameState()
     {
+        // Get the current game state.
+        var currentGameState = NetLib.GetCurrentNetworkedGameState(generateSequenceNumber: true);
+
+        // Send the game state deltas.
         foreach (var playerId in playerIdsByConnectionId.Values)
         {
-            var playersLatestAcknowledgedGameStateSequenceNumber = _latestAcknowledgedGameStateSequenceNumberByPlayerId
-                .GetValueOrDefault(playerId);
-
-            SendGameStateDiff(playerId, GenerateSequenceNumber());
+            var oldGameState = GetNetworkedGameStateToDiffAgainst(playerId);
+            SendGameStateDiff(playerId, currentGameState, oldGameState);
         }
-
-        /*
-        cachedSentGameStates.Add(gameState);
+        
+        // Cache the game state for future deltas.
+        cachedSentGameStates.Add(currentGameState);
         if (cachedSentGameStates.Count > maxCachedSentGameStates)
         {
             cachedSentGameStates.RemoveAt(0);
-        }*/
+        }
+    }
+    private NetworkedGameState GetNetworkedGameStateToDiffAgainst(uint playerId)
+    {
+        var playersLatestAcknowledgedGameStateSequenceNumber =
+            _latestAcknowledgedGameStateSequenceNumberByPlayerId.GetValueOrDefault(playerId);
+        var indexOfPlayersLatestAcknowledgedGameState = cachedSentGameStates
+            .FindIndex(ngs => ngs.SequenceNumber == playersLatestAcknowledgedGameStateSequenceNumber);
+        var playersLatestAcknowledgedGameState = (indexOfPlayersLatestAcknowledgedGameState >= 0)
+            ? cachedSentGameStates[indexOfPlayersLatestAcknowledgedGameState]
+            : NetLib.GetEmptyNetworkedGameStateForDiffing();
+
+        return playersLatestAcknowledgedGameState;
     }
 
-    private uint _nextSequenceNumber = 1;
-    public uint GenerateSequenceNumber()
+    private void SendGameStateDiff(uint playerId, NetworkedGameState gameState, NetworkedGameState oldGameState)
     {
-        var generatedSequenceNumber = _nextSequenceNumber;
-        _nextSequenceNumber++;
-        return generatedSequenceNumber;
-    }
-
-    private void SendGameStateDiff(uint playerId, uint sequenceNumber)
-    {
-        var connectionId = GetConnectionIdByPlayerId(playerId);
-
         byte[] messageBytes;
 
         using (var memoryStream = new MemoryStream())
@@ -152,15 +156,18 @@ public class Server
             using (var writer = new BinaryWriter(memoryStream))
             {
                 writer.Write(OsFps.StateSynchronizationMessageId);
-                writer.Write(sequenceNumber);
-                NetworkSerializationUtils.SerializeSynchronizedComponents(
-                    writer, NetLib.synchronizedComponentInfos
-                );
+                writer.Write(gameState.SequenceNumber);
+                writer.Write(oldGameState.SequenceNumber);
+                NetworkSerializationUtils.SerializeNetworkedGameState(writer, gameState, oldGameState);
             }
 
             messageBytes = memoryStream.ToArray();
         }
 
+        Debug.Log("cur. seq. #: " + gameState.SequenceNumber);
+        Debug.Log("old. seq. #: " + oldGameState.SequenceNumber);
+
+        var connectionId = GetConnectionIdByPlayerId(playerId);
         ServerPeer.SendMessageToClient(connectionId.Value, unreliableFragmentedChannelId, messageBytes);
     }
 
@@ -282,10 +289,10 @@ public class Server
     [Rpc(ExecuteOn = NetworkLibrary.NetworkPeerType.Server)]
     public void ServerOnReceiveClientGameStateAck(uint playerId, uint gameStateSequenceNumber)
     {
-        var latestSequenceNumber =
+        var playersLatestAcknowledgedSequenceNumber =
             _latestAcknowledgedGameStateSequenceNumberByPlayerId.GetValueOrDefault(playerId);
 
-        if (gameStateSequenceNumber > latestSequenceNumber)
+        if (gameStateSequenceNumber > playersLatestAcknowledgedSequenceNumber)
         {
             _latestAcknowledgedGameStateSequenceNumberByPlayerId[playerId] = gameStateSequenceNumber;
         }

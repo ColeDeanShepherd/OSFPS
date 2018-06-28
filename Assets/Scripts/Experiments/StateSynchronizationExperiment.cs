@@ -90,7 +90,7 @@ public class StateSynchronizationExperiment : MonoBehaviour
 
     State serverState;
     State clientState;
-    NetworkSynchronizedComponentInfo synchronizedComponentInfo;
+    NetworkedComponentTypeInfo networkedComponentTypeInfo;
     ThrottledAction sendUpdateAction;
     byte[] SentUpdate;
 
@@ -98,7 +98,7 @@ public class StateSynchronizationExperiment : MonoBehaviour
     {
         serverState = new State();
         clientState = new State();
-        synchronizedComponentInfo = NetLib.GetNetworkSynchronizedComponentInfo(typeof(State));
+        networkedComponentTypeInfo = NetLib.GetNetworkedComponentTypeInfo(typeof(State));
         sendUpdateAction = new ThrottledAction(SendUpdate, 0.25f);
     }
     private void Update()
@@ -118,7 +118,7 @@ public class StateSynchronizationExperiment : MonoBehaviour
         {
             using (var writer = new BinaryWriter(memoryStream))
             {
-                NetworkSerializationUtils.SerializeDelta(writer, synchronizedComponentInfo, lastAcknowledgedState, serverState);
+                NetworkSerializationUtils.SerializeDelta(writer, networkedComponentTypeInfo, lastAcknowledgedState, serverState);
             }
 
             SentUpdate = memoryStream.ToArray();
@@ -133,7 +133,7 @@ public class StateSynchronizationExperiment : MonoBehaviour
         {
             using (var reader = new BinaryReader(memoryStream))
             {
-                NetworkSerializationUtils.DeserializeDelta(reader, synchronizedComponentInfo, clientState);
+                NetworkSerializationUtils.DeserializeDelta(reader, networkedComponentTypeInfo, clientState);
             }
         }
 

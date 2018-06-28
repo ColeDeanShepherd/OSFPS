@@ -15,8 +15,7 @@
 
 
 * Implement delta game state sending.
-  - server & client cache previous snapshots
-  - server delta encodes current state relative to each client's latest ack'ed snapshot
+  - handle player disconnects
 
 #### High-Priority
 

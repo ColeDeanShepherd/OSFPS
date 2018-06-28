@@ -3,7 +3,7 @@
 namespace NetworkLibrary
 {
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct)]
-    public class NetworkSynchronizedComponentAttribute : Attribute
+    public class NetworkedComponentAttribute : Attribute
     {
         public Type MonoBehaviourType;
     }

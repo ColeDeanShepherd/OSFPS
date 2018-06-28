@@ -1,7 +1,7 @@
 ﻿using NetworkLibrary;
 
 [System.Serializable]
-[NetworkSynchronizedComponent(MonoBehaviourType = typeof(GrenadeSpawnerComponent))]
+[NetworkedComponent(MonoBehaviourType = typeof(GrenadeSpawnerComponent))]
 public class GrenadeSpawnerState
 {
     public uint Id;
