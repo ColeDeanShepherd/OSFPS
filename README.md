@@ -15,7 +15,12 @@
 
 
 * Implement delta game state sending.
-  - handle player disconnects
+  * fix bugs
+  * handle player disconnects
+
+
+
+* Fix destroy errors on close.
 
 #### High-Priority
 
