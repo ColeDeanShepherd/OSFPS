@@ -1,8 +1,9 @@
-﻿using UnityEngine;
+﻿using Unity.Mathematics;
+using UnityEngine;
 
 public struct PlayerLagCompensationSnapshot
 {
     public float Time;
-    public Vector3 Position;
-    public Vector2 LookDirAngles;
+    public float3 Position;
+    public float2 LookDirAngles;
 }

@@ -1,10 +1,11 @@
-﻿using UnityEngine;
+﻿using Unity.Mathematics;
+using UnityEngine;
 
 [System.Serializable]
 public class RigidBodyState
 {
-    public Vector3 Position;
-    public Vector3 EulerAngles;
-    public Vector3 Velocity;
-    public Vector3 AngularVelocity;
+    public float3 Position;
+    public float3 EulerAngles;
+    public float3 Velocity;
+    public float3 AngularVelocity;
 }

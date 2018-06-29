@@ -1,6 +1,7 @@
 ﻿using UnityEngine;
 using Unity.Entities;
 using System.Linq;
+using Unity.Mathematics;
 
 public class RocketSystem : ComponentSystem
 {
@@ -31,7 +32,7 @@ public class RocketSystem : ComponentSystem
 
     private void ServerDetonateRocket(Server server, RocketComponent rocketComponent)
     {
-        var rocketPosition = rocketComponent.transform.position;
+        var rocketPosition = (float3)rocketComponent.transform.position;
 
         // apply damage & forces to players within range
         var rocketLauncherDefinition = WeaponSystem.Instance.GetWeaponDefinitionByType(WeaponType.RocketLauncher);

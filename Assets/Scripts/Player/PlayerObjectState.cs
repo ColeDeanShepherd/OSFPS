@@ -2,15 +2,16 @@
 using System.Linq;
 using UnityEngine;
 using NetworkLibrary;
+using Unity.Mathematics;
 
 [System.Serializable]
-[NetworkSynchronizedComponent(MonoBehaviourType = typeof(PlayerObjectComponent))]
+[NetworkedComponent(MonoBehaviourType = typeof(PlayerObjectComponent))]
 public class PlayerObjectState
 {
     public uint Id;
-    public Vector3 Position;
-    public Vector3 Velocity;
-    public Vector2 LookDirAngles;
+    public float3 Position;
+    public float3 Velocity;
+    public float2 LookDirAngles;
 
     public PlayerInput Input;
 

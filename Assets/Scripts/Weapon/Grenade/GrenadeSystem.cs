@@ -2,6 +2,7 @@
 using Unity.Entities;
 using System.Collections.Generic;
 using System.Linq;
+using Unity.Mathematics;
 
 public class GrenadeSystem : ComponentSystem
 {
@@ -61,7 +62,7 @@ public class GrenadeSystem : ComponentSystem
     {
         var grenade = grenadeComponent.State;
         var grenadeDefinition = GetGrenadeDefinitionByType(grenade.Type);
-        var grenadePosition = grenadeComponent.transform.position;
+        var grenadePosition = (float3)grenadeComponent.transform.position;
 
         // apply damage & forces to players within range
         OsFps.Instance.ApplyExplosionDamageAndForces(

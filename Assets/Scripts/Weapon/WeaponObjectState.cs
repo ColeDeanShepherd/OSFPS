@@ -1,7 +1,7 @@
 ﻿using NetworkLibrary;
 
 [System.Serializable]
-[NetworkSynchronizedComponent(MonoBehaviourType = typeof(WeaponComponent))]
+[NetworkedComponent(MonoBehaviourType = typeof(WeaponComponent))]
 public class WeaponObjectState
 {
     public uint Id;

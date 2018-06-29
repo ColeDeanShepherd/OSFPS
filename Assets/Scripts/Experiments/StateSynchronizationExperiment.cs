@@ -6,6 +6,7 @@ using System.Reflection;
 using System.Text;
 using UnityEngine;
 using NetworkLibrary;
+using Newtonsoft.Json;
 
 public class StateSynchronizationExperiment : MonoBehaviour
 {
@@ -90,7 +91,7 @@ public class StateSynchronizationExperiment : MonoBehaviour
 
     State serverState;
     State clientState;
-    NetworkSynchronizedComponentInfo synchronizedComponentInfo;
+    NetworkedComponentTypeInfo networkedComponentTypeInfo;
     ThrottledAction sendUpdateAction;
     byte[] SentUpdate;
 
@@ -98,7 +99,7 @@ public class StateSynchronizationExperiment : MonoBehaviour
     {
         serverState = new State();
         clientState = new State();
-        synchronizedComponentInfo = NetLib.GetNetworkSynchronizedComponentInfo(typeof(State));
+        networkedComponentTypeInfo = NetLib.GetNetworkedComponentTypeInfo(typeof(State));
         sendUpdateAction = new ThrottledAction(SendUpdate, 0.25f);
     }
     private void Update()
@@ -118,7 +119,7 @@ public class StateSynchronizationExperiment : MonoBehaviour
         {
             using (var writer = new BinaryWriter(memoryStream))
             {
-                NetworkSerializationUtils.SerializeDelta(writer, synchronizedComponentInfo, lastAcknowledgedState, serverState);
+                //NetworkSerializationUtils.SerializeDelta(writer, networkedComponentTypeInfo, lastAcknowledgedState, serverState);
             }
 
             SentUpdate = memoryStream.ToArray();
@@ -133,7 +134,7 @@ public class StateSynchronizationExperiment : MonoBehaviour
         {
             using (var reader = new BinaryReader(memoryStream))
             {
-                NetworkSerializationUtils.DeserializeDelta(reader, synchronizedComponentInfo, clientState);
+                NetworkSerializationUtils.DeserializeDelta(reader, networkedComponentTypeInfo, clientState);
             }
         }
 
@@ -152,7 +153,7 @@ public class StateSynchronizationExperiment : MonoBehaviour
     }
     private void DrawState(State s, Vector2 position)
     {
-        GUI.Label(new Rect(position, new Vector2(300, 600)), JsonUtils.ToPrettyJson(s));
+        GUI.Label(new Rect(position, new Vector2(300, 600)), JsonConvert.SerializeObject(s));
     }
     private void OnChange()
     {

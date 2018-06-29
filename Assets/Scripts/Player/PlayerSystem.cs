@@ -3,6 +3,7 @@ using UnityEngine;
 using Unity.Entities;
 using System.Collections.Generic;
 using UnityEngine.Assertions;
+using Unity.Mathematics;
 
 public class PlayerSystem : ComponentSystem
 {
@@ -95,7 +96,7 @@ public class PlayerSystem : ComponentSystem
         {
             foreach (var snapshot in entity.PlayerObjectComponent.LagCompensationSnapshots)
             {
-                var rayOrigin = snapshot.Position + Vector3.up;
+                var rayOrigin = snapshot.Position + new float3(0, 1, 0);
                 var rayDirection = Quaternion.Euler(snapshot.LookDirAngles.x, snapshot.LookDirAngles.y, 0) * Vector3.forward;
                 Debug.DrawRay(rayOrigin, rayDirection);
             }
@@ -270,7 +271,9 @@ public class PlayerSystem : ComponentSystem
         {
             Time = Mathf.Lerp(snapshot1.Time, snapshot2.Time, interpolationPercent),
             Position = Vector3.Lerp(snapshot1.Position, snapshot2.Position, interpolationPercent),
-            LookDirAngles = Vector3.Lerp(snapshot1.LookDirAngles, snapshot2.LookDirAngles, interpolationPercent)
+            LookDirAngles = Vector2.Lerp(
+                snapshot1.LookDirAngles, snapshot2.LookDirAngles, interpolationPercent
+            )
         };
     }
     public void ApplyLagCompensationSnapshot(
@@ -283,9 +286,9 @@ public class PlayerSystem : ComponentSystem
         if (OsFps.ShowLagCompensationOnServer)
         {
             var tmpCube = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            tmpCube.transform.position = snapshot.Position + (2 * Vector3.up);
+            tmpCube.transform.position = snapshot.Position + (2 * new float3(0, 1, 0));
             tmpCube.transform.localScale = 0.25f * Vector3.one;
-            tmpCube.transform.eulerAngles = snapshot.LookDirAngles;
+            tmpCube.transform.eulerAngles = new Vector3(snapshot.LookDirAngles.x, snapshot.LookDirAngles.y);
 
             Object.DestroyImmediate(tmpCube.GetComponent<BoxCollider>());
             Object.Destroy(tmpCube, 2);

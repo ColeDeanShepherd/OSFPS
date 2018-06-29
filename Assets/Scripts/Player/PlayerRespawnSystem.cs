@@ -88,8 +88,15 @@ public class PlayerRespawnSystem : ComponentSystem
     
     public GameObject SpawnLocalPlayer(PlayerObjectState playerObjectState)
     {
+        var orientation = Quaternion.Euler(
+            playerObjectState.LookDirAngles.x,
+            playerObjectState.LookDirAngles.y,
+            0
+        );
         var playerObject = GameObject.Instantiate(
-            OsFps.Instance.PlayerPrefab, playerObjectState.Position, Quaternion.Euler(playerObjectState.LookDirAngles)
+            OsFps.Instance.PlayerPrefab,
+            playerObjectState.Position,
+            orientation
         );
 
         var playerObjectComponent = playerObject.GetComponent<PlayerObjectComponent>();

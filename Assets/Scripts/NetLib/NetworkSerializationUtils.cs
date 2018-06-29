@@ -1,9 +1,11 @@
-﻿using System;
+﻿using Newtonsoft.Json;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.Assertions;
 
@@ -209,6 +211,18 @@ namespace NetworkLibrary
             {
                 writer.Write((string)obj);
             }
+            else if (objType == typeof(float2))
+            {
+                Serialize(writer, (float2)obj);
+            }
+            else if (objType == typeof(float3))
+            {
+                Serialize(writer, (float3)obj);
+            }
+            else if (objType == typeof(float4))
+            {
+                Serialize(writer, (float4)obj);
+            }
             else if (objType == typeof(Vector2))
             {
                 Serialize(writer, (Vector2)obj);
@@ -216,6 +230,10 @@ namespace NetworkLibrary
             else if (objType == typeof(Vector3))
             {
                 Serialize(writer, (Vector3)obj);
+            }
+            else if (objType == typeof(Vector4))
+            {
+                Serialize(writer, (Vector4)obj);
             }
             else if (typeof(INetworkSerializable).IsAssignableFrom(obj.GetType()))
             {
@@ -289,15 +307,17 @@ namespace NetworkLibrary
         }
 
         public static uint GetChangeMask(
-            NetworkSynchronizedComponentInfo synchronizedComponentInfo, object oldValue, object newValue
+            NetworkedComponentTypeInfo networkedComponentTypeInfo, object newValue, object oldValue
         )
         {
-            Assert.IsTrue(synchronizedComponentInfo.ThingsToSynchronize.Count <= (8 * sizeof(uint)));
+            Assert.IsTrue(networkedComponentTypeInfo.ThingsToSynchronize.Count <= (8 * sizeof(uint)));
+
+            if (oldValue == null) return uint.MaxValue;
 
             uint changeMask = 0;
             uint changeMaskBitIndex = 0;
 
-            foreach (var field in synchronizedComponentInfo.ThingsToSynchronize)
+            foreach (var field in networkedComponentTypeInfo.ThingsToSynchronize)
             {
                 object oldFieldValue, newFieldValue;
 
@@ -324,13 +344,13 @@ namespace NetworkLibrary
         }
 
         public static void SerializeGivenChangeMask(
-            BinaryWriter writer, NetworkSynchronizedComponentInfo synchronizedComponentInfo,
+            BinaryWriter writer, NetworkedComponentTypeInfo networkedComponentTypeInfo,
             object value, uint changeMask
         )
         {
             uint changeMaskBitIndex = 0;
 
-            foreach (var field in synchronizedComponentInfo.ThingsToSynchronize)
+            foreach (var field in networkedComponentTypeInfo.ThingsToSynchronize)
             {
                 if (BitUtilities.GetBit(changeMask, (byte)changeMaskBitIndex))
                 {
@@ -360,24 +380,15 @@ namespace NetworkLibrary
                 changeMaskBitIndex++;
             }
         }
-        public static void SerializeDelta(
-            BinaryWriter writer, NetworkSynchronizedComponentInfo synchronizedComponentInfo,
-            object oldValue, object newValue
-        )
-        {
-            var changeMask = GetChangeMask(synchronizedComponentInfo, oldValue, newValue);
-            writer.Write(changeMask);
-            SerializeGivenChangeMask(writer, synchronizedComponentInfo, newValue, changeMask);
-        }
 
         public static void DeserializeGivenChangeMask(
-            BinaryReader reader, NetworkSynchronizedComponentInfo synchronizedComponentInfo,
+            BinaryReader reader, NetworkedComponentTypeInfo networkedComponentTypeInfo,
             object oldValue, uint changeMask
         )
         {
             byte changeMaskBitIndex = 0;
 
-            foreach (var field in synchronizedComponentInfo.ThingsToSynchronize)
+            foreach (var field in networkedComponentTypeInfo.ThingsToSynchronize)
             {
                 if (BitUtilities.GetBit(changeMask, changeMaskBitIndex))
                 {
@@ -402,11 +413,11 @@ namespace NetworkLibrary
             }
         }
         public static void DeserializeDelta(
-            BinaryReader reader, NetworkSynchronizedComponentInfo synchronizedComponentInfo, object oldValue
+            BinaryReader reader, NetworkedComponentTypeInfo networkedComponentTypeInfo, object oldValue
         )
         {
             var changeMask = reader.ReadUInt32();
-            DeserializeGivenChangeMask(reader, synchronizedComponentInfo, oldValue, changeMask);
+            DeserializeGivenChangeMask(reader, networkedComponentTypeInfo, oldValue, changeMask);
         }
 
         public static object Deserialize(
@@ -485,6 +496,27 @@ namespace NetworkLibrary
             {
                 return reader.ReadString();
             }
+            else if (type == typeof(float2))
+            {
+                var result = new float2();
+                Deserialize(reader, ref result);
+
+                return result;
+            }
+            else if (type == typeof(float3))
+            {
+                var result = new float3();
+                Deserialize(reader, ref result);
+
+                return result;
+            }
+            else if (type == typeof(float4))
+            {
+                var result = new float4();
+                Deserialize(reader, ref result);
+
+                return result;
+            }
             else if (type == typeof(Vector2))
             {
                 var result = new Vector2();
@@ -495,6 +527,13 @@ namespace NetworkLibrary
             else if (type == typeof(Vector3))
             {
                 var result = new Vector3();
+                Deserialize(reader, ref result);
+
+                return result;
+            }
+            else if (type == typeof(Vector4))
+            {
+                var result = new Vector4();
                 Deserialize(reader, ref result);
 
                 return result;
@@ -618,6 +657,57 @@ namespace NetworkLibrary
             v.y = reader.ReadSingle();
             v.z = reader.ReadSingle();
         }
+        public static void Serialize(BinaryWriter writer, Vector4 v)
+        {
+            writer.Write(v.x);
+            writer.Write(v.y);
+            writer.Write(v.z);
+            writer.Write(v.w);
+        }
+        public static void Deserialize(BinaryReader reader, ref Vector4 v)
+        {
+            v.x = reader.ReadSingle();
+            v.y = reader.ReadSingle();
+            v.z = reader.ReadSingle();
+            v.w = reader.ReadSingle();
+        }
+
+        public static void Serialize(BinaryWriter writer, float2 v)
+        {
+            writer.Write(v.x);
+            writer.Write(v.y);
+        }
+        public static void Deserialize(BinaryReader reader, ref float2 v)
+        {
+            v.x = reader.ReadSingle();
+            v.y = reader.ReadSingle();
+        }
+        public static void Serialize(BinaryWriter writer, float3 v)
+        {
+            writer.Write(v.x);
+            writer.Write(v.y);
+            writer.Write(v.z);
+        }
+        public static void Deserialize(BinaryReader reader, ref float3 v)
+        {
+            v.x = reader.ReadSingle();
+            v.y = reader.ReadSingle();
+            v.z = reader.ReadSingle();
+        }
+        public static void Serialize(BinaryWriter writer, float4 v)
+        {
+            writer.Write(v.x);
+            writer.Write(v.y);
+            writer.Write(v.z);
+            writer.Write(v.w);
+        }
+        public static void Deserialize(BinaryReader reader, ref float4 v)
+        {
+            v.x = reader.ReadSingle();
+            v.y = reader.ReadSingle();
+            v.z = reader.ReadSingle();
+            v.w = reader.ReadSingle();
+        }
 
         public static void Serialize<T>(BinaryWriter writer, List<T> list) where T : INetworkSerializable
         {
@@ -643,16 +733,17 @@ namespace NetworkLibrary
             }
         }
 
-        public static void Serialize<T>(BinaryWriter writer, List<T> list, Action<BinaryWriter, T> serializeElementFunc)
+        public static void Serialize<T>(BinaryWriter writer, List<T> list, Action<BinaryWriter, T, int> serializeElementFunc)
         {
             writer.Write(list.Count);
 
-            foreach (var element in list)
+            for (var i = 0; i < list.Count; i++)
             {
-                serializeElementFunc(writer, element);
+                var element = list[i];
+                serializeElementFunc(writer, element, i);
             }
         }
-        public static void Deserialize<T>(BinaryReader reader, List<T> list, Func<BinaryReader, T> deserializeElementFunc)
+        public static void Deserialize<T>(BinaryReader reader, List<T> list, Func<BinaryReader, int, T> deserializeElementFunc)
         {
             list.Clear();
 
@@ -660,7 +751,7 @@ namespace NetworkLibrary
 
             for (var i = 0; i < listSize; i++)
             {
-                var element = deserializeElementFunc(reader);
+                var element = deserializeElementFunc(reader, i);
                 list.Add(element);
             }
         }
@@ -691,52 +782,73 @@ namespace NetworkLibrary
             }
         }
 
-        public static void SerializeSynchronizedComponents(
-            BinaryWriter writer, List<NetworkSynchronizedComponentInfo> synchronizedComponentInfos
+        public static void SerializeNetworkedGameState(
+            BinaryWriter writer, NetworkedGameState networkedGameState, NetworkedGameState oldNetworkedGameState
         )
         {
-            var stateObjectLists = NetLib.GetStateObjectListsToSynchronize(synchronizedComponentInfos);
-
-            for (var i = 0; i < stateObjectLists.Count; i++)
+            for (var i = 0; i < networkedGameState.NetworkedComponentStateLists.Count; i++)
             {
-                var stateObjects = stateObjectLists[i];
-                var synchronizedComponentInfo = synchronizedComponentInfos[i];
+                var networkedComponentTypeInfo = networkedGameState.NetworkedComponentTypeInfos[i];
+                var componentStates = networkedGameState.NetworkedComponentStateLists[i];
+                var oldComponentStates = oldNetworkedGameState.NetworkedComponentStateLists[i];
 
-                Serialize(writer, stateObjects, (binaryWriter, stateObject) =>
+                Serialize(writer, componentStates, (binaryWriter, componentState, index) =>
                 {
-                    var changeMask = uint.MaxValue;
+                    var componentStateId = NetLib.GetIdFromState(networkedComponentTypeInfo, componentState);
+                    binaryWriter.Write(componentStateId);
+
+                    var oldComponentState = oldComponentStates
+                        .FirstOrDefault(ocs =>
+                            NetLib.GetIdFromState(networkedComponentTypeInfo, ocs) == componentStateId);
+
+                    var changeMask = GetChangeMask(networkedComponentTypeInfo, componentState, oldComponentState);
                     binaryWriter.Write(changeMask);
 
                     SerializeGivenChangeMask(
-                        binaryWriter, synchronizedComponentInfo, stateObject, changeMask
+                        binaryWriter, networkedComponentTypeInfo, componentState, changeMask
                     );
                 });
             }
         }
-        public static List<List<object>> DeserializeSynchronizedComponents(
-            BinaryReader reader, List<NetworkSynchronizedComponentInfo> synchronizedComponentInfos
+        public static NetworkedGameState DeserializeNetworkedGameState(
+            BinaryReader reader, uint sequenceNumber, NetworkedGameState networkedGameStateRelativeTo
         )
         {
-            var stateObjectLists = synchronizedComponentInfos
-                .Select(synchronizedComponentInfo =>
+            var networkedComponentTypeInfos = networkedGameStateRelativeTo.NetworkedComponentTypeInfos;
+            var networkedComponentStateLists = networkedComponentTypeInfos
+                .Select((networkedComponentTypeInfo, networkedComponentTypeInfosIndex) =>
                 {
-                    var stateObjects = new List<object>();
+                    var oldComponentStates = networkedGameStateRelativeTo.NetworkedComponentStateLists[networkedComponentTypeInfosIndex];
+                    var componentStates = new List<object>();
 
-                    Deserialize(reader, stateObjects, binaryReader =>
+                    Deserialize(reader, componentStates, (binaryReader, componentStateIndex) =>
                     {
-                        var stateType = synchronizedComponentInfo.StateType;
-                        var stateObject = System.Activator.CreateInstance(stateType);
+                        var componentStateId = reader.ReadUInt32();
+
+                        var oldStateObject = oldComponentStates
+                            .FirstOrDefault(ocs => NetLib.GetIdFromState(networkedComponentTypeInfo, ocs) == componentStateId);
+                        if (oldStateObject == null)
+                        {
+                            var stateType = networkedComponentTypeInfo.StateType;
+                            oldStateObject = System.Activator.CreateInstance(stateType);
+                        }
+                        
                         DeserializeDelta(
-                            binaryReader, synchronizedComponentInfo, stateObject
+                            binaryReader, networkedComponentTypeInfo, oldStateObject
                         );
-                        return stateObject;
+                        return oldStateObject;
                     });
 
-                    return stateObjects;
+                    return componentStates;
                 })
                 .ToList();
 
-            return stateObjectLists;
+            return new NetworkedGameState
+            {
+                SequenceNumber = sequenceNumber,
+                NetworkedComponentTypeInfos = networkedComponentTypeInfos,
+                NetworkedComponentStateLists = networkedComponentStateLists
+            };
         }
     }
 }

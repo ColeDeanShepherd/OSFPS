@@ -6,6 +6,8 @@ using UnityEngine.Assertions;
 using UnityEngine.Networking;
 using NetworkLibrary;
 using UnityEngine.Profiling;
+using Newtonsoft.Json;
+using Unity.Mathematics;
 
 public class Client
 {
@@ -424,7 +426,7 @@ public class Client
     {
         var networkStats = ClientPeer.GetNetworkStats(ClientPeer.serverConnectionId);
         var position = new Vector2(30, 30);
-        GUI.Label(new Rect(position, new Vector2(800, 800)), JsonUtils.ToPrettyJson(networkStats));
+        GUI.Label(new Rect(position, new Vector2(800, 800)), JsonConvert.SerializeObject(networkStats));
     }
     private void DrawWeaponHud(EquippedWeaponState weapon, Vector2 position)
     {
@@ -938,15 +940,15 @@ public class Client
     }
 
     private void ApplyState(
-        NetworkSynchronizedComponentInfo synchronizedComponentInfo, List<object> oldStates, List<object> newStates
+        NetworkedComponentTypeInfo networkedComponentTypeInfo, List<object> oldStates, List<object> newStates
     )
     {
         System.Func<object, object, bool> doIdsMatch =
-            (s1, s2) => NetLib.GetIdFromState(synchronizedComponentInfo, s1) == NetLib.GetIdFromState(synchronizedComponentInfo, s2);
+            (s1, s2) => NetLib.GetIdFromState(networkedComponentTypeInfo, s1) == NetLib.GetIdFromState(networkedComponentTypeInfo, s2);
 
         System.Action<object> handleRemovedState = removedState =>
         {
-            var monoBehaviour = NetLib.GetMonoBehaviourByState(synchronizedComponentInfo, removedState);
+            var monoBehaviour = NetLib.GetMonoBehaviourByState(networkedComponentTypeInfo, removedState);
             Object.Destroy(monoBehaviour.gameObject);
         };
 
@@ -955,30 +957,30 @@ public class Client
             var gameObject = CreateGameObjectFromState(addedState);
             
             if (
-                (synchronizedComponentInfo != null) &&
-                (synchronizedComponentInfo.MonoBehaviourApplyStateMethod != null)
+                (networkedComponentTypeInfo != null) &&
+                (networkedComponentTypeInfo.MonoBehaviourApplyStateMethod != null)
             )
             {
-                var stateId = NetLib.GetIdFromState(synchronizedComponentInfo, addedState);
-                var monoBehaviour = NetLib.GetMonoBehaviourByStateId(synchronizedComponentInfo, stateId);
+                var stateId = NetLib.GetIdFromState(networkedComponentTypeInfo, addedState);
+                var monoBehaviour = NetLib.GetMonoBehaviourByStateId(networkedComponentTypeInfo, stateId);
                 
-                synchronizedComponentInfo.MonoBehaviourApplyStateMethod.Invoke(monoBehaviour, new[] { addedState });
+                networkedComponentTypeInfo.MonoBehaviourApplyStateMethod.Invoke(monoBehaviour, new[] { addedState });
             }
         };
 
         System.Action<object, object> handleUpdatedState =
             (oldState, newState) =>
             {
-                var oldStateId = NetLib.GetIdFromState(synchronizedComponentInfo, oldState);
-                var monoBehaviour = NetLib.GetMonoBehaviourByStateId(synchronizedComponentInfo, oldStateId);
+                var oldStateId = NetLib.GetIdFromState(networkedComponentTypeInfo, oldState);
+                var monoBehaviour = NetLib.GetMonoBehaviourByStateId(networkedComponentTypeInfo, oldStateId);
 
-                if (synchronizedComponentInfo.MonoBehaviourApplyStateMethod == null)
+                if (networkedComponentTypeInfo.MonoBehaviourApplyStateMethod == null)
                 {
-                    synchronizedComponentInfo.MonoBehaviourStateField.SetValue(monoBehaviour, newState);
+                    networkedComponentTypeInfo.MonoBehaviourStateField.SetValue(monoBehaviour, newState);
                 }
                 else
                 {
-                    synchronizedComponentInfo.MonoBehaviourApplyStateMethod?.Invoke(monoBehaviour, new[] { newState });
+                    networkedComponentTypeInfo.MonoBehaviourApplyStateMethod?.Invoke(monoBehaviour, new[] { newState });
                 }
             };
 
@@ -1001,7 +1003,6 @@ public class Client
     }
 
     #region Message Handlers
-    private uint latestStateSequenceNumber = 0;
     private void OnReceiveDataFromServer(int channelId, byte[] bytesReceived, int numBytesReceived)
     {
         Profiler.BeginSample("OnReceiveDataFromServer");
@@ -1010,25 +1011,11 @@ public class Client
             using (var reader = new BinaryReader(memoryStream))
             {
                 var messageTypeAsByte = reader.ReadByte();
-
                 RpcInfo rpcInfo;
                 
                 if (messageTypeAsByte == OsFps.StateSynchronizationMessageId)
                 {
-                    var sequenceNumber = reader.ReadUInt32();
-
-                    if (sequenceNumber > latestStateSequenceNumber)
-                    {
-                        Profiler.BeginSample("State Deserialization");
-                        var componentLists = NetworkSerializationUtils.DeserializeSynchronizedComponents(
-                            reader, NetLib.synchronizedComponentInfos
-                        );
-                        Profiler.EndSample();
-
-                        Profiler.BeginSample("ClientOnReceiveGameState");
-                        ClientOnReceiveGameState(sequenceNumber, componentLists);
-                        Profiler.EndSample();
-                    }
+                    OnReceiveDeltaGameStateFromServer(reader);
                 }
                 else if (NetLib.rpcInfoById.TryGetValue(messageTypeAsByte, out rpcInfo))
                 {
@@ -1045,38 +1032,82 @@ public class Client
         }
         Profiler.EndSample();
     }
-
-    public void ClientOnReceiveGameState(uint sequenceNumber, List<List<object>> componentLists)
+    
+    private List<NetworkedGameState> cachedReceivedGameStates = new List<NetworkedGameState>();
+    private void OnReceiveDeltaGameStateFromServer(BinaryReader reader)
     {
-        if (PlayerId == null) return;
+        uint latestReceivedGameStateSequenceNumber = (cachedReceivedGameStates.Any())
+            ? cachedReceivedGameStates[cachedReceivedGameStates.Count - 1].SequenceNumber
+            : 0;
+        var sequenceNumber = reader.ReadUInt32();
 
-        ClientPeer.CallRpcOnServer("ServerOnReceiveClientGameStateAck", unreliableChannelId, new
+        if (sequenceNumber > latestReceivedGameStateSequenceNumber)
         {
-            playerId = PlayerId.Value,
-            gameStateSequenceNumber = sequenceNumber
-        });
+            var sequenceNumberRelativeTo = reader.ReadUInt32();
+            var networkedGameStateRelativeTo = GetNetworkedGameStateRelativeTo(sequenceNumberRelativeTo);
 
-        latestStateSequenceNumber = sequenceNumber;
-
-        if (OsFps.Instance.IsRemoteClient)
-        {
-            Profiler.BeginSample("NetLib.GetStateObjectListsToSynchronize");
-            var oldComponentLists = NetLib.GetStateObjectListsToSynchronize(
-                NetLib.synchronizedComponentInfos
+            Profiler.BeginSample("State Deserialization");
+            var receivedGameState = NetworkSerializationUtils.DeserializeNetworkedGameState(
+                reader, sequenceNumber, networkedGameStateRelativeTo
             );
             Profiler.EndSample();
 
-            for (var i = 0; i < componentLists.Count; i++)
+            ClientPeer.CallRpcOnServer("ServerOnReceiveClientGameStateAck", unreliableChannelId, new
             {
-                var componentList = componentLists[i];
-                var synchronizedComponentInfo = NetLib.synchronizedComponentInfos[i];
-                var componentType = synchronizedComponentInfo.StateType;
+                playerId = PlayerId.Value,
+                gameStateSequenceNumber = receivedGameState.SequenceNumber
+            });
+
+            cachedReceivedGameStates.Add(receivedGameState);
+
+            var indexOfLatestGameStateToDiscard = cachedReceivedGameStates
+                .FindLastIndex(ngs => ngs.SequenceNumber < sequenceNumberRelativeTo);
+            if (indexOfLatestGameStateToDiscard >= 0)
+            {
+                var numberOfLatestGameStatesToDiscard = indexOfLatestGameStateToDiscard + 1;
+                cachedReceivedGameStates.RemoveRange(0, numberOfLatestGameStatesToDiscard);
+            }
+
+            Profiler.BeginSample("ClientOnReceiveGameState");
+            ClientOnReceiveGameState(receivedGameState);
+            Profiler.EndSample();
+        }
+    }
+    private NetworkedGameState GetNetworkedGameStateRelativeTo(uint sequenceNumberRelativeTo)
+    {
+        var indexOfGameStateRelativeTo = cachedReceivedGameStates
+            .FindIndex(ngs => ngs.SequenceNumber == sequenceNumberRelativeTo);
+
+        Assert.IsTrue((indexOfGameStateRelativeTo >= 0) || (sequenceNumberRelativeTo == 0));
+
+        return (indexOfGameStateRelativeTo >= 0)
+            ? cachedReceivedGameStates[indexOfGameStateRelativeTo]
+            : NetLib.GetEmptyNetworkedGameStateForDiffing();
+    }
+    
+    public void ClientOnReceiveGameState(NetworkedGameState receivedGameState)
+    {
+        if (PlayerId == null) return;
+
+        if (OsFps.Instance.IsRemoteClient)
+        {
+            Profiler.BeginSample("Client Get Current Networked Game State");
+            var oldComponentLists = NetLib.GetComponentStateListsToSynchronize(
+                receivedGameState.NetworkedComponentTypeInfos
+            );
+            Profiler.EndSample();
+
+            Profiler.BeginSample("Client Apply Networked Game State");
+            for (var i = 0; i < receivedGameState.NetworkedComponentStateLists.Count; i++)
+            {
+                var componentList = receivedGameState.NetworkedComponentStateLists[i];
+                var networkedComponentTypeInfo = receivedGameState.NetworkedComponentTypeInfos[i];
+                var componentType = networkedComponentTypeInfo.StateType;
                 var oldComponentList = oldComponentLists[i];
 
-                Profiler.BeginSample("ClientApplyState");
-                ApplyState(synchronizedComponentInfo, oldComponentList, componentList);
-                Profiler.EndSample();
+                ApplyState(networkedComponentTypeInfo, oldComponentList, componentList);
             }
+            Profiler.EndSample();
         }
     }
 
@@ -1100,13 +1131,13 @@ public class Client
     }
 
     [Rpc(ExecuteOn = NetworkLibrary.NetworkPeerType.Client)]
-    public void ClientOnDetonateGrenade(uint id, Vector3 position, GrenadeType type)
+    public void ClientOnDetonateGrenade(uint id, float3 position, GrenadeType type)
     {
         ShowGrenadeExplosion(position, type);
     }
 
     [Rpc(ExecuteOn = NetworkLibrary.NetworkPeerType.Client)]
-    public void ClientOnDetonateRocket(uint id, Vector3 position)
+    public void ClientOnDetonateRocket(uint id, float3 position)
     {
         ShowRocketExplosion(position);
     }

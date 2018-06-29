@@ -15,8 +15,16 @@
 
 
 * Implement delta game state sending.
-  - server & client cache previous snapshots
-  - server delta encodes current state relative to each client's latest ack'ed snapshot
+  * fix bugs
+  * handle player disconnects
+
+
+
+* Fix destroy errors on close.
+
+
+
+* Add a way to close a server without closing the game.
 
 #### High-Priority
 
