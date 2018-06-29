@@ -6,6 +6,7 @@ using System.Reflection;
 using System.Text;
 using UnityEngine;
 using NetworkLibrary;
+using Newtonsoft.Json;
 
 public class StateSynchronizationExperiment : MonoBehaviour
 {
@@ -118,7 +119,7 @@ public class StateSynchronizationExperiment : MonoBehaviour
         {
             using (var writer = new BinaryWriter(memoryStream))
             {
-                NetworkSerializationUtils.SerializeDelta(writer, networkedComponentTypeInfo, lastAcknowledgedState, serverState);
+                //NetworkSerializationUtils.SerializeDelta(writer, networkedComponentTypeInfo, lastAcknowledgedState, serverState);
             }
 
             SentUpdate = memoryStream.ToArray();
@@ -152,7 +153,7 @@ public class StateSynchronizationExperiment : MonoBehaviour
     }
     private void DrawState(State s, Vector2 position)
     {
-        GUI.Label(new Rect(position, new Vector2(300, 600)), JsonUtils.ToPrettyJson(s));
+        GUI.Label(new Rect(position, new Vector2(300, 600)), JsonConvert.SerializeObject(s));
     }
     private void OnChange()
     {

@@ -1,9 +1,11 @@
-﻿using System;
+﻿using Newtonsoft.Json;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.Assertions;
 
@@ -209,6 +211,18 @@ namespace NetworkLibrary
             {
                 writer.Write((string)obj);
             }
+            else if (objType == typeof(float2))
+            {
+                Serialize(writer, (float2)obj);
+            }
+            else if (objType == typeof(float3))
+            {
+                Serialize(writer, (float3)obj);
+            }
+            else if (objType == typeof(float4))
+            {
+                Serialize(writer, (float4)obj);
+            }
             else if (objType == typeof(Vector2))
             {
                 Serialize(writer, (Vector2)obj);
@@ -216,6 +230,10 @@ namespace NetworkLibrary
             else if (objType == typeof(Vector3))
             {
                 Serialize(writer, (Vector3)obj);
+            }
+            else if (objType == typeof(Vector4))
+            {
+                Serialize(writer, (Vector4)obj);
             }
             else if (typeof(INetworkSerializable).IsAssignableFrom(obj.GetType()))
             {
@@ -362,15 +380,6 @@ namespace NetworkLibrary
                 changeMaskBitIndex++;
             }
         }
-        public static void SerializeDelta(
-            BinaryWriter writer, NetworkedComponentTypeInfo networkedComponentTypeInfo,
-            object oldValue, object newValue
-        )
-        {
-            var changeMask = GetChangeMask(networkedComponentTypeInfo, newValue, oldValue);
-            writer.Write(changeMask);
-            SerializeGivenChangeMask(writer, networkedComponentTypeInfo, newValue, changeMask);
-        }
 
         public static void DeserializeGivenChangeMask(
             BinaryReader reader, NetworkedComponentTypeInfo networkedComponentTypeInfo,
@@ -487,6 +496,27 @@ namespace NetworkLibrary
             {
                 return reader.ReadString();
             }
+            else if (type == typeof(float2))
+            {
+                var result = new float2();
+                Deserialize(reader, ref result);
+
+                return result;
+            }
+            else if (type == typeof(float3))
+            {
+                var result = new float3();
+                Deserialize(reader, ref result);
+
+                return result;
+            }
+            else if (type == typeof(float4))
+            {
+                var result = new float4();
+                Deserialize(reader, ref result);
+
+                return result;
+            }
             else if (type == typeof(Vector2))
             {
                 var result = new Vector2();
@@ -497,6 +527,13 @@ namespace NetworkLibrary
             else if (type == typeof(Vector3))
             {
                 var result = new Vector3();
+                Deserialize(reader, ref result);
+
+                return result;
+            }
+            else if (type == typeof(Vector4))
+            {
+                var result = new Vector4();
                 Deserialize(reader, ref result);
 
                 return result;
@@ -619,6 +656,57 @@ namespace NetworkLibrary
             v.x = reader.ReadSingle();
             v.y = reader.ReadSingle();
             v.z = reader.ReadSingle();
+        }
+        public static void Serialize(BinaryWriter writer, Vector4 v)
+        {
+            writer.Write(v.x);
+            writer.Write(v.y);
+            writer.Write(v.z);
+            writer.Write(v.w);
+        }
+        public static void Deserialize(BinaryReader reader, ref Vector4 v)
+        {
+            v.x = reader.ReadSingle();
+            v.y = reader.ReadSingle();
+            v.z = reader.ReadSingle();
+            v.w = reader.ReadSingle();
+        }
+
+        public static void Serialize(BinaryWriter writer, float2 v)
+        {
+            writer.Write(v.x);
+            writer.Write(v.y);
+        }
+        public static void Deserialize(BinaryReader reader, ref float2 v)
+        {
+            v.x = reader.ReadSingle();
+            v.y = reader.ReadSingle();
+        }
+        public static void Serialize(BinaryWriter writer, float3 v)
+        {
+            writer.Write(v.x);
+            writer.Write(v.y);
+            writer.Write(v.z);
+        }
+        public static void Deserialize(BinaryReader reader, ref float3 v)
+        {
+            v.x = reader.ReadSingle();
+            v.y = reader.ReadSingle();
+            v.z = reader.ReadSingle();
+        }
+        public static void Serialize(BinaryWriter writer, float4 v)
+        {
+            writer.Write(v.x);
+            writer.Write(v.y);
+            writer.Write(v.z);
+            writer.Write(v.w);
+        }
+        public static void Deserialize(BinaryReader reader, ref float4 v)
+        {
+            v.x = reader.ReadSingle();
+            v.y = reader.ReadSingle();
+            v.z = reader.ReadSingle();
+            v.w = reader.ReadSingle();
         }
 
         public static void Serialize<T>(BinaryWriter writer, List<T> list) where T : INetworkSerializable

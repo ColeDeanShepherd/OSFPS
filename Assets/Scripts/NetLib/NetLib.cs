@@ -209,7 +209,7 @@ namespace NetworkLibrary
             var monoBehaviours = UnityEngine.Object.FindObjectsOfType(networkedComponentTypeInfo.MonoBehaviourType);
 
             return monoBehaviours
-                .Select(mb => networkedComponentTypeInfo.MonoBehaviourStateField.GetValue(mb))
+                .Select(mb => ObjectExtensions.DeepCopy(networkedComponentTypeInfo.MonoBehaviourStateField.GetValue(mb)))
                 .ToList();
         }
 
@@ -221,7 +221,7 @@ namespace NetworkLibrary
                 : clientObj;
             rpcInfo.MethodInfo.Invoke(objContainingRpc, arguments);
 
-            OsFps.Logger.Log($"Executed RPC {rpcInfo.Name}");
+            OsFps.Logger.Log("RPC", $"Executed RPC {rpcInfo.Name}");
         }
 
         public static UnityEngine.MonoBehaviour GetMonoBehaviourByState(NetworkedComponentTypeInfo networkedComponentTypeInfo, object state)

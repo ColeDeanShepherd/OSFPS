@@ -5,6 +5,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.IO;
 using UnityEngine.Networking;
+using Newtonsoft.Json;
+using Unity.Mathematics;
 
 public class Server
 {
@@ -63,7 +65,7 @@ public class Server
         var connectionId = ServerPeer.connectionIds.FirstOrDefault();
         var networkStats = ServerPeer.GetNetworkStats((connectionId > 0) ? connectionId : (int?)null);
         var position = new Vector2(30, 30);
-        GUI.Label(new Rect(position, new Vector2(800, 800)), JsonUtils.ToPrettyJson(networkStats));
+        GUI.Label(new Rect(position, new Vector2(800, 800)), JsonConvert.SerializeObject(networkStats));
     }
 
     public void OnClientConnected(int connectionId)
@@ -163,10 +165,7 @@ public class Server
 
             messageBytes = memoryStream.ToArray();
         }
-
-        Debug.Log("cur. seq. #: " + gameState.SequenceNumber);
-        Debug.Log("old. seq. #: " + oldGameState.SequenceNumber);
-
+        
         var connectionId = GetConnectionIdByPlayerId(playerId);
         ServerPeer.SendMessageToClient(connectionId.Value, unreliableFragmentedChannelId, messageBytes);
     }
@@ -429,7 +428,7 @@ public class Server
     }
 
     [Rpc(ExecuteOn = NetworkLibrary.NetworkPeerType.Server)]
-    public void ServerOnReceivePlayerInput(uint playerId, PlayerInput playerInput, Vector2 lookDirAngles)
+    public void ServerOnReceivePlayerInput(uint playerId, PlayerInput playerInput, float2 lookDirAngles)
     {
         // TODO: Make sure the player ID is correct.
         var playerObjectComponent = PlayerSystem.Instance.FindPlayerObjectComponent(playerId);

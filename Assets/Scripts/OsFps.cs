@@ -14,6 +14,8 @@ public class OsFps : MonoBehaviour
     public const string LocalHostIpv4Address = "127.0.0.1";
     public const byte StateSynchronizationMessageId = 0;
 
+    public const bool EnableRpcLogging = false;
+
     public const string StartSceneName = "Start";
     public const string SmallMapSceneName = "Small Map";
 

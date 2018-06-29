@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using Unity.Mathematics;
 using UnityEngine;
 
 public class PlayerObjectComponent : MonoBehaviour
@@ -71,7 +72,7 @@ public class PlayerObjectComponent : MonoBehaviour
         var rewoundPosToServerPosDelta = serverPosition - rewoundSnapshot.Position;
         var positionCorrectionFactor = 1f / 10;
         var positionCorrection = positionCorrectionFactor * rewoundPosToServerPosDelta;
-        var correctedPosition = playerObjectComponent.transform.position + positionCorrection;
+        var correctedPosition = (float3)playerObjectComponent.transform.position + positionCorrection;
 
         playerObjectComponent.transform.position = correctedPosition;
         updatedPlayerObjectState.Position = correctedPosition;

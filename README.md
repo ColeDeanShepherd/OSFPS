@@ -22,6 +22,10 @@
 
 * Fix destroy errors on close.
 
+
+
+* Add a way to close a server without closing the game.
+
 #### High-Priority
 
 * Improve map.

@@ -6,6 +6,8 @@ using UnityEngine.Assertions;
 using UnityEngine.Networking;
 using NetworkLibrary;
 using UnityEngine.Profiling;
+using Newtonsoft.Json;
+using Unity.Mathematics;
 
 public class Client
 {
@@ -424,7 +426,7 @@ public class Client
     {
         var networkStats = ClientPeer.GetNetworkStats(ClientPeer.serverConnectionId);
         var position = new Vector2(30, 30);
-        GUI.Label(new Rect(position, new Vector2(800, 800)), JsonUtils.ToPrettyJson(networkStats));
+        GUI.Label(new Rect(position, new Vector2(800, 800)), JsonConvert.SerializeObject(networkStats));
     }
     private void DrawWeaponHud(EquippedWeaponState weapon, Vector2 position)
     {
@@ -1043,8 +1045,6 @@ public class Client
         {
             var sequenceNumberRelativeTo = reader.ReadUInt32();
             var networkedGameStateRelativeTo = GetNetworkedGameStateRelativeTo(sequenceNumberRelativeTo);
-            Debug.Log("rel2 " + sequenceNumberRelativeTo);
-            Debug.Log("Cached State Count " + cachedReceivedGameStates.Count);
 
             Profiler.BeginSample("State Deserialization");
             var receivedGameState = NetworkSerializationUtils.DeserializeNetworkedGameState(
@@ -1091,13 +1091,13 @@ public class Client
 
         if (OsFps.Instance.IsRemoteClient)
         {
-            Profiler.BeginSample("NetLib.GetStateObjectListsToSynchronize");
+            Profiler.BeginSample("Client Get Current Networked Game State");
             var oldComponentLists = NetLib.GetComponentStateListsToSynchronize(
                 receivedGameState.NetworkedComponentTypeInfos
             );
             Profiler.EndSample();
 
-            
+            Profiler.BeginSample("Client Apply Networked Game State");
             for (var i = 0; i < receivedGameState.NetworkedComponentStateLists.Count; i++)
             {
                 var componentList = receivedGameState.NetworkedComponentStateLists[i];
@@ -1105,10 +1105,9 @@ public class Client
                 var componentType = networkedComponentTypeInfo.StateType;
                 var oldComponentList = oldComponentLists[i];
 
-                Profiler.BeginSample("ClientApplyState");
                 ApplyState(networkedComponentTypeInfo, oldComponentList, componentList);
-                Profiler.EndSample();
             }
+            Profiler.EndSample();
         }
     }
 
@@ -1132,13 +1131,13 @@ public class Client
     }
 
     [Rpc(ExecuteOn = NetworkLibrary.NetworkPeerType.Client)]
-    public void ClientOnDetonateGrenade(uint id, Vector3 position, GrenadeType type)
+    public void ClientOnDetonateGrenade(uint id, float3 position, GrenadeType type)
     {
         ShowGrenadeExplosion(position, type);
     }
 
     [Rpc(ExecuteOn = NetworkLibrary.NetworkPeerType.Client)]
-    public void ClientOnDetonateRocket(uint id, Vector3 position)
+    public void ClientOnDetonateRocket(uint id, float3 position)
     {
         ShowRocketExplosion(position);
     }

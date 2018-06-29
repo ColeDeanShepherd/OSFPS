@@ -1,4 +1,5 @@
-﻿public struct PlayerInput
+﻿[System.Serializable]
+public struct PlayerInput
 {
     public bool IsMoveFowardPressed;
     public bool IsMoveBackwardPressed;
