@@ -5,8 +5,7 @@ public class PlayerRespawnSystem : ComponentSystem
 {
     public struct Data
     {
-        public int Length;
-        public ComponentArray<PlayerComponent> PlayerComponent;
+        public PlayerComponent PlayerComponent;
     }
 
     public static PlayerRespawnSystem Instance;
@@ -24,13 +23,11 @@ public class PlayerRespawnSystem : ComponentSystem
         }
     }
 
-    [Inject] private Data data;
-
     private void ServerOnUpdate(Server server)
     {
-        for (var i = 0; i < data.Length; i++)
+        foreach (var entity in GetEntities<Data>())
         {
-            var playerState = data.PlayerComponent[i].State;
+            var playerState = entity.PlayerComponent.State;
             if (playerState.RespawnTimeLeft > 0)
             {
                 playerState.RespawnTimeLeft -= Time.deltaTime;

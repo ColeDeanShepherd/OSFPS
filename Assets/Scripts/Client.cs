@@ -156,25 +156,28 @@ public class Client
                     {
                         var closestWeaponId = playersClosestWeaponInfo.Item1;
                         var closestWeaponComponent = WeaponObjectSystem.Instance.FindWeaponComponent(closestWeaponId);
-                        var closestWeaponType = closestWeaponComponent.State.Type;
-
-                        var playersWeaponOfSameType = playerObjectComponent.State.Weapons.FirstOrDefault(
-                            w => w?.Type == closestWeaponType
-                        );
-                        var playerHasWeaponOfTypeWithRoomForAmmo =
-                            (playersWeaponOfSameType != null) &&
-                            (playersWeaponOfSameType.BulletsUsed > 0);
-                        var playerHasEmptyWeaponSlot = playerObjectComponent.State.Weapons.Any(
-                            w => w == null
-                        );
-
-                        if (playerHasWeaponOfTypeWithRoomForAmmo || playerHasEmptyWeaponSlot || Input.GetButtonDown("Pickup Weapon"))
+                        if (closestWeaponComponent != null)
                         {
-                            ClientPeer.CallRpcOnServer("ServerOnPlayerTryPickupWeapon", reliableChannelId, new
+                            var closestWeaponType = closestWeaponComponent.State.Type;
+
+                            var playersWeaponOfSameType = playerObjectComponent.State.Weapons.FirstOrDefault(
+                                w => w?.Type == closestWeaponType
+                            );
+                            var playerHasWeaponOfTypeWithRoomForAmmo =
+                                (playersWeaponOfSameType != null) &&
+                                (playersWeaponOfSameType.BulletsUsed > 0);
+                            var playerHasEmptyWeaponSlot = playerObjectComponent.State.Weapons.Any(
+                                w => w == null
+                            );
+
+                            if (playerHasWeaponOfTypeWithRoomForAmmo || playerHasEmptyWeaponSlot || Input.GetButtonDown("Pickup Weapon"))
                             {
-                                playerId = playerId,
-                                weaponId = closestWeaponId
-                            });
+                                ClientPeer.CallRpcOnServer("ServerOnPlayerTryPickupWeapon", reliableChannelId, new
+                                {
+                                    playerId = playerId,
+                                    weaponId = closestWeaponId
+                                });
+                            }
                         }
                     }
                 }
@@ -361,7 +364,11 @@ public class Client
                 if (closestWeaponInfo != null)
                 {
                     var weaponComponent = WeaponObjectSystem.Instance.FindWeaponComponent(closestWeaponInfo.Item1);
-                    DrawWeaponPickupHud(weaponComponent);
+
+                    if (weaponComponent != null)
+                    {
+                        DrawWeaponPickupHud(weaponComponent);
+                    }
                 }
             }
         }
@@ -1015,6 +1022,7 @@ public class Client
                 
                 if (messageTypeAsByte == OsFps.StateSynchronizationMessageId)
                 {
+                    Debug.Log("RGS: " + Time.frameCount);
                     OnReceiveDeltaGameStateFromServer(reader);
                 }
                 else if (NetLib.rpcInfoById.TryGetValue(messageTypeAsByte, out rpcInfo))

@@ -5,8 +5,7 @@ public class PlayerSystem : ComponentSystem
 {
     public struct Data
     {
-        public int Length;
-        public ComponentArray<PlayerComponent> PlayerComponent;
+        public PlayerComponent PlayerComponent;
     }
 
     public static PlayerSystem Instance;
@@ -19,6 +18,4 @@ public class PlayerSystem : ComponentSystem
     protected override void OnUpdate()
     {
     }
-
-    [Inject] private Data data;
 }

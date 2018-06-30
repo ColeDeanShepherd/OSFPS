@@ -5,8 +5,7 @@ public class KillPlaneSystem : ComponentSystem
 {
     public struct Data
     {
-        public int Length;
-        public ComponentArray<Transform> Transform;
+        public Transform Transform;
     }
 
     protected override void OnUpdate()
@@ -18,19 +17,17 @@ public class KillPlaneSystem : ComponentSystem
         }
     }
 
-    [Inject] private Data data;
-
     private void ServerOnUpdate(Server server)
     {
-        for (var i = 0; i < data.Length; i++)
+        foreach (var entity in GetEntities<Data>())
         {
-            if (data.Transform[i].position.y <= OsFps.KillPlaneY)
+            if (entity.Transform.position.y <= OsFps.KillPlaneY)
             {
-                var playerObjectComponent = data.Transform[i].gameObject.GetComponent<PlayerObjectComponent>();
+                var playerObjectComponent = entity.Transform.gameObject.GetComponent<PlayerObjectComponent>();
 
                 if (playerObjectComponent == null)
                 {
-                    Object.Destroy(data.Transform[i].gameObject);
+                    Object.Destroy(entity.Transform.gameObject);
                 }
                 else
                 {

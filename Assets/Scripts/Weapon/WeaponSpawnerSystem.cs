@@ -7,8 +7,7 @@ public class WeaponSpawnerSystem : ComponentSystem
 {
     public struct Data
     {
-        public int Length;
-        public ComponentArray<WeaponSpawnerComponent> WeaponSpawnerComponent;
+        public WeaponSpawnerComponent WeaponSpawnerComponent;
     }
 
     public static WeaponSpawnerSystem Instance;
@@ -78,13 +77,11 @@ public class WeaponSpawnerSystem : ComponentSystem
         }
     }
 
-    [Inject] private Data data;
-
     private void ServerOnUpdate(Server server)
     {
-        for (var i = 0; i < data.Length; i++)
+        foreach (var entity in GetEntities<Data>())
         {
-            var weaponSpawner = data.WeaponSpawnerComponent[i].State;
+            var weaponSpawner = entity.WeaponSpawnerComponent.State;
 
             // spawn interval
             if (weaponSpawner.TimeUntilNextSpawn > 0)

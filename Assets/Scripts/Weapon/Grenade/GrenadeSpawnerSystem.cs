@@ -7,8 +7,7 @@ public class GrenadeSpawnerSystem : ComponentSystem
 {
     public struct Data
     {
-        public int Length;
-        public ComponentArray<GrenadeSpawnerComponent> GrenadeSpawnerComponent;
+        public GrenadeSpawnerComponent GrenadeSpawnerComponent;
     }
 
     public static GrenadeSpawnerSystem Instance;
@@ -74,13 +73,11 @@ public class GrenadeSpawnerSystem : ComponentSystem
         }
     }
 
-    [Inject] private Data data;
-
     private void ServerOnUpdate(Server server)
     {
-        for (var i = 0; i < data.Length; i++)
+        foreach (var entity in GetEntities<Data>())
         {
-            var grenadeSpawner = data.GrenadeSpawnerComponent[i].State;
+            var grenadeSpawner = entity.GrenadeSpawnerComponent.State;
 
             // spawn interval
             if (grenadeSpawner.TimeUntilNextSpawn > 0)

@@ -9,8 +9,7 @@ public class PlayerObjectSystem : ComponentSystem
 {
     public struct Data
     {
-        public int Length;
-        public ComponentArray<PlayerObjectComponent> PlayerObjectComponent;
+        public PlayerObjectComponent PlayerObjectComponent;
     }
 
     public static PlayerObjectSystem Instance;
@@ -49,23 +48,21 @@ public class PlayerObjectSystem : ComponentSystem
         }
     }
 
-    [Inject] private Data data;
-
     private void ServerOnUpdate(Server server)
     {
-        for (var i = 0; i < data.Length; i++)
+        foreach (var entity in GetEntities<Data>())
         {
-            var playerObjectState = data.PlayerObjectComponent[i].State;
+            var playerObjectState = entity.PlayerObjectComponent.State;
             var wasReloadingBeforeUpdate = playerObjectState.IsReloading;
 
-            UpdatePlayer(data.PlayerObjectComponent[i]);
+            UpdatePlayer(entity.PlayerObjectComponent);
 
             if (wasReloadingBeforeUpdate && (playerObjectState.ReloadTimeLeft <= 0))
             {
-                ServerPlayerFinishReload(data.PlayerObjectComponent[i]);
+                ServerPlayerFinishReload(entity.PlayerObjectComponent);
             }
 
-            DrawPlayerInput(data.PlayerObjectComponent[i]);
+            DrawPlayerInput(entity.PlayerObjectComponent);
         }
     }
     public void ServerOnLateUpdate(Server server)
@@ -78,9 +75,9 @@ public class PlayerObjectSystem : ComponentSystem
     }
     private void UpdateLagCompensationSnapshots()
     {
-        for (var i = 0; i < data.Length; i++)
+        foreach (var entity in GetEntities<Data>())
         {
-            var playerObjectComponent = data.PlayerObjectComponent[i];
+            var playerObjectComponent = entity.PlayerObjectComponent;
             var currentTime = Time.realtimeSinceStartup;
 
             // Remove old snapshots.
@@ -95,9 +92,9 @@ public class PlayerObjectSystem : ComponentSystem
     }
     private void DrawLagCompensationSnapshots()
     {
-        for (var i = 0; i < data.Length; i++)
+        foreach (var entity in GetEntities<Data>())
         {
-            foreach (var snapshot in data.PlayerObjectComponent[i].LagCompensationSnapshots)
+            foreach (var snapshot in entity.PlayerObjectComponent.LagCompensationSnapshots)
             {
                 var rayOrigin = snapshot.Position + new float3(0, 1, 0);
                 var rayDirection = Quaternion.Euler(snapshot.LookDirAngles.x, snapshot.LookDirAngles.y, 0) * Vector3.forward;
@@ -336,29 +333,29 @@ public class PlayerObjectSystem : ComponentSystem
     {
         var curTime = Time.realtimeSinceStartup;
         var rewoundTime = curTime - secondsToRewind;
-        for (var i = 0; i < data.Length; i++)
+        foreach (var entity in GetEntities<Data>())
         {
             // Add a current snapshot for un-rewinding later.
-            data.PlayerObjectComponent[i].LagCompensationSnapshots.Add(
-                GetInterpolatedLagCompensationSnapshot(data.PlayerObjectComponent[i], curTime)
+            entity.PlayerObjectComponent.LagCompensationSnapshots.Add(
+                GetInterpolatedLagCompensationSnapshot(entity.PlayerObjectComponent, curTime)
             );
 
-            var rewoundSnapshot = GetInterpolatedLagCompensationSnapshot(data.PlayerObjectComponent[i], rewoundTime);
-            ApplyLagCompensationSnapshot(data.PlayerObjectComponent[i], rewoundSnapshot);
+            var rewoundSnapshot = GetInterpolatedLagCompensationSnapshot(entity.PlayerObjectComponent, rewoundTime);
+            ApplyLagCompensationSnapshot(entity.PlayerObjectComponent, rewoundSnapshot);
         }
     }
     public void ServerUnRewindPlayers()
     {
-        for (var i = 0; i < data.Length; i++)
+        foreach (var entity in GetEntities<Data>())
         {
-            if (data.PlayerObjectComponent[i] == null)
+            if (entity.PlayerObjectComponent == null)
             {
                 continue;
             }
 
-            var snapshots = data.PlayerObjectComponent[i].LagCompensationSnapshots;
+            var snapshots = entity.PlayerObjectComponent.LagCompensationSnapshots;
             var currentSnapshot = snapshots[snapshots.Count - 1];
-            ApplyLagCompensationSnapshot(data.PlayerObjectComponent[i], currentSnapshot);
+            ApplyLagCompensationSnapshot(entity.PlayerObjectComponent, currentSnapshot);
         }
     }
     public void ServerFireHitscanWeapon(
@@ -621,9 +618,9 @@ public class PlayerObjectSystem : ComponentSystem
 
     private void ClientOnUpdate(Client client)
     {
-        for (var i = 0; i < data.Length; i++)
+        foreach (var entity in GetEntities<Data>())
         {
-            var playerObjectComponent = data.PlayerObjectComponent[i];
+            var playerObjectComponent = entity.PlayerObjectComponent;
             var playerObjectState = playerObjectComponent.State;
 
             if (playerObjectState.Id == client.PlayerId)

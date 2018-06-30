@@ -5,20 +5,18 @@ using System.Linq;
 
 public class WeaponObjectSystem : ComponentSystem
 {
-    public struct Group
+    public struct Data
     {
         public WeaponComponent WeaponComponent;
     }
 
     public static WeaponObjectSystem Instance;
 
-    public List<WeaponComponent> WeaponComponents;
     public Dictionary<uint, System.Tuple<uint, float>> ClosestWeaponInfoByPlayerId;
 
     public WeaponObjectSystem()
     {
         Instance = this;
-        WeaponComponents = new List<WeaponComponent>();
         ClosestWeaponInfoByPlayerId = new Dictionary<uint, System.Tuple<uint, float>>();
     }
 
@@ -111,26 +109,16 @@ public class WeaponObjectSystem : ComponentSystem
     protected override void OnUpdate()
     {
         var deltaTime = Time.deltaTime;
-        var entities = GetEntities<Group>();
 
-        ClosestWeaponInfoByPlayerId.Clear();
-
-        WeaponComponents.Clear();
-        foreach (var entity in entities)
+        foreach (var entity in GetEntities<Data>())
         {
-            WeaponComponents.Add(entity.WeaponComponent);
-        }
-
-        foreach (var entity in entities)
-        {
-            UpdatePlayerClosestWeaponInfo(entity);
+            UpdatePlayerClosestWeaponInfo(entity.WeaponComponent);
         }
     }
 
     private Collider[] colliderBuffer = new Collider[64];
-    private void UpdatePlayerClosestWeaponInfo(Group weaponEntity)
+    private void UpdatePlayerClosestWeaponInfo(WeaponComponent weaponComponent)
     {
-        var weaponComponent = weaponEntity.WeaponComponent;
         if (weaponComponent == null) return;
 
         var weaponPosition = weaponComponent.transform.position;

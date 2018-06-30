@@ -8,8 +8,7 @@ public class GrenadeSystem : ComponentSystem
 {
     public struct Data
     {
-        public int Length;
-        public ComponentArray<GrenadeComponent> GrenadeComponent;
+        public GrenadeComponent GrenadeComponent;
     }
 
     public static GrenadeSystem Instance;
@@ -106,15 +105,13 @@ public class GrenadeSystem : ComponentSystem
         }
     }
 
-    [Inject] private Data data;
-
     private void ServerOnUpdate(Server server)
     {
         var deltaTime = Time.deltaTime;
 
-        for (var i = 0; i < data.Length; i++)
+        foreach (var entity in GetEntities<Data>())
         {
-            var grenade = data.GrenadeComponent[i].State;
+            var grenade = entity.GrenadeComponent.State;
 
             if (grenade.TimeUntilDetonation > 0)
             {
@@ -123,13 +120,13 @@ public class GrenadeSystem : ComponentSystem
         }
 
         var grenadesToDetonate = new List<GrenadeComponent>();
-        for (var i = 0; i < data.Length; i++)
+        foreach (var entity in GetEntities<Data>())
         {
-            var grenade = data.GrenadeComponent[i].State;
+            var grenade = entity.GrenadeComponent.State;
 
             if (grenade.TimeUntilDetonation <= 0)
             {
-                grenadesToDetonate.Add(data.GrenadeComponent[i]);
+                grenadesToDetonate.Add(entity.GrenadeComponent);
             }
         }
 

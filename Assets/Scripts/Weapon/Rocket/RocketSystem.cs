@@ -8,8 +8,7 @@ public class RocketSystem : ComponentSystem
 {
     public struct Data
     {
-        public int Length;
-        public ComponentArray<RocketComponent> RocketComponent;
+        public RocketComponent RocketComponent;
     }
 
     public static RocketSystem Instance;
@@ -63,8 +62,6 @@ public class RocketSystem : ComponentSystem
             ServerOnUpdate(server);
         }
     }
-
-    [Inject] private Data data;
 
     private void ServerOnUpdate(Server server)
     {
