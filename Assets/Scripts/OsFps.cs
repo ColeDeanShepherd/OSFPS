@@ -23,9 +23,9 @@ public class OsFps : MonoBehaviour
     public const string SpawnPointTag = "Respawn";
     public const string PlayerHeadColliderName = "Head";
 
-    public const bool ShowHitScanShotsOnServer = true;
-    public const bool ShowLagCompensationOnServer = false;
-    public const float HitScanShotDebugLineLifetime = 1;
+    public static bool ShowHitScanShotsOnServer = true;
+    public static bool ShowLagCompensationOnServer = false;
+    public static float HitScanShotDebugLineLifetime = 1;
 
     public const float MinMouseSensitivity = 1;
     public const float MaxMouseSensitivity = 10;
@@ -126,21 +126,7 @@ public class OsFps : MonoBehaviour
     }
     public static Vector3 CorrectedEulerAngles(Vector3 serverEulerAngles, Vector3 serverAngularVelocity, float roundTripTime, Vector3 clientEulerAngles)
     {
-        const bool correctSmoothly = false;
-
-        if (!correctSmoothly)
-        {
-            return serverEulerAngles;
-        }
-        else
-        {
-            var serverToClientLatency = roundTripTime / 2;
-            var predictedEulerAngles = serverEulerAngles + (serverToClientLatency * serverAngularVelocity);
-            var eulerAnglesDifference = predictedEulerAngles - clientEulerAngles;
-            var percentOfDiffToCorrect = 1f / 3;
-            var eulerAnglesDelta = percentOfDiffToCorrect * eulerAnglesDifference;
-            return clientEulerAngles + eulerAnglesDelta;
-        }
+        return serverEulerAngles;
     }
     public static Vector3 CorrectedVelocity(Vector3 serverVelocity, float roundTripTime, Vector3 clientVelocity)
     {
@@ -290,9 +276,9 @@ public class OsFps : MonoBehaviour
 
             // TODO: don't call system directly
             var attackingPlayerObjectComponent = attackerPlayerId.HasValue
-                ? PlayerSystem.Instance.FindPlayerObjectComponent(attackerPlayerId.Value)
+                ? PlayerObjectSystem.Instance.FindPlayerObjectComponent(attackerPlayerId.Value)
                 : null;
-            PlayerSystem.Instance.ServerDamagePlayer(
+            PlayerObjectSystem.Instance.ServerDamagePlayer(
                 server, playerObjectComponent, damage, attackingPlayerObjectComponent
             );
 
@@ -425,9 +411,9 @@ public class OsFps : MonoBehaviour
     }
     private void LateUpdate()
     {
-        if (PlayerSystem.Instance != null)
+        if (PlayerObjectSystem.Instance != null)
         {
-            PlayerSystem.Instance.OnLateUpdate();
+            PlayerObjectSystem.Instance.OnLateUpdate();
         }
 
         if (Server != null)

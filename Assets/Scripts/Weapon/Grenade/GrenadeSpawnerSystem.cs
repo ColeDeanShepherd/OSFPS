@@ -1,12 +1,14 @@
 ﻿using UnityEngine;
 using Unity.Entities;
 using System.Linq;
+using System.Collections.Generic;
 
 public class GrenadeSpawnerSystem : ComponentSystem
 {
-    public struct Group
+    public struct Data
     {
-        public GrenadeSpawnerComponent GrenadeSpawnerComponent;
+        public int Length;
+        public ComponentArray<GrenadeSpawnerComponent> GrenadeSpawnerComponent;
     }
 
     public static GrenadeSpawnerSystem Instance;
@@ -14,35 +16,6 @@ public class GrenadeSpawnerSystem : ComponentSystem
     public GrenadeSpawnerSystem()
     {
         Instance = this;
-    }
-
-    protected override void OnUpdate()
-    {
-        var server = OsFps.Instance?.Server;
-        if (server != null)
-        {
-            ServerOnUpdate(server);
-        }
-    }
-
-    private void ServerOnUpdate(Server server)
-    {
-        foreach (var entity in GetEntities<Group>())
-        {
-            var grenadeSpawner = entity.GrenadeSpawnerComponent.State;
-
-            // spawn interval
-            if (grenadeSpawner.TimeUntilNextSpawn > 0)
-            {
-                grenadeSpawner.TimeUntilNextSpawn -= Time.deltaTime;
-            }
-
-            if (grenadeSpawner.TimeUntilNextSpawn <= 0)
-            {
-                ServerSpawnGrenade(server, grenadeSpawner);
-                grenadeSpawner.TimeUntilNextSpawn = null;
-            }
-        }
     }
     public void ServerSpawnGrenade(Server server, GrenadeSpawnerState grenadeSpawnerState)
     {
@@ -92,4 +65,34 @@ public class GrenadeSpawnerSystem : ComponentSystem
         return grenadeObject;
     }
 
+    protected override void OnUpdate()
+    {
+        var server = OsFps.Instance?.Server;
+        if (server != null)
+        {
+            ServerOnUpdate(server);
+        }
+    }
+
+    [Inject] private Data data;
+
+    private void ServerOnUpdate(Server server)
+    {
+        for (var i = 0; i < data.Length; i++)
+        {
+            var grenadeSpawner = data.GrenadeSpawnerComponent[i].State;
+
+            // spawn interval
+            if (grenadeSpawner.TimeUntilNextSpawn > 0)
+            {
+                grenadeSpawner.TimeUntilNextSpawn -= Time.deltaTime;
+            }
+
+            if (grenadeSpawner.TimeUntilNextSpawn <= 0)
+            {
+                ServerSpawnGrenade(server, grenadeSpawner);
+                grenadeSpawner.TimeUntilNextSpawn = null;
+            }
+        }
+    }
 }

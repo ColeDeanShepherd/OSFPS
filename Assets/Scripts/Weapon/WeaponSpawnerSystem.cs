@@ -1,12 +1,14 @@
 ﻿using UnityEngine;
 using Unity.Entities;
 using System.Linq;
+using System.Collections.Generic;
 
 public class WeaponSpawnerSystem : ComponentSystem
 {
-    public struct Group
+    public struct Data
     {
-        public WeaponSpawnerComponent WeaponSpawnerComponent;
+        public int Length;
+        public ComponentArray<WeaponSpawnerComponent> WeaponSpawnerComponent;
     }
 
     public static WeaponSpawnerSystem Instance;
@@ -16,39 +18,11 @@ public class WeaponSpawnerSystem : ComponentSystem
         Instance = this;
     }
 
-    protected override void OnUpdate()
-    {
-        var server = OsFps.Instance?.Server;
-        if (server != null)
-        {
-            ServerOnUpdate(server);
-        }
-    }
-    private void ServerOnUpdate(Server server)
-    {
-        foreach (var entity in GetEntities<Group>())
-        {
-            var weaponSpawner = entity.WeaponSpawnerComponent.State;
-
-            // spawn interval
-            if (weaponSpawner.TimeUntilNextSpawn > 0)
-            {
-                weaponSpawner.TimeUntilNextSpawn -= Time.deltaTime;
-            }
-
-            if (weaponSpawner.TimeUntilNextSpawn <= 0)
-            {
-                ServerSpawnWeapon(server, weaponSpawner);
-                weaponSpawner.TimeUntilNextSpawn = null;
-            }
-        }
-    }
-
     public void ServerSpawnWeapon(Server server, WeaponSpawnerState weaponSpawnerState)
     {
         if (weaponSpawnerState.TimeUntilNextSpawn > 0) return;
 
-        var weaponDefinition = WeaponSystem.Instance.GetWeaponDefinitionByType(weaponSpawnerState.Type);
+        var weaponDefinition = WeaponObjectSystem.Instance.GetWeaponDefinitionByType(weaponSpawnerState.Type);
         var bulletsLeft = weaponDefinition.MaxAmmo / 2;
         var bulletsLeftInMagazine = Mathf.Min(weaponDefinition.BulletsPerMagazine, bulletsLeft);
         var weaponSpawnerComponent = FindWeaponSpawnerComponent(weaponSpawnerState.Id);
@@ -72,7 +46,7 @@ public class WeaponSpawnerSystem : ComponentSystem
     }
     public GameObject SpawnLocalWeaponObject(WeaponObjectState weaponObjectState)
     {
-        var weaponPrefab = WeaponSystem.Instance.GetWeaponDefinitionByType(weaponObjectState.Type).Prefab;
+        var weaponPrefab = WeaponObjectSystem.Instance.GetWeaponDefinitionByType(weaponObjectState.Type).Prefab;
         var weaponObject = GameObject.Instantiate(
             weaponPrefab,
             weaponObjectState.RigidBodyState.Position,
@@ -93,5 +67,36 @@ public class WeaponSpawnerSystem : ComponentSystem
     {
         return Object.FindObjectsOfType<WeaponSpawnerComponent>()
             .FirstOrDefault(wsc => wsc.State.Id == id);
+    }
+
+    protected override void OnUpdate()
+    {
+        var server = OsFps.Instance?.Server;
+        if (server != null)
+        {
+            ServerOnUpdate(server);
+        }
+    }
+
+    [Inject] private Data data;
+
+    private void ServerOnUpdate(Server server)
+    {
+        for (var i = 0; i < data.Length; i++)
+        {
+            var weaponSpawner = data.WeaponSpawnerComponent[i].State;
+
+            // spawn interval
+            if (weaponSpawner.TimeUntilNextSpawn > 0)
+            {
+                weaponSpawner.TimeUntilNextSpawn -= Time.deltaTime;
+            }
+
+            if (weaponSpawner.TimeUntilNextSpawn <= 0)
+            {
+                ServerSpawnWeapon(server, weaponSpawner);
+                weaponSpawner.TimeUntilNextSpawn = null;
+            }
+        }
     }
 }

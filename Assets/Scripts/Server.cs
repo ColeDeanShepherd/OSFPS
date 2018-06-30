@@ -76,13 +76,13 @@ public class Server
         var playerId = playerIdsByConnectionId[connectionId];
         playerIdsByConnectionId.Remove(connectionId);
 
-        var playerObject = PlayerSystem.Instance.FindPlayerObject(playerId);
+        var playerObject = PlayerObjectSystem.Instance.FindPlayerObject(playerId);
         if (playerObject != null)
         {
             Object.Destroy(playerObject);
         }
 
-        var playerComponent = PlayerSystem.Instance.FindPlayerComponent(playerId);
+        var playerComponent = PlayerObjectSystem.Instance.FindPlayerComponent(playerId);
         Object.Destroy(playerComponent.gameObject);
 
         // Send out a chat message.
@@ -266,7 +266,7 @@ public class Server
             Kills = 0,
             Deaths = 0
         };
-        PlayerSystem.Instance.CreateLocalPlayerDataObject(playerState);
+        PlayerObjectSystem.Instance.CreateLocalPlayerDataObject(playerState);
 
         // Let the client know its player ID.
         ServerPeer.CallRpcOnClient("ClientOnSetPlayerId", connectionId, reliableSequencedChannelId, new
@@ -301,11 +301,11 @@ public class Server
     public void ServerOnPlayerReloadPressed(uint playerId)
     {
         // TODO: Make sure the player ID is correct.
-        var playerObjectComponent = PlayerSystem.Instance.FindPlayerObjectComponent(playerId);
+        var playerObjectComponent = PlayerObjectSystem.Instance.FindPlayerObjectComponent(playerId);
 
         if (playerObjectComponent.State.CanReload)
         {
-            PlayerSystem.Instance.ServerPlayerStartReload(playerObjectComponent);
+            PlayerObjectSystem.Instance.ServerPlayerStartReload(playerObjectComponent);
         }
 
         // TODO: Send to all other players???
@@ -315,10 +315,10 @@ public class Server
     public void ServerOnPlayerTriggerPulled(uint playerId, Ray shotRay)
     {
         // TODO: Make sure the player ID is correct.
-        var playerObjectComponent = PlayerSystem.Instance.FindPlayerObjectComponent(playerId);
+        var playerObjectComponent = PlayerObjectSystem.Instance.FindPlayerObjectComponent(playerId);
         var connectionId = GetConnectionIdByPlayerId(playerId);
         var secondsToRewind = 50 * (ServerPeer.GetRoundTripTimeToClient(connectionId.Value) ?? 0);
-        PlayerSystem.Instance.ServerShoot(this, playerObjectComponent, shotRay, secondsToRewind);
+        PlayerObjectSystem.Instance.ServerShoot(this, playerObjectComponent, shotRay, secondsToRewind);
 
         ServerPeer.CallRpcOnAllClientsExcept("ClientOnTriggerPulled", connectionId.Value, reliableSequencedChannelId, new
         {
@@ -328,7 +328,7 @@ public class Server
 
         if (OsFps.ShowHitScanShotsOnServer)
         {
-            var serverShotRay = PlayerSystem.Instance.GetShotRay(playerObjectComponent);
+            var serverShotRay = PlayerObjectSystem.Instance.GetShotRay(playerObjectComponent);
             OsFps.Instance.CreateHitScanShotDebugLine(serverShotRay, OsFps.Instance.ClientShotRayMaterial);
         }
     }
@@ -337,14 +337,14 @@ public class Server
     public void ServerOnPlayerThrowGrenade(uint playerId)
     {
         // TODO: Make sure the player ID is correct.
-        var playerObjectComponent = PlayerSystem.Instance.FindPlayerObjectComponent(playerId);
+        var playerObjectComponent = PlayerObjectSystem.Instance.FindPlayerObjectComponent(playerId);
         GrenadeSystem.Instance.ServerPlayerThrowGrenade(this, playerObjectComponent);
     }
     
     [Rpc(ExecuteOn = NetworkLibrary.NetworkPeerType.Server)]
     public void ServerOnPlayerSwitchGrenadeType(uint playerId)
     {
-        var playerObjectComponent = PlayerSystem.Instance.FindPlayerObjectComponent(playerId);
+        var playerObjectComponent = PlayerObjectSystem.Instance.FindPlayerObjectComponent(playerId);
         if (playerObjectComponent == null) return;
 
         var grenadeSlots = playerObjectComponent.State.GrenadeSlots;
@@ -368,7 +368,7 @@ public class Server
     [Rpc(ExecuteOn = NetworkLibrary.NetworkPeerType.Server)]
     public void ServerOnPlayerTryPickupWeapon(uint playerId, uint weaponId)
     {
-        var playerObjectComponent = PlayerSystem.Instance.FindPlayerObjectComponent(playerId);
+        var playerObjectComponent = PlayerObjectSystem.Instance.FindPlayerObjectComponent(playerId);
 
         if (playerObjectComponent != null)
         {
@@ -381,8 +381,12 @@ public class Server
 
                 if (weaponId == closestWeaponId)
                 {
-                    var weaponComponent = WeaponSystem.Instance.FindWeaponComponent(weaponId);
-                    PlayerSystem.Instance.ServerPlayerTryToPickupWeapon(this, playerObjectComponent, weaponComponent);
+                    var weaponComponent = WeaponObjectSystem.Instance.FindWeaponComponent(weaponId);
+
+                    if (weaponComponent != null)
+                    {
+                        PlayerObjectSystem.Instance.ServerPlayerTryToPickupWeapon(this, playerObjectComponent, weaponComponent);
+                    }
                 }
             }
         }
@@ -413,7 +417,7 @@ public class Server
             "ClientOnChangeWeapon", connectionId.Value, reliableSequencedChannelId, rpcArgs
         );
 
-        var playerObjectComponent = PlayerSystem.Instance.FindPlayerObjectComponent(playerId);
+        var playerObjectComponent = PlayerObjectSystem.Instance.FindPlayerObjectComponent(playerId);
 
         if (playerObjectComponent == null) return;
 
@@ -431,7 +435,7 @@ public class Server
     public void ServerOnReceivePlayerInput(uint playerId, PlayerInput playerInput, float2 lookDirAngles)
     {
         // TODO: Make sure the player ID is correct.
-        var playerObjectComponent = PlayerSystem.Instance.FindPlayerObjectComponent(playerId);
+        var playerObjectComponent = PlayerObjectSystem.Instance.FindPlayerObjectComponent(playerId);
         if (playerObjectComponent == null) return;
 
         var playerObjectState = playerObjectComponent.State;
@@ -442,12 +446,12 @@ public class Server
     [Rpc(ExecuteOn = NetworkLibrary.NetworkPeerType.Server)]
     public void ServerOnPlayerTryJump(uint playerId)
     {
-        var playerObjectComponent = PlayerSystem.Instance.FindPlayerObjectComponent(playerId);
+        var playerObjectComponent = PlayerObjectSystem.Instance.FindPlayerObjectComponent(playerId);
         if (playerObjectComponent == null) return;
 
-        if (PlayerSystem.Instance.IsPlayerGrounded(playerObjectComponent))
+        if (PlayerObjectSystem.Instance.IsPlayerGrounded(playerObjectComponent))
         {
-            PlayerSystem.Instance.Jump(playerObjectComponent);
+            PlayerObjectSystem.Instance.Jump(playerObjectComponent);
         }
     }
     #endregion

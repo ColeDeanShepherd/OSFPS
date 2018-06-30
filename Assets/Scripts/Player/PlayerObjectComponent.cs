@@ -4,6 +4,8 @@ using UnityEngine;
 
 public class PlayerObjectComponent : MonoBehaviour
 {
+    public static List<PlayerObjectComponent> Instances = new List<PlayerObjectComponent>();
+
     public PlayerObjectState State;
 
     public List<PlayerLagCompensationSnapshot> LagCompensationSnapshots;
@@ -14,6 +16,8 @@ public class PlayerObjectComponent : MonoBehaviour
     
     private void Awake()
     {
+        Instances.Add(this);
+
         LagCompensationSnapshots = new List<PlayerLagCompensationSnapshot>();
 
         Rigidbody = GetComponent<Rigidbody>();
@@ -27,6 +31,8 @@ public class PlayerObjectComponent : MonoBehaviour
     }
     private void OnDestroy()
     {
+        Instances.Remove(this);
+
         if (State.Id == OsFps.Instance.Client?.PlayerId)
         {
             OsFps.Instance.Client.DetachCameraFromPlayer();
@@ -68,7 +74,7 @@ public class PlayerObjectComponent : MonoBehaviour
         var serverPosition = updatedPlayerObjectState.Position;
         var rewindTimeAmount = roundTripTime;
         var rewoundTime = Time.realtimeSinceStartup - rewindTimeAmount;
-        var rewoundSnapshot = PlayerSystem.Instance.GetInterpolatedLagCompensationSnapshot(this, rewoundTime);
+        var rewoundSnapshot = PlayerObjectSystem.Instance.GetInterpolatedLagCompensationSnapshot(this, rewoundTime);
         var rewoundPosToServerPosDelta = serverPosition - rewoundSnapshot.Position;
         var positionCorrectionFactor = 1f / 10;
         var positionCorrection = positionCorrectionFactor * rewoundPosToServerPosDelta;
@@ -87,10 +93,10 @@ public class PlayerObjectComponent : MonoBehaviour
         // Update look direction.
         if (isPlayerMe)
         {
-            updatedPlayerObjectState.LookDirAngles = PlayerSystem.Instance.GetPlayerLookDirAngles(playerObjectComponent);
+            updatedPlayerObjectState.LookDirAngles = PlayerObjectSystem.Instance.GetPlayerLookDirAngles(playerObjectComponent);
         }
 
-        PlayerSystem.Instance.ApplyLookDirAnglesToPlayer(playerObjectComponent, updatedPlayerObjectState.LookDirAngles);
+        PlayerObjectSystem.Instance.ApplyLookDirAnglesToPlayer(playerObjectComponent, updatedPlayerObjectState.LookDirAngles);
 
         // Update weapon if reloading.
         var equippedWeaponComponent = client.GetEquippedWeaponComponent(playerObjectComponent);
@@ -113,7 +119,7 @@ public class PlayerObjectComponent : MonoBehaviour
 
         // Update shields.
         var shieldAlpha = 1.0f - (playerObjectComponent.State.Shield / OsFps.MaxPlayerShield);
-        PlayerSystem.Instance.SetShieldAlpha(playerObjectComponent, shieldAlpha);
+        PlayerObjectSystem.Instance.SetShieldAlpha(playerObjectComponent, shieldAlpha);
         
         State = updatedPlayerObjectState;
     }

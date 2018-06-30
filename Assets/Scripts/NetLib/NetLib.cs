@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -146,6 +147,7 @@ namespace NetworkLibrary
                 .FirstOrDefault(IsApplyStateFromServerMethod);
             var stateField = monoBehaviourType.GetFields()
                 .FirstOrDefault(f => f.FieldType.IsEquivalentTo(type));
+            var monoBehaviourInstancesField = monoBehaviourType.GetField("Instances");
 
             return new NetworkedComponentTypeInfo
             {
@@ -155,6 +157,7 @@ namespace NetworkLibrary
                 MonoBehaviourType = monoBehaviourType,
                 MonoBehaviourStateField = stateField,
                 MonoBehaviourApplyStateMethod = applyStateMethod,
+                MonoBehaviourInstancesField = monoBehaviourInstancesField,
                 SynchronizedComponentAttribute = synchronizedComponentAttribute
             };
         }
@@ -206,11 +209,18 @@ namespace NetworkLibrary
         }
         public static List<object> GetStateObjectsToSynchronize(NetworkedComponentTypeInfo networkedComponentTypeInfo)
         {
-            var monoBehaviours = UnityEngine.Object.FindObjectsOfType(networkedComponentTypeInfo.MonoBehaviourType);
+            var monoBehaviours = (ICollection)networkedComponentTypeInfo.MonoBehaviourInstancesField.GetValue(null);
 
-            return monoBehaviours
-                .Select(mb => ObjectExtensions.DeepCopy(networkedComponentTypeInfo.MonoBehaviourStateField.GetValue(mb)))
-                .ToList();
+            var componentStates = new List<object>(monoBehaviours.Count);
+            foreach(var monoBehaviour in monoBehaviours)
+            {
+                if (monoBehaviour == null) continue;
+
+                var componentState = networkedComponentTypeInfo.MonoBehaviourStateField.GetValue(monoBehaviour);
+                componentStates.Add(ObjectExtensions.DeepCopy(componentState));
+            }
+
+            return componentStates;
         }
 
         public static void ExecuteRpc(byte id, object serverObj, object clientObj, params object[] arguments)

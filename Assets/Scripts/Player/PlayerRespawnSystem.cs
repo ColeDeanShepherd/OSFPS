@@ -3,9 +3,10 @@ using UnityEngine;
 
 public class PlayerRespawnSystem : ComponentSystem
 {
-    public struct Group
+    public struct Data
     {
-        public PlayerComponent PlayerComponent;
+        public int Length;
+        public ComponentArray<PlayerComponent> PlayerComponent;
     }
 
     public static PlayerRespawnSystem Instance;
@@ -22,11 +23,14 @@ public class PlayerRespawnSystem : ComponentSystem
             ServerOnUpdate(server);
         }
     }
+
+    [Inject] private Data data;
+
     private void ServerOnUpdate(Server server)
     {
-        foreach (var entity in GetEntities<Group>())
+        for (var i = 0; i < data.Length; i++)
         {
-            var playerState = entity.PlayerComponent.State;
+            var playerState = data.PlayerComponent[i].State;
             if (playerState.RespawnTimeLeft > 0)
             {
                 playerState.RespawnTimeLeft -= Time.deltaTime;
@@ -62,7 +66,7 @@ public class PlayerRespawnSystem : ComponentSystem
             GrenadeSlots = new GrenadeSlot[OsFps.MaxGrenadeSlotCount],
             ReloadTimeLeft = -1
         };
-        var firstWeaponDefinition = WeaponSystem.Instance.GetWeaponDefinitionByType(WeaponType.Pistol);
+        var firstWeaponDefinition = WeaponObjectSystem.Instance.GetWeaponDefinitionByType(WeaponType.Pistol);
         playerObjectState.Weapons[0] = new EquippedWeaponState
         {
             Type = firstWeaponDefinition.Type,
@@ -103,7 +107,7 @@ public class PlayerRespawnSystem : ComponentSystem
         playerObjectComponent.State = playerObjectState;
         playerObjectComponent.Rigidbody.velocity = playerObjectState.Velocity;
 
-        PlayerSystem.Instance.SetShieldAlpha(playerObjectComponent, 0);
+        PlayerObjectSystem.Instance.SetShieldAlpha(playerObjectComponent, 0);
 
         return playerObject;
     }

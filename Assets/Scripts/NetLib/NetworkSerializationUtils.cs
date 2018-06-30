@@ -832,6 +832,10 @@ namespace NetworkLibrary
                             var stateType = networkedComponentTypeInfo.StateType;
                             oldStateObject = System.Activator.CreateInstance(stateType);
                         }
+                        else
+                        {
+                            oldStateObject = ObjectExtensions.DeepCopy(oldStateObject);
+                        }
                         
                         DeserializeDelta(
                             binaryReader, networkedComponentTypeInfo, oldStateObject

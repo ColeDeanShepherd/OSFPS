@@ -85,7 +85,7 @@ public class Client
         {
             if (PlayerId != null)
             {
-                var playerObjectComponent = PlayerSystem.Instance.FindPlayerObjectComponent(PlayerId.Value);
+                var playerObjectComponent = PlayerObjectSystem.Instance.FindPlayerObjectComponent(PlayerId.Value);
 
                 if (Input.GetKeyDown(KeyCode.Alpha1))
                 {
@@ -135,9 +135,9 @@ public class Client
 
                 if (Input.GetButtonDown("Jump"))
                 {
-                    if ((playerObjectComponent != null) && PlayerSystem.Instance.IsPlayerGrounded(playerObjectComponent))
+                    if ((playerObjectComponent != null) && PlayerObjectSystem.Instance.IsPlayerGrounded(playerObjectComponent))
                     {
-                        PlayerSystem.Instance.Jump(playerObjectComponent);
+                        PlayerObjectSystem.Instance.Jump(playerObjectComponent);
                         ClientPeer.CallRpcOnServer("ServerOnPlayerTryJump", reliableChannelId, new
                         {
                             playerId = PlayerId.Value
@@ -155,7 +155,7 @@ public class Client
                     if (playersClosestWeaponInfo != null)
                     {
                         var closestWeaponId = playersClosestWeaponInfo.Item1;
-                        var closestWeaponComponent = WeaponSystem.Instance.FindWeaponComponent(closestWeaponId);
+                        var closestWeaponComponent = WeaponObjectSystem.Instance.FindWeaponComponent(closestWeaponId);
                         var closestWeaponType = closestWeaponComponent.State.Type;
 
                         var playersWeaponOfSameType = playerObjectComponent.State.Weapons.FirstOrDefault(
@@ -254,7 +254,7 @@ public class Client
             {
                 if (!OsFps.Instance.IsRemoteClient && (Camera.transform.parent == null))
                 {
-                    var playerObjectComponent = PlayerSystem.Instance.FindPlayerObjectComponent(PlayerId.Value);
+                    var playerObjectComponent = PlayerObjectSystem.Instance.FindPlayerObjectComponent(PlayerId.Value);
                     if (playerObjectComponent != null)
                     {
                         AttachCameraToPlayer(PlayerId.Value);
@@ -267,14 +267,14 @@ public class Client
     {
         if (PlayerId != null)
         {
-            var playerObjectComponent = PlayerSystem.Instance.FindPlayerObjectComponent(PlayerId.Value);
+            var playerObjectComponent = PlayerObjectSystem.Instance.FindPlayerObjectComponent(PlayerId.Value);
             
             if (playerObjectComponent != null)
             {
                 var playerObjectState = playerObjectComponent.State;
                 playerObjectState.Position = playerObjectComponent.transform.position;
                 playerObjectState.Velocity = playerObjectComponent.Rigidbody.velocity;
-                playerObjectState.LookDirAngles = PlayerSystem.Instance.GetPlayerLookDirAngles(playerObjectComponent);
+                playerObjectState.LookDirAngles = PlayerObjectSystem.Instance.GetPlayerLookDirAngles(playerObjectComponent);
             }
         }
     }
@@ -360,7 +360,7 @@ public class Client
 
                 if (closestWeaponInfo != null)
                 {
-                    var weaponComponent = WeaponSystem.Instance.FindWeaponComponent(closestWeaponInfo.Item1);
+                    var weaponComponent = WeaponObjectSystem.Instance.FindWeaponComponent(closestWeaponInfo.Item1);
                     DrawWeaponPickupHud(weaponComponent);
                 }
             }
@@ -383,7 +383,7 @@ public class Client
         const float weaponHudHeight = 5 + lineHeight;
 
         var playerObjectComponent = PlayerId.HasValue
-            ? PlayerSystem.Instance.FindPlayerObjectComponent(PlayerId.Value)
+            ? PlayerObjectSystem.Instance.FindPlayerObjectComponent(PlayerId.Value)
             : null;
         if (playerObjectComponent == null) return;
 
@@ -568,7 +568,7 @@ public class Client
 
         if (PlayerId == null) return false;
 
-        var playerObjectComponent = PlayerSystem.Instance.FindPlayerObjectComponent(PlayerId.Value);
+        var playerObjectComponent = PlayerObjectSystem.Instance.FindPlayerObjectComponent(PlayerId.Value);
         if (playerObjectComponent == null) return false;
 
         var currentWeapon = playerObjectComponent.State.CurrentWeapon;
@@ -609,7 +609,7 @@ public class Client
     }
     private void AttachCameraToPlayer(uint playerId)
     {
-        var playerObject = PlayerSystem.Instance.FindPlayerObject(playerId);
+        var playerObject = PlayerObjectSystem.Instance.FindPlayerObject(playerId);
         var cameraPointObject = playerObject.GetComponent<PlayerObjectComponent>().CameraPointObject;
         
         Camera.transform.SetParent(cameraPointObject.transform);
@@ -636,7 +636,7 @@ public class Client
     }
     public void VisualEquipWeapon(PlayerObjectState playerObjectState)
     {
-        var playerObjectComponent = PlayerSystem.Instance.FindPlayerObjectComponent(playerObjectState.Id);
+        var playerObjectComponent = PlayerObjectSystem.Instance.FindPlayerObjectComponent(playerObjectState.Id);
 
         var equippedWeaponComponent = GetEquippedWeaponComponent(playerObjectComponent);
         var wasEQCNull = equippedWeaponComponent == null;
@@ -647,7 +647,7 @@ public class Client
 
         if (playerObjectState.CurrentWeapon != null)
         {
-            var weaponPrefab = WeaponSystem.Instance.GetWeaponDefinitionByType(playerObjectState.CurrentWeapon.Type).Prefab;
+            var weaponPrefab = WeaponObjectSystem.Instance.GetWeaponDefinitionByType(playerObjectState.CurrentWeapon.Type).Prefab;
 
             GameObject weaponObject = Object.Instantiate(weaponPrefab, Vector3.zero, Quaternion.identity);
             var animator = weaponObject.AddComponent<Animator>();
@@ -712,7 +712,7 @@ public class Client
         {
             if (weapon.Type == WeaponType.SniperRifle)
             {
-                WeaponSystem.Instance.CreateSniperBulletTrail(aimRay);
+                WeaponObjectSystem.Instance.CreateSniperBulletTrail(aimRay);
             }
 
             var equippedWeaponComponent = GetEquippedWeaponComponent(playerObjectComponent);
@@ -726,7 +726,7 @@ public class Client
 
             if (weapon.Definition.IsHitScan)
             {
-                foreach (var shotRay in WeaponSystem.Instance.ShotRays(weapon.Definition, aimRay))
+                foreach (var shotRay in WeaponObjectSystem.Instance.ShotRays(weapon.Definition, aimRay))
                 {
                     CreateBulletHole(playerObjectComponent, shotRay);
                 }
@@ -781,11 +781,11 @@ public class Client
         ClientPeer.CallRpcOnServer("ServerOnPlayerTriggerPulled", reliableChannelId, new
         {
             playerId = playerObjectComponent.State.Id,
-            shotRay = PlayerSystem.Instance.GetShotRay(playerObjectComponent)
+            shotRay = PlayerObjectSystem.Instance.GetShotRay(playerObjectComponent)
         });
 
         // predict the shot
-        var shotRay = PlayerSystem.Instance.GetShotRay(playerObjectComponent);
+        var shotRay = PlayerObjectSystem.Instance.GetShotRay(playerObjectComponent);
         ShowWeaponFireEffects(playerObjectComponent, shotRay);
 
         playerObjectComponent.State.CurrentWeapon.TimeSinceLastShot = 0;
@@ -899,7 +899,7 @@ public class Client
 
         if (stateType.IsEquivalentTo(typeof(PlayerState)))
         {
-            return PlayerSystem.Instance.CreateLocalPlayerDataObject((PlayerState)state);
+            return PlayerObjectSystem.Instance.CreateLocalPlayerDataObject((PlayerState)state);
         }
         else if (stateType.IsEquivalentTo(typeof(PlayerObjectState)))
         {
@@ -1126,7 +1126,7 @@ public class Client
             return;
         }
 
-        var playerObjectComponent = PlayerSystem.Instance.FindPlayerObjectComponent(playerId);
+        var playerObjectComponent = PlayerObjectSystem.Instance.FindPlayerObjectComponent(playerId);
         ShowWeaponFireEffects(playerObjectComponent, shotRay);
     }
 
@@ -1147,7 +1147,7 @@ public class Client
     {
         if (playerId.HasValue)
         {
-            var playerName = PlayerSystem.Instance.FindPlayerComponent(playerId.Value)?.State.Name;
+            var playerName = PlayerObjectSystem.Instance.FindPlayerComponent(playerId.Value)?.State.Name;
             _chatMessages.Add(string.Format("{0}: {1}", playerName, message));
         }
         else
@@ -1164,7 +1164,7 @@ public class Client
             return;
         }
 
-        var playerObjectComponent = PlayerSystem.Instance.FindPlayerObjectComponent(playerId);
+        var playerObjectComponent = PlayerObjectSystem.Instance.FindPlayerObjectComponent(playerId);
         if (playerObjectComponent == null) return;
 
         SwitchWeapons(playerObjectComponent, weaponIndex);
@@ -1187,7 +1187,7 @@ public class Client
     {
         if (PlayerId == null) return;
 
-        var playerObjectComponent = PlayerSystem.Instance.FindPlayerObjectComponent(PlayerId.Value);
+        var playerObjectComponent = PlayerObjectSystem.Instance.FindPlayerObjectComponent(PlayerId.Value);
         if (playerObjectComponent == null) return;
 
         ClientPeer.CallRpcOnServer("ServerOnReceivePlayerInput", unreliableStateUpdateChannelId, new

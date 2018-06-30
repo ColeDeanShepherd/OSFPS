@@ -1,7 +1,10 @@
-﻿using UnityEngine;
+﻿using System.Collections.Generic;
+using UnityEngine;
 
 public class GrenadeComponent : MonoBehaviour
 {
+    public static List<GrenadeComponent> Instances = new List<GrenadeComponent>();
+
     public GrenadeState State;
 
     public GrenadeDefinition Definition
@@ -17,9 +20,26 @@ public class GrenadeComponent : MonoBehaviour
 
     private void Awake()
     {
+        Instances.Add(this);
+
         Rigidbody = GetComponent<Rigidbody>();
         Collider = GetComponent<Collider>();
     }
+    private void OnDestroy()
+    {
+        Instances.Remove(this);
+
+        if (State.GrenadeSpawnerId.HasValue)
+        {
+            var grenadeSpawnerComponent = GrenadeSpawnerSystem.Instance.FindGrenadeSpawnerComponent(State.GrenadeSpawnerId.Value);
+
+            if (grenadeSpawnerComponent != null)
+            {
+                grenadeSpawnerComponent.State.TimeUntilNextSpawn = GrenadeSystem.Instance.GetGrenadeDefinitionByType(grenadeSpawnerComponent.State.Type).SpawnInterval;
+            }
+        }
+    }
+
     private void OnCollisionEnter(Collision collision)
     {
         GrenadeSystem.Instance.GrenadeOnCollisionEnter(this, collision);
@@ -31,19 +51,7 @@ public class GrenadeComponent : MonoBehaviour
 
         if (playerObject != null)
         {
-            PlayerSystem.Instance.OnPlayerCollidingWithGrenade(playerObject, gameObject);
-        }
-    }
-    private void OnDestroy()
-    {
-        if (State.GrenadeSpawnerId.HasValue)
-        {
-            var grenadeSpawnerComponent = GrenadeSpawnerSystem.Instance.FindGrenadeSpawnerComponent(State.GrenadeSpawnerId.Value);
-
-            if (grenadeSpawnerComponent != null)
-            {
-                grenadeSpawnerComponent.State.TimeUntilNextSpawn = GrenadeSystem.Instance.GetGrenadeDefinitionByType(grenadeSpawnerComponent.State.Type).SpawnInterval;
-            }
+            PlayerObjectSystem.Instance.OnPlayerCollidingWithGrenade(playerObject, gameObject);
         }
     }
     private void LateUpdate()

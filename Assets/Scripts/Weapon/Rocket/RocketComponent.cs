@@ -1,7 +1,10 @@
-﻿using UnityEngine;
+﻿using System.Collections.Generic;
+using UnityEngine;
 
 public class RocketComponent : MonoBehaviour
 {
+    public static List<RocketComponent> Instances = new List<RocketComponent>();
+
     public RocketState State;
 
     public Rigidbody Rigidbody;
@@ -9,8 +12,14 @@ public class RocketComponent : MonoBehaviour
 
     private void Awake()
     {
+        Instances.Add(this);
+
         Rigidbody = GetComponent<Rigidbody>();
         Collider = GetComponent<Collider>();
+    }
+    private void OnDestroy()
+    {
+        Instances.Remove(this);
     }
     private void Start()
     {

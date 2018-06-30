@@ -3,9 +3,10 @@ using UnityEngine;
 
 public class KillPlaneSystem : ComponentSystem
 {
-    public struct Group
+    public struct Data
     {
-        public Transform Transform;
+        public int Length;
+        public ComponentArray<Transform> Transform;
     }
 
     protected override void OnUpdate()
@@ -17,21 +18,23 @@ public class KillPlaneSystem : ComponentSystem
         }
     }
 
+    [Inject] private Data data;
+
     private void ServerOnUpdate(Server server)
     {
-        foreach (var entity in GetEntities<Group>())
+        for (var i = 0; i < data.Length; i++)
         {
-            if (entity.Transform.position.y <= OsFps.KillPlaneY)
+            if (data.Transform[i].position.y <= OsFps.KillPlaneY)
             {
-                var playerObjectComponent = entity.Transform.gameObject.GetComponent<PlayerObjectComponent>();
+                var playerObjectComponent = data.Transform[i].gameObject.GetComponent<PlayerObjectComponent>();
 
                 if (playerObjectComponent == null)
                 {
-                    Object.Destroy(entity.Transform.gameObject);
+                    Object.Destroy(data.Transform[i].gameObject);
                 }
                 else
                 {
-                    PlayerSystem.Instance.ServerDamagePlayer(server, playerObjectComponent, 9999, null);
+                    PlayerObjectSystem.Instance.ServerDamagePlayer(server, playerObjectComponent, 9999, null);
                 }
             }
         }

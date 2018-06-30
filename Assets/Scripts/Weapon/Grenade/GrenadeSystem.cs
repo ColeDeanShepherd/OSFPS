@@ -6,9 +6,10 @@ using Unity.Mathematics;
 
 public class GrenadeSystem : ComponentSystem
 {
-    public struct Group
+    public struct Data
     {
-        public GrenadeComponent GrenadeComponent;
+        public int Length;
+        public ComponentArray<GrenadeComponent> GrenadeComponent;
     }
 
     public static GrenadeSystem Instance;
@@ -18,76 +19,12 @@ public class GrenadeSystem : ComponentSystem
         Instance = this;
     }
 
-    protected override void OnUpdate()
-    {
-        var server = OsFps.Instance?.Server;
-        if (server != null)
-        {
-            ServerOnUpdate(server);
-        }
-    }
-    private void ServerOnUpdate(Server server)
-    {
-        var deltaTime = Time.deltaTime;
-
-        var entities = GetEntities<Group>();
-        foreach (var entity in entities)
-        {
-            var grenade = entity.GrenadeComponent.State;
-
-            if (grenade.TimeUntilDetonation > 0)
-            {
-                grenade.TimeUntilDetonation -= deltaTime;
-            }
-        }
-
-        var grenadesToDetonate = new List<GrenadeComponent>();
-        foreach (var entity in entities)
-        {
-            var grenade = entity.GrenadeComponent.State;
-
-            if (grenade.TimeUntilDetonation <= 0)
-            {
-                grenadesToDetonate.Add(entity.GrenadeComponent);
-            }
-        }
-
-        foreach (var grenadeToDetonate in grenadesToDetonate)
-        {
-            ServerDetonateGrenade(server, grenadeToDetonate);
-        }
-    }
-
-    private void ServerDetonateGrenade(Server server, GrenadeComponent grenadeComponent)
-    {
-        var grenade = grenadeComponent.State;
-        var grenadeDefinition = GetGrenadeDefinitionByType(grenade.Type);
-        var grenadePosition = (float3)grenadeComponent.transform.position;
-
-        // apply damage & forces to players within range
-        OsFps.Instance.ApplyExplosionDamageAndForces(
-            server, grenadePosition, grenadeDefinition.ExplosionRadius, OsFps.GrenadeExplosionForce,
-            grenadeDefinition.Damage, grenade.ThrowerPlayerId
-        );
-
-        // destroy grenade object
-        Object.Destroy(grenadeComponent.gameObject);
-
-        // send message
-        server.ServerPeer.CallRpcOnAllClients("ClientOnDetonateGrenade", server.reliableChannelId, new
-        {
-            id = grenade.Id,
-            position = grenadePosition,
-            type = grenade.Type
-        });
-    }
-
     public void ServerPlayerThrowGrenade(Server server, PlayerObjectComponent playerObjectComponent)
     {
         var playerObjectState = playerObjectComponent.State;
         if (!playerObjectState.CanThrowGrenade) return;
 
-        var throwRay = PlayerSystem.Instance.GetShotRay(playerObjectComponent);
+        var throwRay = PlayerObjectSystem.Instance.GetShotRay(playerObjectComponent);
         throwRay.origin += (0.5f * throwRay.direction);
         var currentGrenadeSlot = playerObjectState.GrenadeSlots[playerObjectState.CurrentGrenadeSlotIndex];
 
@@ -144,7 +81,7 @@ public class GrenadeSystem : ComponentSystem
     {
         if (OsFps.Instance.Server != null)
         {
-            GrenadeSystem.Instance.ServerGrenadeOnCollisionEnter(OsFps.Instance.Server, grenadeComponent, collision);
+            ServerGrenadeOnCollisionEnter(OsFps.Instance.Server, grenadeComponent, collision);
         }
     }
 
@@ -158,5 +95,71 @@ public class GrenadeSystem : ComponentSystem
         return OsFps.Instance.GrenadeDefinitionComponents
             .FirstOrDefault(gdc => gdc.Definition.Type == type)
             ?.Definition;
+    }
+
+    protected override void OnUpdate()
+    {
+        var server = OsFps.Instance?.Server;
+        if (server != null)
+        {
+            ServerOnUpdate(server);
+        }
+    }
+
+    [Inject] private Data data;
+
+    private void ServerOnUpdate(Server server)
+    {
+        var deltaTime = Time.deltaTime;
+
+        for (var i = 0; i < data.Length; i++)
+        {
+            var grenade = data.GrenadeComponent[i].State;
+
+            if (grenade.TimeUntilDetonation > 0)
+            {
+                grenade.TimeUntilDetonation -= deltaTime;
+            }
+        }
+
+        var grenadesToDetonate = new List<GrenadeComponent>();
+        for (var i = 0; i < data.Length; i++)
+        {
+            var grenade = data.GrenadeComponent[i].State;
+
+            if (grenade.TimeUntilDetonation <= 0)
+            {
+                grenadesToDetonate.Add(data.GrenadeComponent[i]);
+            }
+        }
+
+        foreach (var grenadeToDetonate in grenadesToDetonate)
+        {
+            ServerDetonateGrenade(server, grenadeToDetonate);
+        }
+    }
+
+    private void ServerDetonateGrenade(Server server, GrenadeComponent grenadeComponent)
+    {
+        var grenade = grenadeComponent.State;
+        var grenadeDefinition = GetGrenadeDefinitionByType(grenade.Type);
+        var grenadePosition = (float3)grenadeComponent.transform.position;
+
+        // apply damage & forces to players within range
+        OsFps.Instance.ApplyExplosionDamageAndForces(
+            server, grenadePosition, grenadeDefinition.ExplosionRadius, OsFps.GrenadeExplosionForce,
+            grenadeDefinition.Damage, grenade.ThrowerPlayerId
+        );
+
+        // destroy grenade object
+        Object.Destroy(grenadeComponent.gameObject);
+
+        // send message
+        server.ServerPeer.CallRpcOnAllClients("ClientOnDetonateGrenade", server.reliableChannelId, new
+        {
+            id = grenade.Id,
+            position = grenadePosition,
+            type = grenade.Type
+        });
     }
 }

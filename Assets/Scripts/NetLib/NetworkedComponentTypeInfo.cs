@@ -13,6 +13,8 @@ namespace NetworkLibrary
         public Type MonoBehaviourType;
         public FieldInfo MonoBehaviourStateField;
         public MethodInfo MonoBehaviourApplyStateMethod;
+        public FieldInfo MonoBehaviourInstancesField;
+
         public NetworkedComponentAttribute SynchronizedComponentAttribute;
     }
     public class NetworkedTypeFieldInfo

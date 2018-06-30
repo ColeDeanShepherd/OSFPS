@@ -1,13 +1,16 @@
-﻿using UnityEngine;
+﻿using System.Collections.Generic;
+using UnityEngine;
 
 public class WeaponComponent : MonoBehaviour
 {
+    public static List<WeaponComponent> Instances = new List<WeaponComponent>();
+
     public WeaponObjectState State;
     public WeaponDefinition Definition
     {
         get
         {
-            return WeaponSystem.Instance.GetWeaponDefinitionByType(State.Type);
+            return WeaponObjectSystem.Instance.GetWeaponDefinitionByType(State.Type);
         }
     }
 
@@ -16,6 +19,8 @@ public class WeaponComponent : MonoBehaviour
 
     private void Awake()
     {
+        Instances.Add(this);
+
         Rigidbody = GetComponent<Rigidbody>();
         Collider = GetComponent<Collider>();
     }
@@ -26,18 +31,20 @@ public class WeaponComponent : MonoBehaviour
 
         if (playerObject != null)
         {
-            PlayerSystem.Instance.OnPlayerCollidingWithWeapon(playerObject, gameObject);
+            PlayerObjectSystem.Instance.OnPlayerCollidingWithWeapon(playerObject, gameObject);
         }
     }
     private void OnDestroy()
     {
+        Instances.Remove(this);
+
         if (State.WeaponSpawnerId.HasValue)
         {
             var weaponSpawnerComponent = WeaponSpawnerSystem.Instance.FindWeaponSpawnerComponent(State.WeaponSpawnerId.Value);
 
             if (weaponSpawnerComponent != null)
             {
-                weaponSpawnerComponent.State.TimeUntilNextSpawn = WeaponSystem.Instance.GetWeaponDefinitionByType(weaponSpawnerComponent.State.Type).SpawnInterval;
+                weaponSpawnerComponent.State.TimeUntilNextSpawn = WeaponObjectSystem.Instance.GetWeaponDefinitionByType(weaponSpawnerComponent.State.Type).SpawnInterval;
             }
         }
     }
