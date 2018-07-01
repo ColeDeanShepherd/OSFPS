@@ -230,8 +230,6 @@ namespace NetworkLibrary
                 ? serverObj
                 : clientObj;
             rpcInfo.MethodInfo.Invoke(objContainingRpc, arguments);
-
-            OsFps.Logger.Log("RPC", $"Executed RPC {rpcInfo.Name}");
         }
 
         public static UnityEngine.MonoBehaviour GetMonoBehaviourByState(NetworkedComponentTypeInfo networkedComponentTypeInfo, object state)
@@ -243,21 +241,27 @@ namespace NetworkLibrary
             NetworkedComponentTypeInfo networkedComponentTypeInfo, uint stateId
         )
         {
-            var monoBehaviour = (UnityEngine.MonoBehaviour)UnityEngine.Object.FindObjectsOfType(networkedComponentTypeInfo.MonoBehaviourType)
-                .FirstOrDefault(o =>
+            var monoBehaviourObjects = (ICollection)networkedComponentTypeInfo.MonoBehaviourInstancesField.GetValue(null);
+            foreach (var obj in monoBehaviourObjects)
+            {
+                var state = networkedComponentTypeInfo.MonoBehaviourStateField.GetValue(obj);
+                var currentStateId = GetIdFromState(networkedComponentTypeInfo, state);
+
+                if(currentStateId == stateId)
                 {
-                    var state = networkedComponentTypeInfo.MonoBehaviourStateField.GetValue(o);
-                    var currentStateId = GetIdFromState(networkedComponentTypeInfo, state);
+                    return (UnityEngine.MonoBehaviour)obj;
+                }
+            }
 
-                    return currentStateId == stateId;
-                });
-
-            return monoBehaviour;
+            return null;
         }
 
         public static uint GetIdFromState(NetworkedComponentTypeInfo networkedComponentTypeInfo, object state)
         {
-            return (uint)networkedComponentTypeInfo.StateIdField.GetValue(state);
+            UnityEngine.Profiling.Profiler.BeginSample("GetIdFromState");
+            var id = (uint)networkedComponentTypeInfo.StateIdField.GetValue(state);
+            UnityEngine.Profiling.Profiler.EndSample();
+            return id;
         }
         
         private static uint _nextGameStateSequenceNumber = 1;

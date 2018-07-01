@@ -75,11 +75,20 @@ public class Client
         }
     }
 
+    private System.Tuple<uint, byte[]> latestSequenceNumberDeltaGameStateBytesPair;
     public void Update()
     {
         Camera.GetComponent<Camera>().fieldOfView = GetCurrentFieldOfViewY();
 
         ClientPeer.Update();
+        if (latestSequenceNumberDeltaGameStateBytesPair != null)
+        {
+            FinishHandlingDeltaGameState(
+                latestSequenceNumberDeltaGameStateBytesPair.Item1,
+                latestSequenceNumberDeltaGameStateBytesPair.Item2
+            );
+            latestSequenceNumberDeltaGameStateBytesPair = null;
+        }
 
         if (ClientPeer.IsConnectedToServer)
         {
@@ -195,7 +204,7 @@ public class Client
                     ShieldBar.HealthPercent = shieldPercent;
 
                     HealthBar.gameObject.SetActive(true);
-                    
+
                     var healthPercent = playerObjectComponent.State.Health / OsFps.MaxPlayerHealth;
                     HealthBar.HealthPercent = healthPercent;
                 }
@@ -271,7 +280,7 @@ public class Client
         if (PlayerId != null)
         {
             var playerObjectComponent = PlayerObjectSystem.Instance.FindPlayerObjectComponent(PlayerId.Value);
-            
+
             if (playerObjectComponent != null)
             {
                 var playerObjectState = playerObjectComponent.State;
@@ -462,7 +471,7 @@ public class Client
         var playerComponents = Object.FindObjectsOfType<PlayerComponent>();
 
         var scoreBoardHeight = rowHeight * (1 + playerComponents.Length);
-        
+
         var boxWidth = scoreBoardWidth + scoreBoardPadding;
         var boxHeight = scoreBoardHeight + scoreBoardPadding;
         GUI.Box(
@@ -618,7 +627,7 @@ public class Client
     {
         var playerObject = PlayerObjectSystem.Instance.FindPlayerObject(playerId);
         var cameraPointObject = playerObject.GetComponent<PlayerObjectComponent>().CameraPointObject;
-        
+
         Camera.transform.SetParent(cameraPointObject.transform);
 
         Camera.transform.localPosition = Vector3.zero;
@@ -632,7 +641,7 @@ public class Client
     {
         foreach (Transform weaponTransform in playerObjectComponent.HandsPointObject.transform)
         {
-            var equippedWeaponComponent =  weaponTransform.gameObject.GetComponent<EquippedWeaponComponent>();
+            var equippedWeaponComponent = weaponTransform.gameObject.GetComponent<EquippedWeaponComponent>();
             if (equippedWeaponComponent != null)
             {
                 return equippedWeaponComponent;
@@ -727,7 +736,7 @@ public class Client
             {
                 var weaponAudioSource = equippedWeaponComponent.GetComponent<AudioSource>();
                 weaponAudioSource?.PlayOneShot(weapon.Definition.ShotSound);
-                
+
                 equippedWeaponComponent.Animator.Play("Recoil");
             }
 
@@ -842,7 +851,7 @@ public class Client
 
             ChatBox.MessageInputField.text = "";
         }
-        
+
         SetChatBoxIsVisible(false);
     }
 
@@ -865,7 +874,7 @@ public class Client
             oldList.Any(oldElement => doElementsMatch(oldElement, newElement))
         ).ToList();
     }
-    
+
     private void ApplyStates<StateType>(
         List<StateType> oldStates, List<StateType> newStates,
         System.Func<StateType, StateType, bool> doStatesHaveSameId,
@@ -899,7 +908,7 @@ public class Client
             updateStateObject(oldState, updatedState);
         }
     }
-    
+
     public GameObject CreateGameObjectFromState(object state)
     {
         var stateType = state.GetType();
@@ -962,7 +971,7 @@ public class Client
         System.Action<object> handleAddedState = addedState =>
         {
             var gameObject = CreateGameObjectFromState(addedState);
-            
+
             if (
                 (networkedComponentTypeInfo != null) &&
                 (networkedComponentTypeInfo.MonoBehaviourApplyStateMethod != null)
@@ -970,7 +979,7 @@ public class Client
             {
                 var stateId = NetLib.GetIdFromState(networkedComponentTypeInfo, addedState);
                 var monoBehaviour = NetLib.GetMonoBehaviourByStateId(networkedComponentTypeInfo, stateId);
-                
+
                 networkedComponentTypeInfo.MonoBehaviourApplyStateMethod.Invoke(monoBehaviour, new[] { addedState });
             }
         };
@@ -1019,11 +1028,10 @@ public class Client
             {
                 var messageTypeAsByte = reader.ReadByte();
                 RpcInfo rpcInfo;
-                
+
                 if (messageTypeAsByte == OsFps.StateSynchronizationMessageId)
                 {
-                    Debug.Log("RGS: " + Time.frameCount);
-                    OnReceiveDeltaGameStateFromServer(reader);
+                    OnReceiveDeltaGameStateFromServer(reader, bytesReceived, numBytesReceived);
                 }
                 else if (NetLib.rpcInfoById.TryGetValue(messageTypeAsByte, out rpcInfo))
                 {
@@ -1040,45 +1048,65 @@ public class Client
         }
         Profiler.EndSample();
     }
-    
+
     private List<NetworkedGameState> cachedReceivedGameStates = new List<NetworkedGameState>();
-    private void OnReceiveDeltaGameStateFromServer(BinaryReader reader)
+    private void OnReceiveDeltaGameStateFromServer(BinaryReader reader, byte[] bytesReceived, int numBytesReceived)
     {
         uint latestReceivedGameStateSequenceNumber = (cachedReceivedGameStates.Any())
             ? cachedReceivedGameStates[cachedReceivedGameStates.Count - 1].SequenceNumber
             : 0;
-        var sequenceNumber = reader.ReadUInt32();
+        latestReceivedGameStateSequenceNumber = System.Math.Max(
+            latestReceivedGameStateSequenceNumber,
+            latestSequenceNumberDeltaGameStateBytesPair?.Item1 ?? 0
+        );
 
+        var sequenceNumber = reader.ReadUInt32();
         if (sequenceNumber > latestReceivedGameStateSequenceNumber)
         {
-            var sequenceNumberRelativeTo = reader.ReadUInt32();
-            var networkedGameStateRelativeTo = GetNetworkedGameStateRelativeTo(sequenceNumberRelativeTo);
-
-            Profiler.BeginSample("State Deserialization");
-            var receivedGameState = NetworkSerializationUtils.DeserializeNetworkedGameState(
-                reader, sequenceNumber, networkedGameStateRelativeTo
+            var bytesLeft = new byte[numBytesReceived - reader.BaseStream.Position];
+            
+            System.Array.Copy(bytesReceived, reader.BaseStream.Position, bytesLeft, 0, bytesLeft.Length);
+            latestSequenceNumberDeltaGameStateBytesPair = new System.Tuple<uint, byte[]>(
+                sequenceNumber,
+                bytesLeft
             );
-            Profiler.EndSample();
-
-            ClientPeer.CallRpcOnServer("ServerOnReceiveClientGameStateAck", unreliableChannelId, new
+        }
+    }
+    private void FinishHandlingDeltaGameState(uint sequenceNumber, byte[] deltaBytes)
+    {
+        using (var memoryStream = new MemoryStream(deltaBytes))
+        {
+            using (var reader = new BinaryReader(memoryStream))
             {
-                playerId = PlayerId.Value,
-                gameStateSequenceNumber = receivedGameState.SequenceNumber
-            });
+                var sequenceNumberRelativeTo = reader.ReadUInt32();
+                var networkedGameStateRelativeTo = GetNetworkedGameStateRelativeTo(sequenceNumberRelativeTo);
 
-            cachedReceivedGameStates.Add(receivedGameState);
+                Profiler.BeginSample("State Deserialization");
+                var receivedGameState = NetworkSerializationUtils.DeserializeNetworkedGameState(
+                    reader, sequenceNumber, networkedGameStateRelativeTo
+                );
+                Profiler.EndSample();
 
-            var indexOfLatestGameStateToDiscard = cachedReceivedGameStates
-                .FindLastIndex(ngs => ngs.SequenceNumber < sequenceNumberRelativeTo);
-            if (indexOfLatestGameStateToDiscard >= 0)
-            {
-                var numberOfLatestGameStatesToDiscard = indexOfLatestGameStateToDiscard + 1;
-                cachedReceivedGameStates.RemoveRange(0, numberOfLatestGameStatesToDiscard);
+                ClientPeer.CallRpcOnServer("ServerOnReceiveClientGameStateAck", unreliableChannelId, new
+                {
+                    playerId = PlayerId.Value,
+                    gameStateSequenceNumber = receivedGameState.SequenceNumber
+                });
+
+                cachedReceivedGameStates.Add(receivedGameState);
+
+                var indexOfLatestGameStateToDiscard = cachedReceivedGameStates
+                    .FindLastIndex(ngs => ngs.SequenceNumber < sequenceNumberRelativeTo);
+                if (indexOfLatestGameStateToDiscard >= 0)
+                {
+                    var numberOfLatestGameStatesToDiscard = indexOfLatestGameStateToDiscard + 1;
+                    cachedReceivedGameStates.RemoveRange(0, numberOfLatestGameStatesToDiscard);
+                }
+
+                Profiler.BeginSample("ClientOnReceiveGameState");
+                ClientOnReceiveGameState(receivedGameState);
+                Profiler.EndSample();
             }
-
-            Profiler.BeginSample("ClientOnReceiveGameState");
-            ClientOnReceiveGameState(receivedGameState);
-            Profiler.EndSample();
         }
     }
     private NetworkedGameState GetNetworkedGameStateRelativeTo(uint sequenceNumberRelativeTo)

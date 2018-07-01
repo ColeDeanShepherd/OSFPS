@@ -1,10 +1,19 @@
-﻿using Newtonsoft.Json;
-using System.IO;
+﻿using System.IO;
 using System.Runtime.Serialization.Formatters.Binary;
+using Force.DeepCloner;
+using Newtonsoft.Json;
 
 public static class ObjectExtensions
 {
     public static T DeepCopy<T>(T obj)
+    {
+        UnityEngine.Profiling.Profiler.BeginSample("DeepCopy");
+        var copy = obj.DeepClone();
+        UnityEngine.Profiling.Profiler.EndSample();
+
+        return copy;
+    }
+    public static T DeepCopyWithBinaryFormatter<T>(T obj)
     {
         using (var memoryStream = new MemoryStream())
         {
@@ -12,7 +21,8 @@ public static class ObjectExtensions
             binaryFormatter.Serialize(memoryStream, obj);
             memoryStream.Position = 0;
 
-            return (T)binaryFormatter.Deserialize(memoryStream);
+            var copiedObj = (T)binaryFormatter.Deserialize(memoryStream);
+            return copiedObj;
         }
     }
     public static T DeepCopyWithJsonSerialization<T>(T obj)
