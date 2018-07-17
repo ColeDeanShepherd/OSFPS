@@ -10,4 +10,5 @@ public class GrenadeDefinition
     public float SpawnInterval;
     public GameObject Prefab;
     public GameObject ExplosionPrefab;
+    public Texture2D Icon;
 }

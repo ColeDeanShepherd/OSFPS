@@ -60,3 +60,4 @@ MonoBehaviour:
     Prefab: {fileID: 1422879523502568, guid: c8fee2f0538553643a559d7f91cd1b0f, type: 2}
     ExplosionPrefab: {fileID: 1878559953589122, guid: 74b2126465b584d479f3bae9a23f7b93,
       type: 2}
+    Icon: {fileID: 2800000, guid: 1c8b67b81ea93684b9e0a2134e5225e9, type: 3}

@@ -65,3 +65,4 @@ MonoBehaviour:
     RecoilTime: 0.5
     Prefab: {fileID: 1010797790457592, guid: 5d87d3b5c75bc3949a4c736ad3313d75, type: 2}
     ShotSound: {fileID: 8300000, guid: 36c36706bd5241e4daa533e92f48e99f, type: 3}
+    Icon: {fileID: 2800000, guid: dd9a6f23150d72e4ba897b8eb154757f, type: 3}

@@ -9,13 +9,11 @@
 
 
 * Improve client prediction.
-  * Do correction in the past
   * Track timestamp on server, sync. with client, send with game states
 
 
 
 * Implement delta game state sending.
-  * fix bugs
   * handle player disconnects
 
 

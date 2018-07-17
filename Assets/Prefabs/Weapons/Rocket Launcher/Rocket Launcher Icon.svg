@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   width="210mm"
+   height="210mm"
+   viewBox="0 0 210 210"
+   version="1.1"
+   id="svg8"
+   inkscape:version="0.92.3 (2405546, 2018-03-11)"
+   sodipodi:docname="Rocket Launcher Icon.svg">
+  <defs
+     id="defs2" />
+  <sodipodi:namedview
+     id="base"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageopacity="0.0"
+     inkscape:pageshadow="2"
+     inkscape:zoom="0.7"
+     inkscape:cx="250.76019"
+     inkscape:cy="544.21875"
+     inkscape:document-units="mm"
+     inkscape:current-layer="layer1"
+     showgrid="false"
+     inkscape:window-width="1920"
+     inkscape:window-height="1046"
+     inkscape:window-x="-11"
+     inkscape:window-y="-11"
+     inkscape:window-maximized="1" />
+  <metadata
+     id="metadata5">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title></dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1"
+     transform="translate(0,-87)">
+    <path
+       style="fill:#0000fa;fill-opacity:0.4039409;stroke:none;stroke-width:0.23591135px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       d="m 9.9916274,165.07167 v 30.11385 H 50.601598 c -3.624462,7.27202 -9.940785,19.9858 -11.794861,24.54199 l 11.313608,0.0956 c 0,0 6.06407,-14.86846 8.485372,-16.44785 1.67228,-1.09083 2.240716,0.44495 10.059019,0.44495 6.208742,0 7.31033,-1.12234 8.728497,-7.98114 4.664218,0 59.017037,0.0166 59.017037,0.0166 l -0.24424,23.91552 9.6085,0.12608 0.24251,-23.86776 55.42707,-0.15301 -0.0667,-30.94061 z m 64.5963886,31.05312 c 0.279477,5.45164 -0.552318,6.91447 -5.809005,6.92104 -2.529527,0.003 -4.807127,0.14696 -6.305913,-1.4624 -1.152728,-1.23778 -0.879244,-4.98572 -0.879244,-4.98572 l 1.584304,-0.4586 c 0,0 -0.516744,2.43275 0.02664,3.45569 1.185369,2.23152 3.066698,2.57979 3.066698,2.57979 l 0.0063,-0.49325 c 0,0 -1.881076,-0.76121 -2.261722,-2.18179 -0.32558,-1.21508 0.923871,-3.36044 0.923871,-3.36044 z"
+       id="path3724"
+       inkscape:connector-curvature="0"
+       sodipodi:nodetypes="ccccccsccccccccccccccccscc" />
+  </g>
+</svg>

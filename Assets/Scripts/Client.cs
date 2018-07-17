@@ -395,8 +395,6 @@ public class Client
     private void DrawHud()
     {
         const float hudMargin = 10;
-        const float lineHeight = 20;
-        const float weaponHudHeight = 5 + lineHeight;
 
         var playerObjectComponent = PlayerId.HasValue
             ? PlayerObjectSystem.Instance.FindPlayerObjectComponent(PlayerId.Value)
@@ -406,35 +404,38 @@ public class Client
         var playerObjectState = playerObjectComponent.State;
 
         var weaponHudPosition = new Vector2(hudMargin, hudMargin);
-
+        var weaponIconSize = new Vector2(64, 64);
+        var weaponIconSpacingY = weaponIconSize.y + 30;
         if (playerObjectState.CurrentWeapon != null)
         {
-            DrawWeaponHud(playerObjectState.CurrentWeapon, weaponHudPosition);
-            weaponHudPosition.y += weaponHudHeight;
+            DrawWeaponHud(playerObjectState.CurrentWeapon, weaponHudPosition, weaponIconSize);
+            weaponHudPosition.y += weaponIconSpacingY;
         }
 
         foreach (var weapon in playerObjectState.Weapons)
         {
             if ((weapon != null) && (weapon != playerObjectState.CurrentWeapon))
             {
-                DrawWeaponHud(weapon, weaponHudPosition);
-                weaponHudPosition.y += weaponHudHeight;
+                DrawWeaponHud(weapon, weaponHudPosition, weaponIconSize);
+                weaponHudPosition.y += weaponIconSpacingY;
             }
         }
 
-        var grenadeHudPosition = new Vector2(hudMargin, hudMargin + 60);
+        var grenadeIconSize = new Vector2(48, 48);
+        var grenadeHudPosition = new Vector2(Screen.width - hudMargin - grenadeIconSize.x, hudMargin);
+        var grenadeIconSpacingY = grenadeIconSize.y + 30;
         if (playerObjectState.CurrentGrenadeSlot != null)
         {
-            DrawGrenadeSlotHud(playerObjectState.CurrentGrenadeSlot, grenadeHudPosition);
-            grenadeHudPosition.y += weaponHudHeight;
+            DrawGrenadeSlotHud(playerObjectState.CurrentGrenadeSlot, grenadeHudPosition, grenadeIconSize);
+            grenadeHudPosition.y += grenadeIconSpacingY;
         }
 
         foreach (var grenadeSlot in playerObjectState.GrenadeSlots)
         {
             if ((grenadeSlot != null) && (grenadeSlot != playerObjectState.CurrentGrenadeSlot))
             {
-                DrawGrenadeSlotHud(grenadeSlot, grenadeHudPosition);
-                grenadeHudPosition.y += weaponHudHeight;
+                DrawGrenadeSlotHud(grenadeSlot, grenadeHudPosition, grenadeIconSize);
+                grenadeHudPosition.y += grenadeIconSpacingY;
             }
         }
     }
@@ -444,18 +445,21 @@ public class Client
         var position = new Vector2(30, 30);
         GUI.Label(new Rect(position, new Vector2(800, 800)), JsonConvert.SerializeObject(networkStats));
     }
-    private void DrawWeaponHud(EquippedWeaponState weapon, Vector2 position)
+    private void DrawWeaponHud(EquippedWeaponState weapon, Vector2 position, Vector2 iconSize)
     {
+        GUI.DrawTexture(new Rect(position, iconSize), weapon.Definition.Icon);
         GUI.Label(
-            new Rect(position.x, position.y, 200, 50),
-            weapon.Type.ToString() + " Ammo: " + weapon.BulletsLeftInMagazine + " / " + weapon.BulletsLeftOutOfMagazine
+            new Rect(position + new Vector2(0, iconSize.y), new Vector2(260, 50)),
+            weapon.BulletsLeftInMagazine + " / " + weapon.BulletsLeftOutOfMagazine
         );
     }
-    private void DrawGrenadeSlotHud(GrenadeSlot grenadeSlot, Vector2 position)
+    private void DrawGrenadeSlotHud(GrenadeSlot grenadeSlot, Vector2 position, Vector2 iconSize)
     {
+        var grenadeDefinition = GrenadeSystem.Instance.GetGrenadeDefinitionByType(grenadeSlot.GrenadeType);
+        GUI.DrawTexture(new Rect(position, iconSize), grenadeDefinition.Icon);
         GUI.Label(
-            new Rect(position.x, position.y, 200, 50),
-            grenadeSlot.GrenadeType.ToString() + " Grenades: " + grenadeSlot.GrenadeCount + " / " + OsFps.MaxGrenadesPerType
+            new Rect(position + new Vector2(0, iconSize.y), new Vector2(260, 50)),
+            grenadeSlot.GrenadeCount + " / " + OsFps.MaxGrenadesPerType
         );
     }
     private void DrawScoreBoard()

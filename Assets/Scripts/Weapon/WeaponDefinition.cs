@@ -16,6 +16,7 @@ public class WeaponDefinition
     public float RecoilTime;
     public GameObject Prefab;
     public AudioClip ShotSound;
+    public Texture2D Icon;
 
     public ushort MaxAmmoOutOfMagazine
     {
