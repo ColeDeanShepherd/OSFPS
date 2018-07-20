@@ -1017,9 +1017,23 @@ public class Client
         if (playerState.Id == PlayerId)
         {
             AttachCameraToPlayer(playerState.Id);
+            HidePlayerModelFromCamera(playerObject);
         }
 
         return playerObject;
+    }
+    private void HidePlayerModelFromCamera(GameObject playerObject)
+    {
+        var modelContainer = playerObject.FindDescendant("Model");
+
+        foreach (var descendantTransform in modelContainer.transform.ThisAndDescendantsDepthFirst())
+        {
+            var meshRenderer = descendantTransform.GetComponent<MeshRenderer>();
+            if (meshRenderer != null)
+            {
+                meshRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.ShadowsOnly;
+            }
+        }
     }
 
     #region Message Handlers
