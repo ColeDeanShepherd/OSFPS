@@ -110,6 +110,8 @@ public class WeaponObjectSystem : ComponentSystem
     {
         var deltaTime = Time.deltaTime;
 
+        ClosestWeaponInfoByPlayerId.Clear();
+
         foreach (var entity in GetEntities<Data>())
         {
             UpdatePlayerClosestWeaponInfo(entity.WeaponComponent);
