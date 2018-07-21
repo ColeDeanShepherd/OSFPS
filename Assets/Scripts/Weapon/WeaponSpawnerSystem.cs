@@ -79,6 +79,8 @@ public class WeaponSpawnerSystem : ComponentSystem
 
     private void ServerOnUpdate(Server server)
     {
+        var spawnersReadyToSpawn = new List<WeaponSpawnerState>();
+
         foreach (var entity in GetEntities<Data>())
         {
             var weaponSpawner = entity.WeaponSpawnerComponent.State;
@@ -91,9 +93,14 @@ public class WeaponSpawnerSystem : ComponentSystem
 
             if (weaponSpawner.TimeUntilNextSpawn <= 0)
             {
-                ServerSpawnWeapon(server, weaponSpawner);
-                weaponSpawner.TimeUntilNextSpawn = null;
+                spawnersReadyToSpawn.Add(weaponSpawner);
             }
+        }
+
+        foreach (var weaponSpawner in spawnersReadyToSpawn)
+        {
+            ServerSpawnWeapon(server, weaponSpawner);
+            weaponSpawner.TimeUntilNextSpawn = null;
         }
     }
 }

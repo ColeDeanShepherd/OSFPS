@@ -75,6 +75,8 @@ public class GrenadeSpawnerSystem : ComponentSystem
 
     private void ServerOnUpdate(Server server)
     {
+        var spawnersReadyToSpawn = new List<GrenadeSpawnerState>();
+
         foreach (var entity in GetEntities<Data>())
         {
             var grenadeSpawner = entity.GrenadeSpawnerComponent.State;
@@ -87,9 +89,14 @@ public class GrenadeSpawnerSystem : ComponentSystem
 
             if (grenadeSpawner.TimeUntilNextSpawn <= 0)
             {
-                ServerSpawnGrenade(server, grenadeSpawner);
-                grenadeSpawner.TimeUntilNextSpawn = null;
+                spawnersReadyToSpawn.Add(grenadeSpawner);
             }
+        }
+
+        foreach (var grenadeSpawner in spawnersReadyToSpawn)
+        {
+            ServerSpawnGrenade(server, grenadeSpawner);
+            grenadeSpawner.TimeUntilNextSpawn = null;
         }
     }
 }

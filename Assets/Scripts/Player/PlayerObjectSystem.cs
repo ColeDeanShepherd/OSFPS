@@ -150,8 +150,7 @@ public class PlayerObjectSystem : ComponentSystem
                 ServerPlayerDropGrenades(server, playerObjectComponent, i);
             }
 
-            // Destroy the player.
-            Object.Destroy(playerObjectComponent.gameObject);
+            // The player object will be destroyed later by the RemoveDeadPlayerSystem.
             playerState.RespawnTimeLeft = OsFps.RespawnTime;
 
             // Update scores
@@ -305,7 +304,7 @@ public class PlayerObjectSystem : ComponentSystem
         if ((indexOfFirstSnapshotBeforeRewoundTime < 0) && (indexOfFirstSnapshotAfterRewoundTime < 0))
         {
             var playerId = playerObjectComponent.State.Id;
-            OsFps.Logger.LogWarning($"Could not find any snapshot to rewind to for player {playerId}.");
+            OsFps.Logger.LogWarning($"Could not find any snapshot to rewind to for player {playerId}. This is expected when joining a server.");
             return GetLagCompensationSnapshot(playerObjectComponent, Time.realtimeSinceStartup);
         }
 

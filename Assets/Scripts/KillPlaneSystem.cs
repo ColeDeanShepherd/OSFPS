@@ -1,4 +1,5 @@
-﻿using Unity.Entities;
+﻿using System.Collections.Generic;
+using Unity.Entities;
 using UnityEngine;
 
 public class KillPlaneSystem : ComponentSystem
@@ -19,6 +20,9 @@ public class KillPlaneSystem : ComponentSystem
 
     private void ServerOnUpdate(Server server)
     {
+        var gameObjectsToDestroy = new List<GameObject>();
+        var playerObjectComponentsToDestroy = new List<PlayerObjectComponent>();
+
         foreach (var entity in GetEntities<Data>())
         {
             if (entity.Transform.position.y <= OsFps.KillPlaneY)
@@ -27,13 +31,23 @@ public class KillPlaneSystem : ComponentSystem
 
                 if (playerObjectComponent == null)
                 {
-                    Object.Destroy(entity.Transform.gameObject);
+                    gameObjectsToDestroy.Add(entity.Transform.gameObject);
                 }
                 else
                 {
-                    PlayerObjectSystem.Instance.ServerDamagePlayer(server, playerObjectComponent, 9999, null);
+                    playerObjectComponentsToDestroy.Add(playerObjectComponent);
                 }
             }
+        }
+
+        foreach (var gameObjectToDestroy in gameObjectsToDestroy)
+        {
+            Object.Destroy(gameObjectToDestroy);
+        }
+
+        foreach (var playerObjectComponentToDestroy in playerObjectComponentsToDestroy)
+        {
+            PlayerObjectSystem.Instance.ServerDamagePlayer(server, playerObjectComponentToDestroy, 9999, null);
         }
     }
 }
