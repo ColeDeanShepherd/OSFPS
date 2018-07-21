@@ -682,10 +682,11 @@ public class Client
 
             equippedWeaponComponent = weaponObject.AddComponent<EquippedWeaponComponent>();
             equippedWeaponComponent.State = playerObjectState.CurrentWeapon;
-            equippedWeaponComponent.State.TimeSinceLastShot = equippedWeaponComponent.State.Definition.ShotInterval;
+            equippedWeaponComponent.State.TimeSinceLastShot = Mathf.Max(
+                equippedWeaponComponent.State.Definition.ShotInterval,
+                equippedWeaponComponent.State.Definition.RecoilTime
+            );
             equippedWeaponComponent.Animator = animator;
-
-            playerObjectState.CurrentWeapon.TimeSinceLastShot = playerObjectState.CurrentWeapon.Definition.ShotInterval;
         }
 
         var weaponCount = 0;
