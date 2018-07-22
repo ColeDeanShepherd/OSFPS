@@ -750,7 +750,10 @@ public class PlayerObjectSystem : ComponentSystem
             playerObjectState.ReloadTimeLeft -= Time.deltaTime;
         }
 
-        playerObjectState.CurrentWeapon.TimeSinceLastShot += Time.deltaTime;
+        if (playerObjectState.CurrentWeapon != null)
+        {
+            playerObjectState.CurrentWeapon.TimeSinceLastShot += Time.deltaTime;
+        }
 
         if (equippedWeaponComponent != null)
         {

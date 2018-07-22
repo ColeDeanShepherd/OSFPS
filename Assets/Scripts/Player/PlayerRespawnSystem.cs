@@ -1,4 +1,5 @@
-﻿using Unity.Entities;
+﻿using System.Collections.Generic;
+using Unity.Entities;
 using UnityEngine;
 
 public class PlayerRespawnSystem : ComponentSystem
@@ -25,6 +26,8 @@ public class PlayerRespawnSystem : ComponentSystem
 
     private void ServerOnUpdate(Server server)
     {
+        var playersToSpawnStates = new List<PlayerState>();
+
         foreach (var entity in GetEntities<Data>())
         {
             var playerState = entity.PlayerComponent.State;
@@ -34,9 +37,14 @@ public class PlayerRespawnSystem : ComponentSystem
 
                 if (playerState.RespawnTimeLeft <= 0)
                 {
-                    ServerSpawnPlayer(server, playerState.Id);
+                    playersToSpawnStates.Add(playerState);
                 }
             }
+        }
+
+        foreach (var playersToSpawnState in playersToSpawnStates)
+        {
+            ServerSpawnPlayer(server, playersToSpawnState.Id);
         }
     }
 
