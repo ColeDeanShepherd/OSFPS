@@ -1,24 +1,18 @@
 # To-Do
 
-#### Current
+#### M.V.P.
 
-- Animate switching weapons.
-
-
-
-- Improve client prediction.
-  - Track timestamp on server, sync. with client, send with game states
-
-
-
-- Implement delta game state sending.
-  - handle player disconnects
-
-
+- Reposition weapons relative to player.
+- Fix exceptions when playing with multiple players.
+- Fix bugs with hit detection.
+- Show reload & equip animations on other players.
+- Add placeholder texture to level.
+- Color weapons differently
+- Make Sniper bullet trail visible to shooter without moving.
+- Handle player disconnects with delta game state sending
+  - Get rid of unneeded cached states
 
 - Fix destroy errors on close.
-
-
 
 - Add a way to close a server without closing the game.
 
