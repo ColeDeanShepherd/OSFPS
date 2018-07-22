@@ -2,16 +2,14 @@
 
 #### M.V.P.
 
-- Add placeholder texture to level.
+- Handle player disconnects with delta game state sending
+  - Get rid of unneeded cached states
+- Make Sniper bullet trail visible to shooter without moving.
 - 
 - Reposition weapons relative to player.
 - Fix bugs with hit detection.
 - Show reload & equip animations on other players.
-- 
 - Color weapons differently
-- Make Sniper bullet trail visible to shooter without moving.
-- Handle player disconnects with delta game state sending
-  - Get rid of unneeded cached states
 - Fix destroy errors on close.
 - Add a way to close a server without closing the game.
 - Make game look the same in the editor and the standalone player.
