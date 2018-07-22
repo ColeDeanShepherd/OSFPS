@@ -58,17 +58,23 @@ public class WeaponObjectSystem : ComponentSystem
     public GameObject CreateSniperBulletTrail(Ray ray)
     {
         var sniperBulletTrail = new GameObject("sniperBulletTrail");
+        sniperBulletTrail.transform.position = ray.origin;
+        sniperBulletTrail.transform.LookAt(ray.origin + ray.direction);
+
         var lineRenderer = sniperBulletTrail.AddComponent<LineRenderer>();
+        lineRenderer.useWorldSpace = false;
         lineRenderer.SetPositions(new[]
         {
-            ray.origin,
-            ray.origin + (2000 * ray.direction)
+            Vector3.zero,
+            2000 * Vector3.forward
         });
         lineRenderer.material = OsFps.Instance.SniperBulletTrailMaterial;
 
         var lineWidth = 0.1f;
         lineRenderer.startWidth = lineWidth;
         lineRenderer.endWidth = lineWidth;
+
+        sniperBulletTrail.AddComponent<SniperRifleBulletTrailComponent>();
 
         Object.Destroy(sniperBulletTrail, 1);
 

@@ -2,19 +2,19 @@
 
 #### M.V.P.
 
-- Make Sniper bullet trail visible to shooter without moving.
+- Fix server errors after player quits.
+- Fix grenades going through objects.
+- Make game look the same in the editor and the standalone player.
 - 
 - Reposition weapons relative to player.
 - Fix bugs with hit detection.
 - Show reload & equip animations on other players.
-- Color weapons differently
 - Fix destroy errors on close.
 - Add a way to close a server without closing the game.
-- Make game look the same in the editor and the standalone player.
-- Fix grenades going through objects.
 - Check if spawn point is blocked before spawning.
 - Show other players' pings.
 - Handle message send errors when disconnecting gracefully?
+- Fix bug with picking up weapons not always working based on distance. (Server de-sync.?)
 
 #### High-Priority
 
