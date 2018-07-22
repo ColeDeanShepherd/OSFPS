@@ -61,7 +61,8 @@ public class PlayerRespawnSystem : ComponentSystem
             TimeUntilCanThrowGrenade = 0,
             CurrentGrenadeSlotIndex = 0,
             GrenadeSlots = new GrenadeSlot[OsFps.MaxGrenadeSlotCount],
-            ReloadTimeLeft = -1
+            ReloadTimeLeft = -1,
+            EquipWeaponTimeLeft = -1
         };
         var firstWeaponDefinition = WeaponObjectSystem.Instance.GetWeaponDefinitionByType(WeaponType.Pistol);
         playerObjectState.Weapons[0] = new EquippedWeaponState

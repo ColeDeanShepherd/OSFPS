@@ -44,6 +44,8 @@ public class OsFps : MonoBehaviour
 
     public const float MaxWeaponPickUpDistance = 0.75f;
 
+    public const float EquipWeaponTime = 0.5f;
+
     public const int ShotgunBulletsPerShot = 15;
     public const float ShotgunShotConeAngleInDegrees = 15;
     public const float SmgShotConeAngleInDegrees = 5;

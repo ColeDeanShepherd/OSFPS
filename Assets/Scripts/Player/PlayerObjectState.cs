@@ -22,6 +22,7 @@ public class PlayerObjectState
     public EquippedWeaponState[] Weapons = new EquippedWeaponState[OsFps.MaxWeaponCount];
     public byte CurrentWeaponIndex;
     public float ReloadTimeLeft;
+    public float EquipWeaponTimeLeft;
 
     public float TimeUntilCanThrowGrenade;
     public byte CurrentGrenadeSlotIndex;
@@ -50,6 +51,7 @@ public class PlayerObjectState
                 IsAlive &&
                 (CurrentWeapon != null) &&
                 (CurrentWeapon.BulletsLeftInMagazine > 0) &&
+                !IsEquippingWeapon &&
                 !IsReloading &&
                 (CurrentWeapon.TimeUntilCanShoot <= 0);
         }
@@ -88,6 +90,13 @@ public class PlayerObjectState
         get
         {
             return ReloadTimeLeft >= 0;
+        }
+    }
+    public bool IsEquippingWeapon
+    {
+        get
+        {
+            return EquipWeaponTimeLeft >= 0;
         }
     }
     public bool HasEmptyWeapon

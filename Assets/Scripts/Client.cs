@@ -680,6 +680,8 @@ public class Client
             Object.DestroyImmediate(weaponComponent.Collider);
             Object.DestroyImmediate(weaponComponent);
 
+            playerObjectState.EquipWeaponTimeLeft = OsFps.EquipWeaponTime;
+
             equippedWeaponComponent = weaponObject.AddComponent<EquippedWeaponComponent>();
             equippedWeaponComponent.State = playerObjectState.CurrentWeapon;
             equippedWeaponComponent.State.TimeSinceLastShot = Mathf.Max(
@@ -687,6 +689,8 @@ public class Client
                 equippedWeaponComponent.State.Definition.RecoilTime
             );
             equippedWeaponComponent.Animator = animator;
+
+            animator.Play("Equip");
         }
 
         var weaponCount = 0;

@@ -56,6 +56,7 @@ public class PlayerObjectComponent : MonoBehaviour
             }
 
             updatedPlayerObjectState.ReloadTimeLeft = State.ReloadTimeLeft;
+            updatedPlayerObjectState.EquipWeaponTimeLeft = State.EquipWeaponTimeLeft;
             updatedPlayerObjectState.TimeUntilCanThrowGrenade = State.TimeUntilCanThrowGrenade;
             updatedPlayerObjectState.Input = State.Input;
         }
@@ -97,26 +98,7 @@ public class PlayerObjectComponent : MonoBehaviour
         }
 
         PlayerObjectSystem.Instance.ApplyLookDirAnglesToPlayer(playerObjectComponent, updatedPlayerObjectState.LookDirAngles);
-
-        // Update weapon if reloading.
-        var equippedWeaponComponent = client.GetEquippedWeaponComponent(playerObjectComponent);
-        if ((equippedWeaponComponent != null) && updatedPlayerObjectState.IsReloading)
-        {
-            var percentDoneReloading = updatedPlayerObjectState.ReloadTimeLeft / updatedPlayerObjectState.CurrentWeapon.Definition.ReloadTime;
-            equippedWeaponComponent.Animator.SetFloat("Normalized Time", percentDoneReloading);
-        }
-
-        // Update weapon recoil.
-        if ((equippedWeaponComponent != null) && (updatedPlayerObjectState.CurrentWeapon != null) && !updatedPlayerObjectState.IsReloading)
-        {
-            var percentDoneWithRecoil = Mathf.Min(
-                updatedPlayerObjectState.CurrentWeapon.TimeSinceLastShot /
-                updatedPlayerObjectState.CurrentWeapon.Definition.RecoilTime,
-                1
-            );
-            equippedWeaponComponent.Animator.SetFloat("Normalized Time", percentDoneWithRecoil);
-        }
-
+        
         // Update shields.
         var shieldAlpha = 1.0f - (playerObjectComponent.State.Shield / OsFps.MaxPlayerShield);
         PlayerObjectSystem.Instance.SetShieldAlpha(playerObjectComponent, shieldAlpha);

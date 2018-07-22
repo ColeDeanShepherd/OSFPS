@@ -741,24 +741,31 @@ public class PlayerObjectSystem : ComponentSystem
         var client = OsFps.Instance?.Client;
         var equippedWeaponComponent = client?.GetEquippedWeaponComponent(playerObjectComponent);
 
-        // reload
-        if (playerObjectState.IsReloading)
+        if (playerObjectState.IsEquippingWeapon)
+        {
+            playerObjectState.EquipWeaponTimeLeft -= Time.deltaTime;
+        }
+        else if (playerObjectState.IsReloading)
         {
             playerObjectState.ReloadTimeLeft -= Time.deltaTime;
-
-            if (equippedWeaponComponent != null)
-            {
-                var percentDoneReloading = playerObjectState.ReloadTimeLeft / playerObjectState.CurrentWeapon.Definition.ReloadTime;
-                equippedWeaponComponent.Animator.SetFloat("Normalized Time", percentDoneReloading);
-            }
         }
 
-        // shot interval
-        if (playerObjectState.CurrentWeapon != null)
-        {
-            playerObjectState.CurrentWeapon.TimeSinceLastShot += Time.deltaTime;
+        playerObjectState.CurrentWeapon.TimeSinceLastShot += Time.deltaTime;
 
-            if ((equippedWeaponComponent != null) && !playerObjectState.IsReloading)
+        if (equippedWeaponComponent != null)
+        {
+            if (playerObjectState.IsEquippingWeapon)
+            {
+                var percentDoneEquipping = (OsFps.EquipWeaponTime - playerObjectState.EquipWeaponTimeLeft) / OsFps.EquipWeaponTime;
+                equippedWeaponComponent.Animator.SetFloat("Normalized Time", percentDoneEquipping);
+            }
+            else if (playerObjectState.IsReloading)
+            {
+                var weaponReloadTime = playerObjectState.CurrentWeapon.Definition.ReloadTime;
+                var percentDoneReloading = (weaponReloadTime - playerObjectState.ReloadTimeLeft) / weaponReloadTime;
+                equippedWeaponComponent.Animator.SetFloat("Normalized Time", percentDoneReloading);
+            }
+            else
             {
                 var percentDoneWithRecoil = Mathf.Min(
                     playerObjectState.CurrentWeapon.TimeSinceLastShot /
