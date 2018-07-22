@@ -2,8 +2,6 @@
 
 #### M.V.P.
 
-- Handle player disconnects with delta game state sending
-  - Get rid of unneeded cached states
 - Make Sniper bullet trail visible to shooter without moving.
 - 
 - Reposition weapons relative to player.

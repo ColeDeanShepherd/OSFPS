@@ -74,7 +74,6 @@ public class Server
     public void OnClientDisconnected(int connectionId)
     {
         var playerId = playerIdsByConnectionId[connectionId];
-        playerIdsByConnectionId.Remove(connectionId);
 
         var playerObject = PlayerObjectSystem.Instance.FindPlayerObject(playerId);
         if (playerObject != null)
@@ -91,6 +90,10 @@ public class Server
             playerId = (uint?)null,
             message = $"{playerComponent.State.Name} left."
         });
+
+        networkedGameStateCache.OnPlayerDisconnected(playerId);
+
+        playerIdsByConnectionId.Remove(connectionId);
     }
     
     public int reliableSequencedChannelId;
@@ -115,8 +118,7 @@ public class Server
     }
 
     private const int maxCachedSentGameStates = 100;
-    private List<NetworkedGameState> cachedSentGameStates = new List<NetworkedGameState>();
-    private Dictionary<uint, uint> _latestAcknowledgedGameStateSequenceNumberByPlayerId = new Dictionary<uint, uint>();
+    private NetworkedGameStateCache networkedGameStateCache = new NetworkedGameStateCache(maxCachedSentGameStates);
     private void SendGameState()
     {
         // Get the current game state.
@@ -125,28 +127,12 @@ public class Server
         // Send the game state deltas.
         foreach (var playerId in playerIdsByConnectionId.Values)
         {
-            var oldGameState = GetNetworkedGameStateToDiffAgainst(playerId);
+            var oldGameState = networkedGameStateCache.GetNetworkedGameStateToDiffAgainst(playerId);
             SendGameStateDiff(playerId, currentGameState, oldGameState);
         }
-        
-        // Cache the game state for future deltas.
-        cachedSentGameStates.Add(currentGameState);
-        if (cachedSentGameStates.Count > maxCachedSentGameStates)
-        {
-            cachedSentGameStates.RemoveAt(0);
-        }
-    }
-    private NetworkedGameState GetNetworkedGameStateToDiffAgainst(uint playerId)
-    {
-        var playersLatestAcknowledgedGameStateSequenceNumber =
-            _latestAcknowledgedGameStateSequenceNumberByPlayerId.GetValueOrDefault(playerId);
-        var indexOfPlayersLatestAcknowledgedGameState = cachedSentGameStates
-            .FindIndex(ngs => ngs.SequenceNumber == playersLatestAcknowledgedGameStateSequenceNumber);
-        var playersLatestAcknowledgedGameState = (indexOfPlayersLatestAcknowledgedGameState >= 0)
-            ? cachedSentGameStates[indexOfPlayersLatestAcknowledgedGameState]
-            : NetLib.GetEmptyNetworkedGameStateForDiffing();
 
-        return playersLatestAcknowledgedGameState;
+        // Cache the game state for future deltas.
+        networkedGameStateCache.AddGameState(currentGameState);
     }
 
     private void SendGameStateDiff(uint playerId, NetworkedGameState gameState, NetworkedGameState oldGameState)
@@ -288,13 +274,7 @@ public class Server
     [Rpc(ExecuteOn = NetworkLibrary.NetworkPeerType.Server)]
     public void ServerOnReceiveClientGameStateAck(uint playerId, uint gameStateSequenceNumber)
     {
-        var playersLatestAcknowledgedSequenceNumber =
-            _latestAcknowledgedGameStateSequenceNumberByPlayerId.GetValueOrDefault(playerId);
-
-        if (gameStateSequenceNumber > playersLatestAcknowledgedSequenceNumber)
-        {
-            _latestAcknowledgedGameStateSequenceNumberByPlayerId[playerId] = gameStateSequenceNumber;
-        }
+        networkedGameStateCache.AcknowledgeGameStateForPlayer(playerId, gameStateSequenceNumber);
     }
 
     [Rpc(ExecuteOn = NetworkLibrary.NetworkPeerType.Server)]
