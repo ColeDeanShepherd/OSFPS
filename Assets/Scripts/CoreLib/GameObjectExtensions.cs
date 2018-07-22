@@ -106,4 +106,16 @@ public static class GameObjectExtensions
             }
         }
     }
+
+    public static void EnsurePlayingInBaseLayerAndSetNormalizedTime(Animator animator, string stateName, float normalizedTime)
+    {
+        if (animator.GetCurrentAnimatorStateInfo(0).fullPathHash == Animator.StringToHash("Base Layer." + stateName))
+        {
+            animator.SetFloat("Normalized Time", normalizedTime);
+        }
+        else
+        {
+            animator.Play(stateName, -1, normalizedTime);
+        }
+    }
 }

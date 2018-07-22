@@ -2,7 +2,6 @@
 
 #### M.V.P.
 
-- Show reload & equip animations on other players.
 - Reposition weapons relative to player.
 
 
@@ -21,6 +20,10 @@
 - Add a way to close a server without closing the game.
 
 - Handle message send errors when disconnecting gracefully?
+
+  
+
+- Fix jerky movement and animation...
 
 #### High-Priority
 

@@ -760,13 +760,17 @@ public class PlayerObjectSystem : ComponentSystem
             if (playerObjectState.IsEquippingWeapon)
             {
                 var percentDoneEquipping = (OsFps.EquipWeaponTime - playerObjectState.EquipWeaponTimeLeft) / OsFps.EquipWeaponTime;
-                equippedWeaponComponent.Animator.SetFloat("Normalized Time", percentDoneEquipping);
+                GameObjectExtensions.EnsurePlayingInBaseLayerAndSetNormalizedTime(
+                    equippedWeaponComponent.Animator, "Equip", percentDoneEquipping
+                );
             }
             else if (playerObjectState.IsReloading)
             {
                 var weaponReloadTime = playerObjectState.CurrentWeapon.Definition.ReloadTime;
                 var percentDoneReloading = (weaponReloadTime - playerObjectState.ReloadTimeLeft) / weaponReloadTime;
-                equippedWeaponComponent.Animator.SetFloat("Normalized Time", percentDoneReloading);
+                GameObjectExtensions.EnsurePlayingInBaseLayerAndSetNormalizedTime(
+                    equippedWeaponComponent.Animator, "Reload", percentDoneReloading
+                );
             }
             else
             {
@@ -775,7 +779,9 @@ public class PlayerObjectSystem : ComponentSystem
                     playerObjectState.CurrentWeapon.Definition.RecoilTime,
                     1
                 );
-                equippedWeaponComponent.Animator.SetFloat("Normalized Time", percentDoneWithRecoil);
+                GameObjectExtensions.EnsurePlayingInBaseLayerAndSetNormalizedTime(
+                    equippedWeaponComponent.Animator, "Recoil", percentDoneWithRecoil
+                );
             }
         }
 
