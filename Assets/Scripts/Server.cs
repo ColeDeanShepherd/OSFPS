@@ -82,18 +82,19 @@ public class Server
         }
 
         var playerComponent = PlayerObjectSystem.Instance.FindPlayerComponent(playerId);
+        var playerName = playerComponent.State.Name;
         Object.Destroy(playerComponent.gameObject);
+
+        networkedGameStateCache.OnPlayerDisconnected(playerId);
+
+        playerIdsByConnectionId.Remove(connectionId);
 
         // Send out a chat message.
         ServerPeer.CallRpcOnAllClients("ClientOnReceiveChatMessage", reliableSequencedChannelId, new
         {
             playerId = (uint?)null,
-            message = $"{playerComponent.State.Name} left."
+            message = $"{playerName} left."
         });
-
-        networkedGameStateCache.OnPlayerDisconnected(playerId);
-
-        playerIdsByConnectionId.Remove(connectionId);
     }
     
     public int reliableSequencedChannelId;

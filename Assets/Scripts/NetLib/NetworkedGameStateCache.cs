@@ -53,12 +53,19 @@ namespace NetworkLibrary
 
         private void RemoveUnneededGameStates()
         {
-            var minLatestAcknowledgedGameStateSequenceNumber = latestAcknowledgedGameStateSequenceNumberByPlayerId
-                .Select(kvp => kvp.Value)
-                .Min();
-            cachedSentGameStates = cachedSentGameStates
-                .Where(ngs => ngs.SequenceNumber >= minLatestAcknowledgedGameStateSequenceNumber)
-                .ToList();
+            if (latestAcknowledgedGameStateSequenceNumberByPlayerId.Count == 0)
+            {
+                cachedSentGameStates.Clear();
+            }
+            else
+            {
+                var minLatestAcknowledgedGameStateSequenceNumber = latestAcknowledgedGameStateSequenceNumberByPlayerId
+                    .Select(kvp => kvp.Value)
+                    .Min();
+                cachedSentGameStates = cachedSentGameStates
+                    .Where(ngs => ngs.SequenceNumber >= minLatestAcknowledgedGameStateSequenceNumber)
+                    .ToList();
+            }
         }
     }
 }

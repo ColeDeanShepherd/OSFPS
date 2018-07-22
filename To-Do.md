@@ -2,7 +2,6 @@
 
 #### M.V.P.
 
-- Fix server errors after player quits.
 - Fix grenades going through objects.
 - Make game look the same in the editor and the standalone player.
 - 
