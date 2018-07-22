@@ -100,7 +100,7 @@ public class Client
                 {
                     if (playerObjectComponent != null)
                     {
-                        SwitchWeapons(playerObjectComponent, 0);
+                        RequestSwitchWeapons(playerObjectComponent, 0);
                     }
                 }
 
@@ -108,7 +108,7 @@ public class Client
                 {
                     if (playerObjectComponent != null)
                     {
-                        SwitchWeapons(playerObjectComponent, 1);
+                        RequestSwitchWeapons(playerObjectComponent, 1);
                     }
                 }
 
@@ -121,7 +121,7 @@ public class Client
                             playerObjectComponent.State.CurrentWeaponIndex + 1,
                             0, playerObjectComponent.State.Weapons.Length - 1
                         );
-                        SwitchWeapons(
+                        RequestSwitchWeapons(
                             playerObjectComponent,
                             newWeaponIndex
                         );
@@ -135,7 +135,7 @@ public class Client
                             playerObjectComponent.State.CurrentWeaponIndex - 1,
                             0, playerObjectComponent.State.Weapons.Length - 1
                         );
-                        SwitchWeapons(
+                        RequestSwitchWeapons(
                             playerObjectComponent,
                             newWeaponIndex
                         );
@@ -832,7 +832,7 @@ public class Client
         });
     }
 
-    public void SwitchWeapons(PlayerObjectComponent playerObjectComponent, int weaponIndex)
+    public void RequestSwitchWeapons(PlayerObjectComponent playerObjectComponent, int weaponIndex)
     {
         Assert.IsNotNull(playerObjectComponent);
 
@@ -1226,7 +1226,7 @@ public class Client
         var playerObjectComponent = PlayerObjectSystem.Instance.FindPlayerObjectComponent(playerId);
         if (playerObjectComponent == null) return;
 
-        SwitchWeapons(playerObjectComponent, weaponIndex);
+        VisualEquipWeapon(playerObjectComponent.State);
     }
     #endregion
 
