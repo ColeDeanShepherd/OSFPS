@@ -22,7 +22,7 @@ namespace NetworkLibrary
                 return serverConnectionId.HasValue;
             }
         }
-        public float? RoundTripTime
+        public int? RoundTripTimeInMilliseconds
         {
             get
             {
@@ -32,7 +32,17 @@ namespace NetworkLibrary
                 var rttInMs = NetworkTransport.GetCurrentRTT(socketId.Value, serverConnectionId.Value, out networkErrorAsByte);
 
                 var networkError = (NetworkError)networkErrorAsByte;
-                return (networkError == NetworkError.Ok) ? ((float)rttInMs / 1000) : (float?)null;
+                return (networkError == NetworkError.Ok) ? rttInMs : (int?)null;
+            }
+        }
+        public float? RoundTripTimeInSeconds
+        {
+            get
+            {
+                var rttInMs = RoundTripTimeInMilliseconds;
+                return (rttInMs != null)
+                    ? ((float)rttInMs.Value / 1000)
+                    : (float?)null;
             }
         }
 

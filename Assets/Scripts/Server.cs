@@ -205,7 +205,7 @@ public class Server
         return Physics.CheckSphere(spawnPoint + Vector3.up, sphereRadius);
     }
 
-    private int? GetConnectionIdByPlayerId(uint playerId)
+    public int? GetConnectionIdByPlayerId(uint playerId)
     {
         foreach (var connectionIdPlayerIdPair in playerIdsByConnectionId)
         {
@@ -314,7 +314,7 @@ public class Server
         // TODO: Make sure the player ID is correct.
         var playerObjectComponent = PlayerObjectSystem.Instance.FindPlayerObjectComponent(playerId);
         var connectionId = GetConnectionIdByPlayerId(playerId);
-        var secondsToRewind = 50 * (ServerPeer.GetRoundTripTimeToClient(connectionId.Value) ?? 0);
+        var secondsToRewind = 50 * (ServerPeer.GetRoundTripTimeToClientInSeconds(connectionId.Value) ?? 0);
         PlayerObjectSystem.Instance.ServerShoot(this, playerObjectComponent, shotRay, secondsToRewind);
 
         ServerPeer.CallRpcOnAllClientsExcept("ClientOnTriggerPulled", connectionId.Value, reliableSequencedChannelId, new

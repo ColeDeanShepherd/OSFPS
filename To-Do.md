@@ -2,10 +2,6 @@
 
 #### M.V.P.
 
-- Show other players' pings.
-
-
-
 - Fix bugs with hit detection. (DO THEY EVEN EXIST???)
 
 - Fix bug with picking up weapons not always working based on distance. (Server de-sync.?)

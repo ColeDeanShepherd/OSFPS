@@ -65,7 +65,7 @@ public class WeaponComponent : MonoBehaviour
             newWeaponObjectState.RigidBodyState,
             State.RigidBodyState,
             Rigidbody,
-            OsFps.Instance.Client.ClientPeer.RoundTripTime ?? 0
+            OsFps.Instance.Client.ClientPeer.RoundTripTimeInSeconds ?? 0
         );
 
         State = newWeaponObjectState;

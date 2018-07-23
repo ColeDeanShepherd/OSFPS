@@ -508,11 +508,8 @@ public class Client
         foreach (var playerComponent in playerComponents)
         {
             var playerState = playerComponent.State;
-            var pingInSeconds = (playerState.Id == PlayerId) ? ClientPeer.RoundTripTime : null;
-            var pingInMilliseconds = (pingInSeconds != null) ? (1000 * pingInSeconds) : null;
-            var pingString = (pingInMilliseconds != null)
-                ? Mathf.RoundToInt(pingInMilliseconds.Value).ToString()
-                : "";
+            var pingInMilliseconds = playerState.RoundTripTimeInMilliseconds;
+            var pingString = pingInMilliseconds.ToString();
 
             GUI.Label(new Rect(idColumnX, position.y, playerIdColumnWidth, rowHeight), playerState.Name.ToString());
             GUI.Label(new Rect(pingColumnX, position.y, pingColumnWidth, rowHeight), pingString);

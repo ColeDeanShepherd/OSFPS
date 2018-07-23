@@ -97,7 +97,7 @@ namespace NetworkLibrary
             SendMessageToClient(clientConnectionId, channelId, messageBytes);
         }
 
-        public float? GetRoundTripTimeToClient(int clientConnectionId)
+        public int? GetRoundTripTimeToClientInMilliseconds(int clientConnectionId)
         {
             if (!socketId.HasValue) return null;
 
@@ -105,7 +105,14 @@ namespace NetworkLibrary
             var rttInMs = NetworkTransport.GetCurrentRTT(socketId.Value, clientConnectionId, out networkErrorAsByte);
 
             var networkError = (NetworkError)networkErrorAsByte;
-            return (networkError == NetworkError.Ok) ? ((float)rttInMs / 1000) : (float?)null;
+            return (networkError == NetworkError.Ok) ? rttInMs : (int?)null;
+        }
+        public float? GetRoundTripTimeToClientInSeconds(int clientConnectionId)
+        {
+            var rttInMs = GetRoundTripTimeToClientInMilliseconds(clientConnectionId);
+            return (rttInMs != null)
+                ? ((float)rttInMs.Value / 1000)
+                : (float?)null;
         }
 
         protected override void OnPeerConnected(int connectionId)

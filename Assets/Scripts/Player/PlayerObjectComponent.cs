@@ -43,7 +43,7 @@ public class PlayerObjectComponent : MonoBehaviour
         var updatedPlayerObjectState = (PlayerObjectState)newState;
         var client = OsFps.Instance.Client;
         var isPlayerMe = updatedPlayerObjectState.Id == client.PlayerId;
-        var roundTripTime = client.ClientPeer.RoundTripTime.Value;
+        var roundTripTime = client.ClientPeer.RoundTripTimeInSeconds.Value;
         var playerObjectComponent = this;
 
         // Update state.

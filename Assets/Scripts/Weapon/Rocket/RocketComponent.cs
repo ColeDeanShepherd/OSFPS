@@ -43,7 +43,7 @@ public class RocketComponent : MonoBehaviour
             newRocketState.RigidBodyState,
             State.RigidBodyState,
             Rigidbody,
-            OsFps.Instance.Client.ClientPeer.RoundTripTime ?? 0
+            OsFps.Instance.Client.ClientPeer.RoundTripTimeInSeconds ?? 0
         );
         
         State = newRocketState;
