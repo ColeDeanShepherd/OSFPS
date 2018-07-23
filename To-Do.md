@@ -2,7 +2,6 @@
 
 #### M.V.P.
 
-- Check if spawn point is blocked before spawning.
 - Show other players' pings.
 
 
@@ -19,10 +18,10 @@
 
   
 
-- Fix jerky movement and animation...
-
 #### High-Priority
 
+- Optimize network bandwidth
+  - Position/orientation delta thresholds?
 - Improve map.
 - Set is fire pressed to false when switching weapons.
 - Implement winning/losing, and game restarts.
