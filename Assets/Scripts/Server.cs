@@ -113,7 +113,13 @@ public class Server
         SendGameStatePeriodicFunction = new ThrottledAction(SendGameState, SendGameStateInterval);
 
         var camera = Object.Instantiate(OsFps.Instance.CameraPrefab);
-        camera.GetComponent<Camera>().cullingMask = 1 << 5;
+        var uiCullingMask = 1 << 5;
+        camera.GetComponent<Camera>().cullingMask = uiCullingMask;
+
+        var dedicatedServerScreenComponent = Object.Instantiate(
+            OsFps.Instance.DedicatedServerScreenPrefab, OsFps.Instance.CanvasObject.transform
+        ).GetComponent<DedicatedServerScreenComponent>();
+        OsFps.Instance.PushMenu(dedicatedServerScreenComponent);
 
         OnServerStarted?.Invoke();
     }

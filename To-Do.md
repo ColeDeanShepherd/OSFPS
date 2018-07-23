@@ -2,15 +2,15 @@
 
 #### M.V.P.
 
-- Fix bugs with hit detection. (DO THEY EVEN EXIST???)
+- Fix sticky grenade rubber banding.
 
-- Fix bug with picking up weapons not always working based on distance. (Server de-sync.?)
+- Add empty mag sound.
 
-  
+- Improve rocket launcher & sniper rifle sounds.
 
-- Add a way to close a server without closing the game.
+- Improve rocket exploding sound.
 
-- Handle message send errors when disconnecting gracefully?
+- Make sniper bullet trails last longer.
 
   
 
@@ -18,6 +18,7 @@
 
 - Optimize network bandwidth
   - Position/orientation delta thresholds?
+- Fix bug with picking up weapons not always working based on distance. (Server de-sync.?)
 - Improve map.
 - Set is fire pressed to false when switching weapons.
 - Implement winning/losing, and game restarts.
@@ -38,7 +39,7 @@
 #### Low-Priority
 
 - Fix destroy errors on close in editor.
-- Fix sticky grenade rubber banding.
+- Handle message send errors when disconnecting gracefully
 - Make game look the same in the editor and the standalone player.
 - Add listen servers.
   - Make sure systems aren't updated twice.

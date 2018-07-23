@@ -67,6 +67,8 @@ MonoBehaviour:
     type: 2}
   ConnectingScreenPrefab: {fileID: 1292784967840450, guid: 9f747fcf3ae8f4a4eb1e29f758f0a896,
     type: 2}
+  DedicatedServerScreenPrefab: {fileID: 1156668711543542, guid: a219b2808b590504c9cb975bc49a08d9,
+    type: 2}
   ChatBoxPrefab: {fileID: 1043985891111226, guid: a752e8ee14cd39e44a742b7733476a15,
     type: 2}
   HealthBarPrefab: {fileID: 1980398575313094, guid: 0393e9228f2eb9444bf7692b3765481c,

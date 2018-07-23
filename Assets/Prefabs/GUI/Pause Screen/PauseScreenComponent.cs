@@ -12,7 +12,7 @@ public class PauseScreenComponent : MonoBehaviour
     }
     public void OnLeaveServerClick()
     {
-        OsFps.Instance.Client.LeaveServer();
         OsFps.Instance.PopMenu();
+        OsFps.Instance.Client.LeaveServer();
     }
 }

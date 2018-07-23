@@ -185,6 +185,7 @@ public class OsFps : MonoBehaviour
     public GameObject OptionsScreenPrefab;
     public GameObject PauseScreenPrefab;
     public GameObject ConnectingScreenPrefab;
+    public GameObject DedicatedServerScreenPrefab;
     public GameObject ChatBoxPrefab;
     public GameObject HealthBarPrefab;
 
@@ -467,12 +468,12 @@ public class OsFps : MonoBehaviour
         }
     }
 
-    public void StopServer()
+    public void ShutdownServer()
     {
-        if (Server == null) return;
+        ShutdownNetworkPeers();
 
-        Server.Stop();
-        Server = null;
+        SceneManager.LoadScene(StartSceneName);
+        PushMenu(CreateMainMenu());
     }
 
     public string SettingsFilePath
@@ -530,7 +531,6 @@ public class OsFps : MonoBehaviour
         if (Server != null)
         {
             Server.Stop();
-
             Server = null;
         }
     }
