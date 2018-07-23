@@ -2,10 +2,6 @@
 
 #### M.V.P.
 
-- Reposition weapons relative to player.
-
-
-
 - Check if spawn point is blocked before spawning.
 - Show other players' pings.
 
