@@ -379,10 +379,11 @@ public class PlayerObjectSystem : ComponentSystem
         WeaponDefinition weaponDefinition, Ray shotRay
     )
     {
-        var raycastHits = Physics.RaycastAll(shotRay);
+        var possibleHit = OsFps.Instance.GetClosestValidRaycastHitForGunShot(shotRay, shootingPlayerObjectComponent);
 
-        foreach (var hit in raycastHits)
+        if (possibleHit != null)
         {
+            var hit = possibleHit.Value;
             var hitPlayerObject = hit.collider.gameObject.FindObjectOrAncestorWithTag(OsFps.PlayerTag);
 
             if ((hitPlayerObject != null) && (hitPlayerObject != shootingPlayerObjectComponent.gameObject))

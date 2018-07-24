@@ -2,38 +2,29 @@
 
 #### M.V.P.
 
-- Fix sticky grenade rubber banding.
-
-- Add empty mag sound.
-
-- Improve rocket launcher & sniper rifle sounds.
-
-- Improve rocket exploding sound.
-
-- Make sniper bullet trails last longer.
-
-  
+* Refactor
+* Optimize network bandwidth
+  - Position/orientation delta thresholds?
 
 #### High-Priority
 
-- Optimize network bandwidth
-  - Position/orientation delta thresholds?
+- Implement melee.
+- Implement assassinations.
 - Fix bug with picking up weapons not always working based on distance. (Server de-sync.?)
-- Improve map.
 - Set is fire pressed to false when switching weapons.
 - Implement winning/losing, and game restarts.
 - Improve networked shot intervals (send time shot)
+- Improve map.
+  - Do something about the bottom of the map
 - Add more weapons.
   - plasma pistol?
   - needler?
   - sword?
   - plasma rifle?
 - Add sanity checking for shot rays.
-- Implement melee.
 - Implement radar.
 - Implement crouching.
 - Implement assists.
-- Implement assassinations.
 - Implement FFA/teams.
 
 #### Low-Priority

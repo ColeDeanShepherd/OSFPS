@@ -761,21 +761,17 @@ public class Client
     }
     private void CreateBulletHole(PlayerObjectComponent playerObjectComponent, Ray shotRay)
     {
-        var raycastHits = Physics.RaycastAll(shotRay);
+        var possibleHit = OsFps.Instance.GetClosestValidRaycastHitForGunShot(shotRay, playerObjectComponent);
 
-        foreach (var raycastHit in raycastHits)
+        if (possibleHit != null)
         {
-            var hitPlayerObject = raycastHit.collider.gameObject.FindObjectOrAncestorWithTag(OsFps.PlayerTag);
-
-            if (hitPlayerObject != playerObjectComponent.gameObject)
-            {
-                var bulletHolePosition = raycastHit.point + (0.01f * raycastHit.normal);
-                var bulletHoleOrientation = Quaternion.LookRotation(-raycastHit.normal);
-                var bulletHole = GameObject.Instantiate(
-                    OsFps.Instance.BulletHolePrefab, bulletHolePosition, bulletHoleOrientation, raycastHit.transform
-                );
-                Object.Destroy(bulletHole, 5);
-            }
+            var raycastHit = possibleHit.Value;
+            var bulletHolePosition = raycastHit.point + (0.01f * raycastHit.normal);
+            var bulletHoleOrientation = Quaternion.LookRotation(-raycastHit.normal);
+            var bulletHole = Object.Instantiate(
+                OsFps.Instance.BulletHolePrefab, bulletHolePosition, bulletHoleOrientation, raycastHit.transform
+            );
+            Object.Destroy(bulletHole, 5);
         }
     }
     public void ShowGrenadeExplosion(Vector3 position, GrenadeType grenadeType)

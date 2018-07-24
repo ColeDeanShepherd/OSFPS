@@ -312,6 +312,20 @@ public class OsFps : MonoBehaviour
         }
     }
 
+    public RaycastHit? GetClosestValidRaycastHitForGunShot(Ray shotRay, PlayerObjectComponent shootingPlayerObjectComponent)
+    {
+        var raycastHits = Physics.RaycastAll(shotRay);
+        var closestValidRaycastHit = raycastHits
+            .OrderBy(raycastHit => raycastHit.distance)
+            .Select(raycastHit => (RaycastHit?)raycastHit)
+            .FirstOrDefault(raycastHit =>
+            {
+                var hitPlayerObject = raycastHit.Value.collider.gameObject.FindObjectOrAncestorWithTag(PlayerTag);
+                return (hitPlayerObject == null) || (hitPlayerObject != shootingPlayerObjectComponent.gameObject);
+            });
+        return closestValidRaycastHit;
+    }
+
     public static byte PlayerInputAsBits(PlayerInput playerInput)
     {
         byte bits = 0;
