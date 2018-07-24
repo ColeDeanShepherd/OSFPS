@@ -96,8 +96,10 @@ MonoBehaviour:
     type: 2}
   RocketExplosionPrefab: {fileID: 1612869826966746, guid: 5937abced5d654442aaea2c2c8a39f52,
     type: 2}
-  RocketExplosionSound: {fileID: 8300000, guid: 36c36706bd5241e4daa533e92f48e99f,
+  RocketExplosionSound: {fileID: 8300000, guid: 1e4bf3d361ab38445bbd9a95138ed29e,
     type: 3}
+  GunDryFireSound: {fileID: 8300000, guid: 0d3947d0bf0eebe409997b08473518ba, type: 3}
+  SniperZoomSound: {fileID: 8300000, guid: af9f4d12e1645bd499ffda8754a53ada, type: 3}
   FragGrenadeBounceSound: {fileID: 8300000, guid: a95fbd73dc9b8b24ca9fd08dac7075c6,
     type: 3}
   SniperBulletTrailMaterial: {fileID: 2100000, guid: 961ba09c2adff5e49a9f0d8778353eab,

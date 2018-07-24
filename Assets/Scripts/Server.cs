@@ -431,6 +431,7 @@ public class Server
         if (currentWeapon != null)
         {
             currentWeapon.TimeSinceLastShot = currentWeapon.Definition.ShotInterval;
+            playerObjectComponent.State.RecoilTimeLeft = currentWeapon.Definition.RecoilTime;
         }
     }
 

@@ -194,6 +194,10 @@ public class Client
                 if (Input.GetButtonDown("Zoom"))
                 {
                     ChangeZoomLevel();
+
+                    var equippedWeaponComponent = GetEquippedWeaponComponent(playerObjectComponent);
+                    var weaponAudioSource = equippedWeaponComponent.GetComponent<AudioSource>();
+                    weaponAudioSource?.PlayOneShot(OsFps.Instance.SniperZoomSound);
                 }
 
                 if (playerObjectComponent?.State.IsAlive ?? false)
@@ -678,13 +682,12 @@ public class Client
             Object.DestroyImmediate(weaponComponent);
 
             playerObjectState.EquipWeaponTimeLeft = OsFps.EquipWeaponTime;
+            playerObjectState.ReloadTimeLeft = -1;
+            playerObjectState.RecoilTimeLeft = -1;
 
             equippedWeaponComponent = weaponObject.AddComponent<EquippedWeaponComponent>();
             equippedWeaponComponent.State = playerObjectState.CurrentWeapon;
-            equippedWeaponComponent.State.TimeSinceLastShot = Mathf.Max(
-                equippedWeaponComponent.State.Definition.ShotInterval,
-                equippedWeaponComponent.State.Definition.RecoilTime
-            );
+            equippedWeaponComponent.State.TimeSinceLastShot = equippedWeaponComponent.State.Definition.ShotInterval;
             equippedWeaponComponent.Animator = animator;
 
             animator.Play("Equip");
@@ -706,6 +709,7 @@ public class Client
         });
 
         playerObjectComponent.State.ReloadTimeLeft = playerObjectComponent.State.CurrentWeapon.Definition.ReloadTime;
+        playerObjectComponent.State.RecoilTimeLeft = -1;
 
         var equippedWeaponComponent = GetEquippedWeaponComponent(playerObjectComponent);
 
@@ -798,17 +802,28 @@ public class Client
 
         Object.Destroy(explosionObject, OsFps.RocketExplosionDuration);
     }
-    public void PlayerShoot(PlayerObjectComponent playerObjectComponent)
+    public void PlayerTryToShoot(PlayerObjectComponent playerObjectComponent)
     {
-        ClientPeer.CallRpcOnServer("ServerOnPlayerTriggerPulled", reliableChannelId, new
+        if (playerObjectComponent.State.CanShoot)
         {
-            playerId = playerObjectComponent.State.Id,
-            shotRay = PlayerObjectSystem.Instance.GetShotRay(playerObjectComponent)
-        });
+            ClientPeer.CallRpcOnServer("ServerOnPlayerTriggerPulled", reliableChannelId, new
+            {
+                playerId = playerObjectComponent.State.Id,
+                shotRay = PlayerObjectSystem.Instance.GetShotRay(playerObjectComponent)
+            });
 
-        // predict the shot
-        var shotRay = PlayerObjectSystem.Instance.GetShotRay(playerObjectComponent);
-        ShowWeaponFireEffects(playerObjectComponent, shotRay);
+            // predict the shot
+            var shotRay = PlayerObjectSystem.Instance.GetShotRay(playerObjectComponent);
+            ShowWeaponFireEffects(playerObjectComponent, shotRay);
+
+            playerObjectComponent.State.RecoilTimeLeft = playerObjectComponent.State.CurrentWeapon.Definition.RecoilTime;
+        }
+        else
+        {
+            var equippedWeaponComponent = GetEquippedWeaponComponent(playerObjectComponent);
+            var weaponAudioSource = equippedWeaponComponent.GetComponent<AudioSource>();
+            weaponAudioSource?.PlayOneShot(OsFps.Instance.GunDryFireSound);
+        }
 
         playerObjectComponent.State.CurrentWeapon.TimeSinceLastShot = 0;
     }

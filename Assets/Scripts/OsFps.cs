@@ -54,7 +54,7 @@ public class OsFps : MonoBehaviour
     public const float RocketSpeed = 20;
     public const float RocketExplosionRadius = 4;
     public const float RocketExplosionForce = 1000;
-    public const float RocketExplosionDuration = 0.5f;
+    public const float RocketExplosionDuration = 2;
     public const float MaxRocketLifetime = 30;
 
     public const float MuzzleFlashDuration = 0.1f;
@@ -66,6 +66,8 @@ public class OsFps : MonoBehaviour
     public const float GrenadeThrowSpeed = 20;
     public const float GrenadeExplosionForce = 500;
     public const float GrenadeExplosionDuration = 0.5f;
+
+    public const float SniperRifleBulletTrailLifeTime = 3;
 
     public const float KillPlaneY = -100;
 
@@ -202,7 +204,9 @@ public class OsFps : MonoBehaviour
 
     public GameObject RocketPrefab;
     public GameObject RocketExplosionPrefab;
-    public AudioClip RocketExplosionSound;
+
+    public AudioClip GunDryFireSound;
+    public AudioClip SniperZoomSound;
 
     public AudioClip FragGrenadeBounceSound;
 

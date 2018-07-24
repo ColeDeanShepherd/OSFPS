@@ -23,6 +23,7 @@ public class PlayerObjectState
     public byte CurrentWeaponIndex;
     public float ReloadTimeLeft;
     public float EquipWeaponTimeLeft;
+    public float RecoilTimeLeft;
 
     public float TimeUntilCanThrowGrenade;
     public byte CurrentGrenadeSlotIndex;
@@ -43,17 +44,23 @@ public class PlayerObjectState
             return Weapons[CurrentWeaponIndex];
         }
     }
-    public bool CanShoot
+    public bool CanTryToFireWeapon
     {
         get
         {
             return
                 IsAlive &&
                 (CurrentWeapon != null) &&
-                (CurrentWeapon.BulletsLeftInMagazine > 0) &&
                 !IsEquippingWeapon &&
                 !IsReloading &&
                 (CurrentWeapon.TimeUntilCanShoot <= 0);
+        }
+    }
+    public bool CanShoot
+    {
+        get
+        {
+            return CanTryToFireWeapon && (CurrentWeapon.BulletsLeftInMagazine > 0);
         }
     }
     public bool CanReload
@@ -90,6 +97,13 @@ public class PlayerObjectState
         get
         {
             return ReloadTimeLeft >= 0;
+        }
+    }
+    public bool IsWeaponRecoiling
+    {
+        get
+        {
+            return RecoilTimeLeft >= 0;
         }
     }
     public bool IsEquippingWeapon

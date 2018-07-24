@@ -76,7 +76,7 @@ public class WeaponObjectSystem : ComponentSystem
 
         sniperBulletTrail.AddComponent<SniperRifleBulletTrailComponent>();
 
-        Object.Destroy(sniperBulletTrail, 1);
+        Object.Destroy(sniperBulletTrail, OsFps.SniperRifleBulletTrailLifeTime);
 
         return sniperBulletTrail;
     }

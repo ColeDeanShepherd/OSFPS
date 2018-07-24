@@ -259,6 +259,7 @@ public class PlayerObjectSystem : ComponentSystem
 
         weaponState.BulletsLeftInMagazine--;
         weaponState.TimeSinceLastShot = 0;
+        shootingPlayerObjectState.RecoilTimeLeft = weaponDefinition.RecoilTime;
     }
     public PlayerLagCompensationSnapshot InterpolateLagCompensationSnapshots(
         PlayerLagCompensationSnapshot snapshot1, PlayerLagCompensationSnapshot snapshot2, float rewoundTime
@@ -438,6 +439,7 @@ public class PlayerObjectSystem : ComponentSystem
         if (weapon == null) return;
 
         playerObjectState.ReloadTimeLeft = weapon.Definition.ReloadTime;
+        playerObjectComponent.State.RecoilTimeLeft = -1;
     }
     public void ServerPlayerFinishReload(PlayerObjectComponent playerObjectComponent)
     {
@@ -661,11 +663,11 @@ public class PlayerObjectSystem : ComponentSystem
             var wasTriggerJustPulled = Input.GetButtonDown("Fire");
 
             if (
-                playerObjectState.CanShoot &&
+                playerObjectState.CanTryToFireWeapon &&
                 (wasTriggerJustPulled || playerObjectState.CurrentWeapon.Definition.IsAutomatic)
             )
             {
-                client.PlayerShoot(playerObjectComponent);
+                client.PlayerTryToShoot(playerObjectComponent);
             }
         }
 
@@ -749,6 +751,10 @@ public class PlayerObjectSystem : ComponentSystem
         {
             playerObjectState.ReloadTimeLeft -= Time.deltaTime;
         }
+        else if (playerObjectState.IsWeaponRecoiling)
+        {
+            playerObjectState.RecoilTimeLeft -= Time.deltaTime;
+        }
 
         if (playerObjectState.CurrentWeapon != null)
         {
@@ -772,11 +778,11 @@ public class PlayerObjectSystem : ComponentSystem
                     equippedWeaponComponent.Animator, "Reload", percentDoneReloading
                 );
             }
-            else
+            else if (playerObjectState.IsWeaponRecoiling)
             {
+                var recoilTime = playerObjectState.CurrentWeapon.Definition.RecoilTime;
                 var percentDoneWithRecoil = Mathf.Min(
-                    playerObjectState.CurrentWeapon.TimeSinceLastShot /
-                    playerObjectState.CurrentWeapon.Definition.RecoilTime,
+                    (recoilTime - playerObjectState.RecoilTimeLeft) / recoilTime,
                     1
                 );
                 GameObjectExtensions.EnsurePlayingInBaseLayerAndSetNormalizedTime(

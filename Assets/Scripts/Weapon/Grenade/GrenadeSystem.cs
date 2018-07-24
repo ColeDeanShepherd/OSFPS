@@ -50,8 +50,9 @@ public class GrenadeSystem : ComponentSystem
         currentGrenadeSlot.GrenadeCount--;
         playerObjectState.TimeUntilCanThrowGrenade = OsFps.GrenadeThrowInterval;
     }
-    public void StickStickyGrenadeToObject(GrenadeComponent grenadeComponent, GameObject hitObject)
+    public void StickStickyGrenadeToObject(GrenadeComponent grenadeComponent, GameObject hitObject, Vector3 contactPoint)
     {
+        grenadeComponent.transform.position = contactPoint;
         grenadeComponent.Rigidbody.isKinematic = true;
         grenadeComponent.Collider.isTrigger = true;
         grenadeComponent.transform.SetParent(hitObject.transform);
@@ -71,7 +72,21 @@ public class GrenadeSystem : ComponentSystem
             }
             else if (grenadeComponent.State.Type == GrenadeType.Sticky)
             {
-                StickStickyGrenadeToObject(grenadeComponent, collision.gameObject);
+                var contactPoint = collision.contacts[0].point;
+                StickStickyGrenadeToObject(grenadeComponent, collision.gameObject, contactPoint);
+            }
+        }
+    }
+    public void ClientGrenadeOnCollisionEnter(Client client, GrenadeComponent grenadeComponent, Collision collision)
+    {
+        var grenadeState = grenadeComponent.State;
+
+        if (grenadeState.IsActive)
+        {
+            if (grenadeComponent.State.Type == GrenadeType.Sticky)
+            {
+                var contactPoint = collision.contacts[0].point;
+                StickStickyGrenadeToObject(grenadeComponent, collision.gameObject, contactPoint);
             }
         }
     }
@@ -81,6 +96,11 @@ public class GrenadeSystem : ComponentSystem
         if (OsFps.Instance.Server != null)
         {
             ServerGrenadeOnCollisionEnter(OsFps.Instance.Server, grenadeComponent, collision);
+        }
+
+        if (OsFps.Instance.Client != null)
+        {
+            ClientGrenadeOnCollisionEnter(OsFps.Instance.Client, grenadeComponent, collision);
         }
     }
 

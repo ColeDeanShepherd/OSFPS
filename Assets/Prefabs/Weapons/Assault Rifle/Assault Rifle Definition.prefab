@@ -54,11 +54,11 @@ MonoBehaviour:
   Definition:
     Type: 5
     MaxAmmo: 128
-    BulletsPerMagazine: 32
+    BulletsPerMagazine: 16
     DamagePerBullet: 10
     HeadShotDamagePerBullet: 20
     ReloadTime: 1
-    ShotInterval: 0.15
+    ShotInterval: 0.1
     IsAutomatic: 1
     IsHitScan: 1
     SpawnInterval: 30

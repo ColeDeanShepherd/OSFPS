@@ -57,6 +57,7 @@ public class PlayerObjectComponent : MonoBehaviour
 
             updatedPlayerObjectState.ReloadTimeLeft = State.ReloadTimeLeft;
             updatedPlayerObjectState.EquipWeaponTimeLeft = State.EquipWeaponTimeLeft;
+            updatedPlayerObjectState.RecoilTimeLeft = State.RecoilTimeLeft;
             updatedPlayerObjectState.TimeUntilCanThrowGrenade = State.TimeUntilCanThrowGrenade;
             updatedPlayerObjectState.Input = State.Input;
         }
