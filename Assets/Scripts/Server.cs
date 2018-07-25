@@ -26,9 +26,9 @@ public class Server
         ServerPeer = new ServerPeer();
         ServerPeer.OnClientConnected += OnClientConnected;
         ServerPeer.OnClientDisconnected += OnClientDisconnected;
-        ServerPeer.OnReceiveDataFromClient += OnReceiveDataFromClient;
+        ServerPeer.ShouldSendStateSnapshots = false;
 
-        ServerPeer.Start(PortNumber, MaxPlayerCount);
+        ServerPeer.Start(PortNumber, MaxPlayerCount, this, SendGameStateInterval);
 
         SceneManager.sceneLoaded += OnMapLoaded;
         SceneManager.LoadScene(OsFps.SmallMapSceneName);
@@ -43,10 +43,7 @@ public class Server
     }
     public void LateUpdate()
     {
-        if (SendGameStatePeriodicFunction != null)
-        {
-            SendGameStatePeriodicFunction.TryToCall();
-        }
+        ServerPeer.LateUpdate();
     }
     public void OnGui()
     {
@@ -77,8 +74,6 @@ public class Server
         var playerName = playerComponent.State.Name;
         Object.Destroy(playerComponent.gameObject);
 
-        networkedGameStateCache.OnPlayerDisconnected(playerId);
-
         playerIdsByConnectionId.Remove(connectionId);
 
         // Send out a chat message.
@@ -90,13 +85,10 @@ public class Server
     }
     
     private Dictionary<int, uint> playerIdsByConnectionId;
-    private ThrottledAction SendGameStatePeriodicFunction;
     
     private void OnMapLoaded(Scene scene, LoadSceneMode loadSceneMode)
     {
         SceneManager.sceneLoaded -= OnMapLoaded;
-        
-        SendGameStatePeriodicFunction = new ThrottledAction(SendGameState, SendGameStateInterval);
 
         var camera = Object.Instantiate(OsFps.Instance.CameraPrefab);
         var uiCullingMask = 1 << 5;
@@ -107,48 +99,10 @@ public class Server
         ).GetComponent<DedicatedServerScreenComponent>();
         OsFps.Instance.MenuStack.Push(dedicatedServerScreenComponent);
 
+        ServerPeer.ShouldSendStateSnapshots = true;
         OnServerStarted?.Invoke();
     }
-
-    private const int maxCachedSentGameStates = 100;
-    private NetworkedGameStateCache networkedGameStateCache = new NetworkedGameStateCache(maxCachedSentGameStates);
-    private void SendGameState()
-    {
-        // Get the current game state.
-        var currentGameState = NetLib.GetCurrentNetworkedGameState(generateSequenceNumber: true);
-
-        // Send the game state deltas.
-        foreach (var playerId in playerIdsByConnectionId.Values)
-        {
-            var oldGameState = networkedGameStateCache.GetNetworkedGameStateToDiffAgainst(playerId);
-            SendGameStateDiff(playerId, currentGameState, oldGameState);
-        }
-
-        // Cache the game state for future deltas.
-        networkedGameStateCache.AddGameState(currentGameState);
-    }
-
-    private void SendGameStateDiff(uint playerId, NetworkedGameState gameState, NetworkedGameState oldGameState)
-    {
-        byte[] messageBytes;
-
-        using (var memoryStream = new MemoryStream())
-        {
-            using (var writer = new BinaryWriter(memoryStream))
-            {
-                writer.Write(NetLib.StateSynchronizationMessageId);
-                writer.Write(gameState.SequenceNumber);
-                writer.Write(oldGameState.SequenceNumber);
-                NetworkSerializationUtils.SerializeNetworkedGameState(writer, gameState, oldGameState);
-            }
-
-            messageBytes = memoryStream.ToArray();
-        }
-        
-        var connectionId = GetConnectionIdByPlayerId(playerId);
-        ServerPeer.SendMessageToClient(connectionId.Value, ServerPeer.unreliableFragmentedChannelId, messageBytes);
-    }
-
+    
     private uint _nextNetworkId = 1;
     public uint GenerateNetworkId()
     {
@@ -214,40 +168,10 @@ public class Server
     }
 
     #region Message Handlers
-    private int TEMPORARY_HACK_CURRENT_CONNECTION_ID;
-    private void OnReceiveDataFromClient(int connectionId, int channelId, byte[] bytesReceived, int numBytesReceived)
-    {
-        using (var memoryStream = new MemoryStream(bytesReceived, 0, numBytesReceived))
-        {
-            using (var reader = new BinaryReader(memoryStream))
-            {
-                var messageTypeAsByte = reader.ReadByte();
-
-                RpcInfo rpcInfo;
-
-                if (messageTypeAsByte == NetLib.StateSynchronizationMessageId)
-                {
-                    throw new System.NotImplementedException("Servers don't support receiving state synchronization messages.");
-                }
-                else if (NetLib.rpcInfoById.TryGetValue(messageTypeAsByte, out rpcInfo))
-                {
-                    var rpcArguments = NetworkSerializationUtils.DeserializeRpcCallArguments(rpcInfo, reader);
-
-                    TEMPORARY_HACK_CURRENT_CONNECTION_ID = connectionId;
-                    NetLib.ExecuteRpc(rpcInfo.Id, this, null, rpcArguments);
-                }
-                else
-                {
-                    throw new System.NotImplementedException("Unknown message type: " + messageTypeAsByte);
-                }
-            }
-        }
-    }
-
     [Rpc(ExecuteOn = NetworkLibrary.NetworkPeerType.Server)]
     public void ServerOnReceivePlayerInfo(string playerName)
     {
-        var connectionId = TEMPORARY_HACK_CURRENT_CONNECTION_ID;
+        var connectionId = ServerPeer.CurrentRpcSenderConnectionId;
         var playerId = GenerateNetworkId();
 
         // Store information about the client.
@@ -279,14 +203,7 @@ public class Server
             message = $"{playerName} joined."
         });
     }
-
-    [Rpc(ExecuteOn = NetworkLibrary.NetworkPeerType.Server)]
-    public void ServerOnReceiveClientGameStateAck(uint gameStateSequenceNumber)
-    {
-        var playerId = playerIdsByConnectionId[TEMPORARY_HACK_CURRENT_CONNECTION_ID];
-        networkedGameStateCache.AcknowledgeGameStateForPlayer(playerId, gameStateSequenceNumber);
-    }
-
+    
     [Rpc(ExecuteOn = NetworkLibrary.NetworkPeerType.Server)]
     public void ServerOnPlayerReloadPressed(uint playerId)
     {

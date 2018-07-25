@@ -5,6 +5,7 @@
 * Refactor
 * Optimize network bandwidth
   - Position/orientation delta thresholds?
+* Don't play zoom sound if can't zoom.
 
 #### High-Priority
 

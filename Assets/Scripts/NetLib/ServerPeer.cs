@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using UnityEngine;
 using UnityEngine.Assertions;
 using UnityEngine.Networking;
@@ -11,11 +12,16 @@ namespace NetworkLibrary
         public event ClientConnectionChangeEventHandler OnClientConnected;
         public event ClientConnectionChangeEventHandler OnClientDisconnected;
 
-        public delegate void ReceiveDataFromServerHandler(int connectionId, int channelId, byte[] bytesReceived, int numBytesReceived);
-        public event ReceiveDataFromServerHandler OnReceiveDataFromClient;
-        
-        public void Start(ushort? portNumber, int maxPlayerCount)
+        private ThrottledAction SendGameStatePeriodicFunction;
+        public bool ShouldSendStateSnapshots;
+        public object ObjectContainingRpcs;
+
+        public void Start(ushort? portNumber, int maxPlayerCount, object objectContainingRpcs, float sendGameStateInterval)
         {
+            ObjectContainingRpcs = objectContainingRpcs;
+            SendGameStatePeriodicFunction = new ThrottledAction(SendGameState, sendGameStateInterval);
+            ShouldSendStateSnapshots = true;
+
             var connectionConfig = NetLib.CreateConnectionConfig(
                 out reliableSequencedChannelId,
                 out reliableChannelId,
@@ -36,6 +42,13 @@ namespace NetworkLibrary
             }
 
             return succeeded;
+        }
+        public void LateUpdate()
+        {
+            if (ShouldSendStateSnapshots && (SendGameStatePeriodicFunction != null))
+            {
+                SendGameStatePeriodicFunction.TryToCall();
+            }
         }
 
         public NetworkError SendMessageToClientReturnError(int connectionId, int channelId, byte[] messageBytes)
@@ -140,6 +153,8 @@ namespace NetworkLibrary
         {
             base.OnPeerDisconnected(connectionId);
 
+            networkedGameStateCache.OnPlayerDisconnected((uint)connectionId);
+
             if (OnClientDisconnected != null)
             {
                 OnClientDisconnected(connectionId);
@@ -148,11 +163,7 @@ namespace NetworkLibrary
         protected override void OnReceiveData(int connectionId, int channelId, byte[] buffer, int numBytesReceived)
         {
             base.OnReceiveData(connectionId, channelId, buffer, numBytesReceived);
-
-            if (OnReceiveDataFromClient != null)
-            {
-                OnReceiveDataFromClient(connectionId, channelId, buffer, numBytesReceived);
-            }
+            OnReceiveDataFromClient(connectionId, channelId, buffer, numBytesReceived);
         }
         protected override void OnNetworkErrorEvent(int connectionId, int channelId, NetworkError error, NetworkEventType eventType, byte[] buffer, int numBytesReceived)
         {
@@ -163,6 +174,90 @@ namespace NetworkLibrary
                 error, eventType
             );
             OsFps.Logger.LogError(errorMessage);
+        }
+
+        private const int maxCachedSentGameStates = 100;
+        private NetworkedGameStateCache networkedGameStateCache = new NetworkedGameStateCache(maxCachedSentGameStates);
+        private void SendGameState()
+        {
+            // Get the current game state.
+            var currentGameState = NetLib.GetCurrentNetworkedGameState(generateSequenceNumber: true);
+
+            // Send the game state deltas.
+            foreach (var connectionId in connectionIds)
+            {
+                var oldGameState = networkedGameStateCache.GetNetworkedGameStateToDiffAgainst((uint)connectionId);
+                SendGameStateDiff(connectionId, currentGameState, oldGameState);
+            }
+
+            // Cache the game state for future deltas.
+            networkedGameStateCache.AddGameState(currentGameState);
+        }
+
+        private void SendGameStateDiff(int connectionId, NetworkedGameState gameState, NetworkedGameState oldGameState)
+        {
+            byte[] messageBytes;
+
+            using (var memoryStream = new MemoryStream())
+            {
+                using (var writer = new BinaryWriter(memoryStream))
+                {
+                    writer.Write(NetLib.StateSynchronizationMessageId);
+                    writer.Write(gameState.SequenceNumber);
+                    writer.Write(oldGameState.SequenceNumber);
+                    NetworkSerializationUtils.SerializeNetworkedGameState(writer, gameState, oldGameState);
+                }
+
+                messageBytes = memoryStream.ToArray();
+            }
+            
+            SendMessageToClient(connectionId, unreliableFragmentedChannelId, messageBytes);
+        }
+
+        [Rpc(ExecuteOn = NetworkLibrary.NetworkPeerType.Server)]
+        private void ServerOnReceiveClientGameStateAck(uint gameStateSequenceNumber)
+        {
+            networkedGameStateCache.AcknowledgeGameStateForPlayer(
+                (uint)CurrentRpcSenderConnectionId, gameStateSequenceNumber
+            );
+        }
+
+        public int CurrentRpcSenderConnectionId;
+        private void OnReceiveDataFromClient(int connectionId, int channelId, byte[] bytesReceived, int numBytesReceived)
+        {
+            using (var memoryStream = new MemoryStream(bytesReceived, 0, numBytesReceived))
+            {
+                using (var reader = new BinaryReader(memoryStream))
+                {
+                    var messageTypeAsByte = reader.ReadByte();
+
+                    RpcInfo rpcInfo;
+
+                    if (messageTypeAsByte == NetLib.StateSynchronizationMessageId)
+                    {
+                        throw new System.NotImplementedException("Servers don't support receiving state synchronization messages.");
+                    }
+                    else if (NetLib.rpcInfoById.TryGetValue(messageTypeAsByte, out rpcInfo))
+                    {
+                        var rpcArguments = NetworkSerializationUtils.DeserializeRpcCallArguments(rpcInfo, reader);
+
+                        CurrentRpcSenderConnectionId = connectionId;
+
+                        if (rpcInfo.Name != "ServerOnReceiveClientGameStateAck")
+                        {
+                            NetLib.ExecuteRpc(rpcInfo.Id, ObjectContainingRpcs, null, rpcArguments);
+                        }
+                        else
+                        {
+                            NetLib.ExecuteRpc(rpcInfo.Id, this, null, rpcArguments);
+                        }
+                    }
+                    else
+                    {
+                        throw new System.NotImplementedException("Unknown message type: " + messageTypeAsByte);
+                    }
+                }
+            }
         }
     }
 }
