@@ -172,7 +172,7 @@ public class GrenadeSystem : ComponentSystem
         Object.Destroy(grenadeComponent.gameObject);
 
         // send message
-        server.ServerPeer.CallRpcOnAllClients("ClientOnDetonateGrenade", server.reliableChannelId, new
+        server.ServerPeer.CallRpcOnAllClients("ClientOnDetonateGrenade", server.ServerPeer.reliableChannelId, new
         {
             id = grenade.Id,
             position = grenadePosition,

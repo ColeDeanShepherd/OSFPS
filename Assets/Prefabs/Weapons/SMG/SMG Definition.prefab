@@ -63,6 +63,7 @@ MonoBehaviour:
     IsHitScan: 1
     SpawnInterval: 20
     RecoilTime: 0.2
+    ShotConeAngleInDegrees: 5
     Prefab: {fileID: 1585401937717724, guid: e02fc32f11ad4a049a208260ad83e80a, type: 2}
     ShotSound: {fileID: 8300000, guid: 36c36706bd5241e4daa533e92f48e99f, type: 3}
     Icon: {fileID: 2800000, guid: bacb5c14d604abf40a275f7168f9f89c, type: 3}

@@ -27,18 +27,11 @@ public class Client
     public void Start(bool isServerRemote)
     {
         ClientPeer = new ClientPeer();
-        ClientPeer.OnReceiveDataFromServer += OnReceiveDataFromServer;
         ClientPeer.OnConnectedToServer += InternalOnConnectedToServer;
         ClientPeer.OnDisconnectedFromServer += InternalOnDisconnectedFromServer;
+        ClientPeer.ShouldApplyStateSnapshots = false;
 
-        var connectionConfig = NetLib.CreateConnectionConfig(
-            out reliableSequencedChannelId,
-            out reliableChannelId,
-            out unreliableStateUpdateChannelId,
-            out unreliableFragmentedChannelId,
-            out unreliableChannelId
-        );
-        ClientPeer.Start(connectionConfig);
+        ClientPeer.Start(this, CreateGameObjectFromState);
 
         SendInputPeriodicFunction = new ThrottledAction(SendPlayerInput, SendPlayerInputInterval);
 
@@ -75,20 +68,11 @@ public class Client
         }
     }
 
-    private System.Tuple<uint, byte[]> latestSequenceNumberDeltaGameStateBytesPair;
     public void Update()
     {
         Camera.GetComponent<Camera>().fieldOfView = GetCurrentFieldOfViewY();
 
         ClientPeer.Update();
-        if (latestSequenceNumberDeltaGameStateBytesPair != null)
-        {
-            FinishHandlingDeltaGameState(
-                latestSequenceNumberDeltaGameStateBytesPair.Item1,
-                latestSequenceNumberDeltaGameStateBytesPair.Item2
-            );
-            latestSequenceNumberDeltaGameStateBytesPair = null;
-        }
 
         if (ClientPeer.IsConnectedToServer)
         {
@@ -147,7 +131,7 @@ public class Client
                     if ((playerObjectComponent != null) && PlayerObjectSystem.Instance.IsPlayerGrounded(playerObjectComponent))
                     {
                         PlayerObjectSystem.Instance.Jump(playerObjectComponent);
-                        ClientPeer.CallRpcOnServer("ServerOnPlayerTryJump", reliableChannelId, new
+                        ClientPeer.CallRpcOnServer("ServerOnPlayerTryJump", ClientPeer.reliableChannelId, new
                         {
                             playerId = PlayerId.Value
                         });
@@ -181,7 +165,7 @@ public class Client
 
                             if (playerHasWeaponOfTypeWithRoomForAmmo || playerHasEmptyWeaponSlot || Input.GetButtonDown("Pickup Weapon"))
                             {
-                                ClientPeer.CallRpcOnServer("ServerOnPlayerTryPickupWeapon", reliableChannelId, new
+                                ClientPeer.CallRpcOnServer("ServerOnPlayerTryPickupWeapon", ClientPeer.reliableChannelId, new
                                 {
                                     playerId = playerId,
                                     weaponId = closestWeaponId
@@ -445,7 +429,7 @@ public class Client
     }
     private void DrawNetworkStats()
     {
-        var networkStats = ClientPeer.GetNetworkStats(ClientPeer.serverConnectionId);
+        var networkStats = ClientPeer.GetNetworkStats(ClientPeer.ServerConnectionId);
         var position = new Vector2(30, 30);
         GUI.Label(new Rect(position, new Vector2(800, 800)), JsonConvert.SerializeObject(networkStats));
     }
@@ -532,13 +516,7 @@ public class Client
         GUI.Label(new Rect(labelPosition, labelSize), text);
     }
     #endregion
-
-    public int reliableSequencedChannelId;
-    public int reliableChannelId;
-    public int unreliableStateUpdateChannelId;
-    public int unreliableFragmentedChannelId;
-    public int unreliableChannelId;
-
+    
     private ThrottledAction SendInputPeriodicFunction;
 
     public bool _isShowingChatMessageInput
@@ -703,7 +681,7 @@ public class Client
     }
     public void Reload(PlayerObjectComponent playerObjectComponent)
     {
-        ClientPeer.CallRpcOnServer("ServerOnPlayerReloadPressed", reliableChannelId, new
+        ClientPeer.CallRpcOnServer("ServerOnPlayerReloadPressed", ClientPeer.reliableChannelId, new
         {
             playerId = playerObjectComponent.State.Id
         });
@@ -802,7 +780,7 @@ public class Client
     {
         if (playerObjectComponent.State.CanShoot)
         {
-            ClientPeer.CallRpcOnServer("ServerOnPlayerTriggerPulled", reliableChannelId, new
+            ClientPeer.CallRpcOnServer("ServerOnPlayerTriggerPulled", ClientPeer.reliableChannelId, new
             {
                 playerId = playerObjectComponent.State.Id,
                 shotRay = PlayerObjectSystem.Instance.GetShotRay(playerObjectComponent)
@@ -826,7 +804,7 @@ public class Client
 
     public void ThrowGrenade(PlayerObjectState playerObjectState)
     {
-        ClientPeer.CallRpcOnServer("ServerOnPlayerThrowGrenade", reliableChannelId, new
+        ClientPeer.CallRpcOnServer("ServerOnPlayerThrowGrenade", ClientPeer.reliableChannelId, new
         {
             playerId = playerObjectState.Id
         });
@@ -835,7 +813,7 @@ public class Client
     }
     public void SwitchGrenadeType(PlayerObjectState playerObjectState)
     {
-        ClientPeer.CallRpcOnServer("ServerOnPlayerSwitchGrenadeType", reliableChannelId, new {
+        ClientPeer.CallRpcOnServer("ServerOnPlayerSwitchGrenadeType", ClientPeer.reliableChannelId, new {
             playerId = playerObjectState.Id
         });
     }
@@ -849,7 +827,7 @@ public class Client
         if (weaponIndex == playerObjectState.CurrentWeaponIndex) return;
 
         // Send message to server.
-        ClientPeer.CallRpcOnServer("ServerOnChangeWeapon", reliableSequencedChannelId, new
+        ClientPeer.CallRpcOnServer("ServerOnChangeWeapon", ClientPeer.reliableSequencedChannelId, new
         {
             playerId = playerObjectState.Id,
             weaponIndex = (byte)weaponIndex
@@ -920,7 +898,7 @@ public class Client
     {
         if (ChatBox.MessageInputField.text.Length > 0)
         {
-            ClientPeer.CallRpcOnServer("ServerOnChatMessage", reliableChannelId, new
+            ClientPeer.CallRpcOnServer("ServerOnChatMessage", ClientPeer.reliableChannelId, new
             {
                 playerId = PlayerId,
                 message = ChatBox.MessageInputField.text
@@ -930,60 +908,6 @@ public class Client
         }
 
         SetChatBoxIsVisible(false);
-    }
-
-    private void GetChanges<T>(
-        List<T> oldList,
-        List<T> newList,
-        System.Func<T, T, bool> doElementsMatch,
-        out List<T> removedElements,
-        out List<T> addedElements,
-        out List<T> updatedElements
-    )
-    {
-        removedElements = oldList.Where(oldElement =>
-            !newList.Any(newElement => doElementsMatch(oldElement, newElement))
-        ).ToList();
-        addedElements = newList.Where(newElement =>
-            !oldList.Any(oldElement => doElementsMatch(oldElement, newElement))
-        ).ToList();
-        updatedElements = newList.Where(newElement =>
-            oldList.Any(oldElement => doElementsMatch(oldElement, newElement))
-        ).ToList();
-    }
-
-    private void ApplyStates<StateType>(
-        List<StateType> oldStates, List<StateType> newStates,
-        System.Func<StateType, StateType, bool> doStatesHaveSameId,
-        System.Action<StateType> removeStateObject,
-        System.Action<StateType> addStateObject,
-        System.Action<StateType, StateType> updateStateObject
-    )
-    {
-        List<StateType> removedStates, addedStates, updatedStates;
-        GetChanges(
-            oldStates, newStates, doStatesHaveSameId,
-            out removedStates, out addedStates, out updatedStates
-        );
-
-        // Despawn weapon objects.
-        foreach (var removedState in removedStates)
-        {
-            removeStateObject(removedState);
-        }
-
-        // Spawn weapon objects.
-        foreach (var addedState in addedStates)
-        {
-            addStateObject(addedState);
-        }
-
-        // Update existing weapon objects.
-        foreach (var updatedState in updatedStates)
-        {
-            var oldState = oldStates.First(os => doStatesHaveSameId(os, updatedState));
-            updateStateObject(oldState, updatedState);
-        }
     }
 
     public GameObject CreateGameObjectFromState(object state)
@@ -1032,57 +956,6 @@ public class Client
         }
     }
 
-    private void ApplyState(
-        NetworkedComponentTypeInfo networkedComponentTypeInfo, List<object> oldStates, List<object> newStates
-    )
-    {
-        System.Func<object, object, bool> doIdsMatch =
-            (s1, s2) => NetLib.GetIdFromState(networkedComponentTypeInfo, s1) == NetLib.GetIdFromState(networkedComponentTypeInfo, s2);
-
-        System.Action<object> handleRemovedState = removedState =>
-        {
-            var monoBehaviour = NetLib.GetMonoBehaviourByState(networkedComponentTypeInfo, removedState);
-            Object.Destroy(monoBehaviour.gameObject);
-        };
-
-        System.Action<object> handleAddedState = addedState =>
-        {
-            var gameObject = CreateGameObjectFromState(addedState);
-
-            if (
-                (networkedComponentTypeInfo != null) &&
-                (networkedComponentTypeInfo.MonoBehaviourApplyStateMethod != null)
-            )
-            {
-                var stateId = NetLib.GetIdFromState(networkedComponentTypeInfo, addedState);
-                var monoBehaviour = NetLib.GetMonoBehaviourByStateId(networkedComponentTypeInfo, stateId);
-
-                networkedComponentTypeInfo.MonoBehaviourApplyStateMethod.Invoke(monoBehaviour, new[] { addedState });
-            }
-        };
-
-        System.Action<object, object> handleUpdatedState =
-            (oldState, newState) =>
-            {
-                var oldStateId = NetLib.GetIdFromState(networkedComponentTypeInfo, oldState);
-                var monoBehaviour = NetLib.GetMonoBehaviourByStateId(networkedComponentTypeInfo, oldStateId);
-
-                if (networkedComponentTypeInfo.MonoBehaviourApplyStateMethod == null)
-                {
-                    networkedComponentTypeInfo.MonoBehaviourStateField.SetValue(monoBehaviour, newState);
-                }
-                else
-                {
-                    networkedComponentTypeInfo.MonoBehaviourApplyStateMethod?.Invoke(monoBehaviour, new[] { newState });
-                }
-            };
-
-        ApplyStates(
-            oldStates, newStates, doIdsMatch,
-            handleRemovedState, handleAddedState, handleUpdatedState
-        );
-    }
-
     private GameObject SpawnPlayer(PlayerObjectState playerState)
     {
         var playerObject = PlayerRespawnSystem.Instance.SpawnLocalPlayer(playerState);
@@ -1110,138 +983,11 @@ public class Client
     }
 
     #region Message Handlers
-    private void OnReceiveDataFromServer(int channelId, byte[] bytesReceived, int numBytesReceived)
-    {
-        Profiler.BeginSample("OnReceiveDataFromServer");
-        using (var memoryStream = new MemoryStream(bytesReceived, 0, numBytesReceived))
-        {
-            using (var reader = new BinaryReader(memoryStream))
-            {
-                var messageTypeAsByte = reader.ReadByte();
-                RpcInfo rpcInfo;
-
-                if (messageTypeAsByte == NetLib.StateSynchronizationMessageId)
-                {
-                    OnReceiveDeltaGameStateFromServer(reader, bytesReceived, numBytesReceived);
-                }
-                else if (NetLib.rpcInfoById.TryGetValue(messageTypeAsByte, out rpcInfo))
-                {
-                    Profiler.BeginSample("Deserialize & Execute RPC");
-                    var rpcArguments = NetworkSerializationUtils.DeserializeRpcCallArguments(rpcInfo, reader);
-                    NetLib.ExecuteRpc(rpcInfo.Id, null, this, rpcArguments);
-                    Profiler.EndSample();
-                }
-                else
-                {
-                    throw new System.NotImplementedException("Unknown message type: " + messageTypeAsByte);
-                }
-            }
-        }
-        Profiler.EndSample();
-    }
-
-    private List<NetworkedGameState> cachedReceivedGameStates = new List<NetworkedGameState>();
-    private void OnReceiveDeltaGameStateFromServer(BinaryReader reader, byte[] bytesReceived, int numBytesReceived)
-    {
-        uint latestReceivedGameStateSequenceNumber = (cachedReceivedGameStates.Any())
-            ? cachedReceivedGameStates[cachedReceivedGameStates.Count - 1].SequenceNumber
-            : 0;
-        latestReceivedGameStateSequenceNumber = System.Math.Max(
-            latestReceivedGameStateSequenceNumber,
-            latestSequenceNumberDeltaGameStateBytesPair?.Item1 ?? 0
-        );
-
-        var sequenceNumber = reader.ReadUInt32();
-        if (sequenceNumber > latestReceivedGameStateSequenceNumber)
-        {
-            var bytesLeft = new byte[numBytesReceived - reader.BaseStream.Position];
-            
-            System.Array.Copy(bytesReceived, reader.BaseStream.Position, bytesLeft, 0, bytesLeft.Length);
-            latestSequenceNumberDeltaGameStateBytesPair = new System.Tuple<uint, byte[]>(
-                sequenceNumber,
-                bytesLeft
-            );
-        }
-    }
-    private void FinishHandlingDeltaGameState(uint sequenceNumber, byte[] deltaBytes)
-    {
-        using (var memoryStream = new MemoryStream(deltaBytes))
-        {
-            using (var reader = new BinaryReader(memoryStream))
-            {
-                var sequenceNumberRelativeTo = reader.ReadUInt32();
-                var networkedGameStateRelativeTo = GetNetworkedGameStateRelativeTo(sequenceNumberRelativeTo);
-
-                Profiler.BeginSample("State Deserialization");
-                var receivedGameState = NetworkSerializationUtils.DeserializeNetworkedGameState(
-                    reader, sequenceNumber, networkedGameStateRelativeTo
-                );
-                Profiler.EndSample();
-
-                ClientPeer.CallRpcOnServer("ServerOnReceiveClientGameStateAck", unreliableChannelId, new
-                {
-                    playerId = PlayerId.Value,
-                    gameStateSequenceNumber = receivedGameState.SequenceNumber
-                });
-
-                cachedReceivedGameStates.Add(receivedGameState);
-
-                var indexOfLatestGameStateToDiscard = cachedReceivedGameStates
-                    .FindLastIndex(ngs => ngs.SequenceNumber < sequenceNumberRelativeTo);
-                if (indexOfLatestGameStateToDiscard >= 0)
-                {
-                    var numberOfLatestGameStatesToDiscard = indexOfLatestGameStateToDiscard + 1;
-                    cachedReceivedGameStates.RemoveRange(0, numberOfLatestGameStatesToDiscard);
-                }
-
-                Profiler.BeginSample("ClientOnReceiveGameState");
-                ClientOnReceiveGameState(receivedGameState);
-                Profiler.EndSample();
-            }
-        }
-    }
-    private NetworkedGameState GetNetworkedGameStateRelativeTo(uint sequenceNumberRelativeTo)
-    {
-        var indexOfGameStateRelativeTo = cachedReceivedGameStates
-            .FindIndex(ngs => ngs.SequenceNumber == sequenceNumberRelativeTo);
-
-        Assert.IsTrue((indexOfGameStateRelativeTo >= 0) || (sequenceNumberRelativeTo == 0));
-
-        return (indexOfGameStateRelativeTo >= 0)
-            ? cachedReceivedGameStates[indexOfGameStateRelativeTo]
-            : NetLib.GetEmptyNetworkedGameStateForDiffing();
-    }
-    
-    public void ClientOnReceiveGameState(NetworkedGameState receivedGameState)
-    {
-        if (PlayerId == null) return;
-
-        if (OsFps.Instance.IsRemoteClient)
-        {
-            Profiler.BeginSample("Client Get Current Networked Game State");
-            var oldComponentLists = NetLib.GetComponentStateListsToSynchronize(
-                receivedGameState.NetworkedComponentTypeInfos
-            );
-            Profiler.EndSample();
-
-            Profiler.BeginSample("Client Apply Networked Game State");
-            for (var i = 0; i < receivedGameState.NetworkedComponentStateLists.Count; i++)
-            {
-                var componentList = receivedGameState.NetworkedComponentStateLists[i];
-                var networkedComponentTypeInfo = receivedGameState.NetworkedComponentTypeInfos[i];
-                var componentType = networkedComponentTypeInfo.StateType;
-                var oldComponentList = oldComponentLists[i];
-
-                ApplyState(networkedComponentTypeInfo, oldComponentList, componentList);
-            }
-            Profiler.EndSample();
-        }
-    }
-
     [Rpc(ExecuteOn = NetworkLibrary.NetworkPeerType.Client)]
     public void ClientOnSetPlayerId(uint playerId)
     {
         PlayerId = playerId;
+        ClientPeer.ShouldApplyStateSnapshots = true;
     }
 
     [Rpc(ExecuteOn = NetworkLibrary.NetworkPeerType.Client)]
@@ -1300,7 +1046,7 @@ public class Client
 
     public void InternalOnConnectedToServer()
     {
-        ClientPeer.CallRpcOnServer("ServerOnReceivePlayerInfo", reliableSequencedChannelId, new
+        ClientPeer.CallRpcOnServer("ServerOnReceivePlayerInfo", ClientPeer.reliableSequencedChannelId, new
         {
             playerName = OsFps.Instance.Settings.PlayerName
         });
@@ -1317,7 +1063,7 @@ public class Client
         var playerObjectComponent = PlayerObjectSystem.Instance.FindPlayerObjectComponent(PlayerId.Value);
         if (playerObjectComponent == null) return;
 
-        ClientPeer.CallRpcOnServer("ServerOnReceivePlayerInput", unreliableStateUpdateChannelId, new
+        ClientPeer.CallRpcOnServer("ServerOnReceivePlayerInput", ClientPeer.unreliableStateUpdateChannelId, new
         {
             playerId = PlayerId.Value,
             playerInput = playerObjectComponent.State.Input,

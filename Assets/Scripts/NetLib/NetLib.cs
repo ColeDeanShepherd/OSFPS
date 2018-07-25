@@ -287,6 +287,92 @@ namespace NetworkLibrary
             return connectionConfig;
         }
 
+
+        public static void ApplyStates<StateType>(
+            List<StateType> oldStates, List<StateType> newStates,
+            System.Func<StateType, StateType, bool> doStatesHaveSameId,
+            System.Action<StateType> removeStateObject,
+            System.Action<StateType> addStateObject,
+            System.Action<StateType, StateType> updateStateObject
+        )
+        {
+            List<StateType> removedStates, addedStates, updatedStates;
+            ListExtensions.GetChanges(
+                oldStates, newStates, doStatesHaveSameId,
+                out removedStates, out addedStates, out updatedStates
+            );
+
+            // Despawn weapon objects.
+            foreach (var removedState in removedStates)
+            {
+                removeStateObject(removedState);
+            }
+
+            // Spawn weapon objects.
+            foreach (var addedState in addedStates)
+            {
+                addStateObject(addedState);
+            }
+
+            // Update existing weapon objects.
+            foreach (var updatedState in updatedStates)
+            {
+                var oldState = oldStates.First(os => doStatesHaveSameId(os, updatedState));
+                updateStateObject(oldState, updatedState);
+            }
+        }
+        public static void ApplyState(
+            NetworkedComponentTypeInfo networkedComponentTypeInfo, List<object> oldStates, List<object> newStates,
+            Func<object, UnityEngine.GameObject> createGameObjectFromState
+        )
+        {
+            System.Func<object, object, bool> doIdsMatch =
+                (s1, s2) => GetIdFromState(networkedComponentTypeInfo, s1) == NetLib.GetIdFromState(networkedComponentTypeInfo, s2);
+
+            System.Action<object> handleRemovedState = removedState =>
+            {
+                var monoBehaviour = GetMonoBehaviourByState(networkedComponentTypeInfo, removedState);
+                UnityEngine.Object.Destroy(monoBehaviour.gameObject);
+            };
+
+            System.Action<object> handleAddedState = addedState =>
+            {
+                createGameObjectFromState(addedState);
+
+                if (
+                    (networkedComponentTypeInfo != null) &&
+                    (networkedComponentTypeInfo.MonoBehaviourApplyStateMethod != null)
+                )
+                {
+                    var stateId = GetIdFromState(networkedComponentTypeInfo, addedState);
+                    var monoBehaviour = GetMonoBehaviourByStateId(networkedComponentTypeInfo, stateId);
+
+                    networkedComponentTypeInfo.MonoBehaviourApplyStateMethod.Invoke(monoBehaviour, new[] { addedState });
+                }
+            };
+
+            System.Action<object, object> handleUpdatedState =
+                (oldState, newState) =>
+                {
+                    var oldStateId = GetIdFromState(networkedComponentTypeInfo, oldState);
+                    var monoBehaviour = GetMonoBehaviourByStateId(networkedComponentTypeInfo, oldStateId);
+
+                    if (networkedComponentTypeInfo.MonoBehaviourApplyStateMethod == null)
+                    {
+                        networkedComponentTypeInfo.MonoBehaviourStateField.SetValue(monoBehaviour, newState);
+                    }
+                    else
+                    {
+                        networkedComponentTypeInfo.MonoBehaviourApplyStateMethod?.Invoke(monoBehaviour, new[] { newState });
+                    }
+                };
+
+            ApplyStates(
+                oldStates, newStates, doIdsMatch,
+                handleRemovedState, handleAddedState, handleUpdatedState
+            );
+        }
+
         private static uint _nextGameStateSequenceNumber = 1;
         public static uint GenerateGameStateSequenceNumber()
         {

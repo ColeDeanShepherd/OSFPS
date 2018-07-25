@@ -164,7 +164,7 @@ public class PlayerObjectSystem : ComponentSystem
             }
 
             // Send message.
-            server.ServerPeer.CallRpcOnAllClients("ClientOnReceiveChatMessage", server.reliableSequencedChannelId, new
+            server.ServerPeer.CallRpcOnAllClients("ClientOnReceiveChatMessage", server.ServerPeer.reliableSequencedChannelId, new
             {
                 playerId = (uint?)null,
                 message = GetKillMessage(playerObjectComponent, attackingPlayerObjectComponent)

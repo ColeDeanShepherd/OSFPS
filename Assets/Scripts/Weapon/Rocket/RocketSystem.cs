@@ -82,7 +82,7 @@ public class RocketSystem : ComponentSystem
         Object.Destroy(rocketComponent.gameObject);
 
         // send message
-        server.ServerPeer.CallRpcOnAllClients("ClientOnDetonateRocket", server.reliableChannelId, new
+        server.ServerPeer.CallRpcOnAllClients("ClientOnDetonateRocket", server.ServerPeer.reliableChannelId, new
         {
             id = rocketComponent.State.Id,
             position = rocketPosition

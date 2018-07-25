@@ -28,15 +28,7 @@ public class Server
         ServerPeer.OnClientDisconnected += OnClientDisconnected;
         ServerPeer.OnReceiveDataFromClient += OnReceiveDataFromClient;
 
-        var connectionConfig = NetLib.CreateConnectionConfig(
-            out reliableSequencedChannelId,
-            out reliableChannelId,
-            out unreliableStateUpdateChannelId,
-            out unreliableFragmentedChannelId,
-            out unreliableChannelId
-        );
-        var hostTopology = new HostTopology(connectionConfig, MaxPlayerCount);
-        ServerPeer.Start(PortNumber, hostTopology);
+        ServerPeer.Start(PortNumber, MaxPlayerCount);
 
         SceneManager.sceneLoaded += OnMapLoaded;
         SceneManager.LoadScene(OsFps.SmallMapSceneName);
@@ -90,19 +82,13 @@ public class Server
         playerIdsByConnectionId.Remove(connectionId);
 
         // Send out a chat message.
-        ServerPeer.CallRpcOnAllClients("ClientOnReceiveChatMessage", reliableSequencedChannelId, new
+        ServerPeer.CallRpcOnAllClients("ClientOnReceiveChatMessage", ServerPeer.reliableSequencedChannelId, new
         {
             playerId = (uint?)null,
             message = $"{playerName} left."
         });
     }
     
-    public int reliableSequencedChannelId;
-    public int reliableChannelId;
-    public int unreliableStateUpdateChannelId;
-    public int unreliableFragmentedChannelId;
-    public int unreliableChannelId;
-
     private Dictionary<int, uint> playerIdsByConnectionId;
     private ThrottledAction SendGameStatePeriodicFunction;
     
@@ -160,7 +146,7 @@ public class Server
         }
         
         var connectionId = GetConnectionIdByPlayerId(playerId);
-        ServerPeer.SendMessageToClient(connectionId.Value, unreliableFragmentedChannelId, messageBytes);
+        ServerPeer.SendMessageToClient(connectionId.Value, ServerPeer.unreliableFragmentedChannelId, messageBytes);
     }
 
     private uint _nextNetworkId = 1;
@@ -278,7 +264,7 @@ public class Server
         PlayerObjectSystem.Instance.CreateLocalPlayerDataObject(playerState);
 
         // Let the client know its player ID.
-        ServerPeer.CallRpcOnClient("ClientOnSetPlayerId", connectionId, reliableSequencedChannelId, new
+        ServerPeer.CallRpcOnClient("ClientOnSetPlayerId", connectionId, ServerPeer.reliableSequencedChannelId, new
         {
             playerId = playerId
         });
@@ -287,7 +273,7 @@ public class Server
         PlayerRespawnSystem.Instance.ServerSpawnPlayer(this, playerId);
 
         // Send out a chat message.
-        ServerPeer.CallRpcOnAllClientsExcept("ClientOnReceiveChatMessage", connectionId, reliableSequencedChannelId, new
+        ServerPeer.CallRpcOnAllClientsExcept("ClientOnReceiveChatMessage", connectionId, ServerPeer.reliableSequencedChannelId, new
         {
             playerId = (uint?)null,
             message = $"{playerName} joined."
@@ -295,8 +281,9 @@ public class Server
     }
 
     [Rpc(ExecuteOn = NetworkLibrary.NetworkPeerType.Server)]
-    public void ServerOnReceiveClientGameStateAck(uint playerId, uint gameStateSequenceNumber)
+    public void ServerOnReceiveClientGameStateAck(uint gameStateSequenceNumber)
     {
+        var playerId = playerIdsByConnectionId[TEMPORARY_HACK_CURRENT_CONNECTION_ID];
         networkedGameStateCache.AcknowledgeGameStateForPlayer(playerId, gameStateSequenceNumber);
     }
 
@@ -323,7 +310,7 @@ public class Server
         var secondsToRewind = 50 * (ServerPeer.GetRoundTripTimeToClientInSeconds(connectionId.Value) ?? 0);
         PlayerObjectSystem.Instance.ServerShoot(this, playerObjectComponent, shotRay, secondsToRewind);
 
-        ServerPeer.CallRpcOnAllClientsExcept("ClientOnTriggerPulled", connectionId.Value, reliableSequencedChannelId, new
+        ServerPeer.CallRpcOnAllClientsExcept("ClientOnTriggerPulled", connectionId.Value, ServerPeer.reliableSequencedChannelId, new
         {
             playerId,
             shotRay
@@ -398,7 +385,7 @@ public class Server
     [Rpc(ExecuteOn = NetworkLibrary.NetworkPeerType.Server)]
     public void ServerOnChatMessage(uint? playerId, string message)
     {
-        var rpcChannelId = reliableSequencedChannelId;
+        var rpcChannelId = ServerPeer.reliableSequencedChannelId;
         var rpcArgs = new
         {
             playerId,
@@ -417,7 +404,7 @@ public class Server
             weaponIndex = weaponIndex
         };
         ServerPeer.CallRpcOnAllClientsExcept(
-            "ClientOnChangeWeapon", connectionId.Value, reliableSequencedChannelId, rpcArgs
+            "ClientOnChangeWeapon", connectionId.Value, ServerPeer.reliableSequencedChannelId, rpcArgs
         );
 
         var playerObjectComponent = PlayerObjectSystem.Instance.FindPlayerObjectComponent(playerId);

@@ -14,6 +14,18 @@ namespace NetworkLibrary
         public delegate void ReceiveDataFromServerHandler(int connectionId, int channelId, byte[] bytesReceived, int numBytesReceived);
         public event ReceiveDataFromServerHandler OnReceiveDataFromClient;
         
+        public void Start(ushort? portNumber, int maxPlayerCount)
+        {
+            var connectionConfig = NetLib.CreateConnectionConfig(
+                out reliableSequencedChannelId,
+                out reliableChannelId,
+                out unreliableStateUpdateChannelId,
+                out unreliableFragmentedChannelId,
+                out unreliableChannelId
+            );
+            var hostTopology = new HostTopology(connectionConfig, maxPlayerCount);
+            Start(portNumber, hostTopology);
+        }
         public override bool Stop()
         {
             var succeeded = base.Stop();

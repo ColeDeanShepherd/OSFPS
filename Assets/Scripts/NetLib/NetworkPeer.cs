@@ -13,6 +13,12 @@ namespace NetworkLibrary
         public int? socketId;
         public List<int> connectionIds;
 
+        public int reliableSequencedChannelId;
+        public int reliableChannelId;
+        public int unreliableStateUpdateChannelId;
+        public int unreliableFragmentedChannelId;
+        public int unreliableChannelId;
+
         public bool IsStarted
         {
             get
@@ -100,7 +106,7 @@ namespace NetworkLibrary
             }
         }
 
-        public void Update()
+        public virtual void Update()
         {
             Profiler.BeginSample("ReceiveAndHandleNetworkEvents");
             ReceiveAndHandleNetworkEvents();
