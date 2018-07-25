@@ -668,19 +668,69 @@ public class PlayerObjectSystem : ComponentSystem
                 (wasTriggerJustPulled || playerObjectState.CurrentWeapon.Definition.IsAutomatic)
             )
             {
-                client.PlayerTryToShoot(playerObjectComponent);
+                ClientPlayerTryToShoot(client, playerObjectComponent);
             }
         }
 
         if (Input.GetButtonDown("Throw Grenade") && playerObjectState.CanThrowGrenade)
         {
-            client.ThrowGrenade(playerObjectState);
+            ClientThrowGrenade(client, playerObjectState);
         }
 
         if (Input.GetButtonDown("Switch Grenade"))
         {
-            client.SwitchGrenadeType(playerObjectState);
+            ClientSwitchGrenadeType(client, playerObjectState);
         }
+    }
+
+    public void ClientSwitchGrenadeType(Client client, PlayerObjectState playerObjectState)
+    {
+        client.ClientPeer.CallRpcOnServer(
+            "ServerOnPlayerSwitchGrenadeType",
+            client.ClientPeer.reliableChannelId,
+            new
+            {
+                playerId = playerObjectState.Id
+            }
+        );
+    }
+    public void ClientThrowGrenade(Client client, PlayerObjectState playerObjectState)
+    {
+        client.ClientPeer.CallRpcOnServer(
+            "ServerOnPlayerThrowGrenade",
+            client.ClientPeer.reliableChannelId,
+            new
+            {
+                playerId = playerObjectState.Id
+            }
+        );
+
+        playerObjectState.TimeUntilCanThrowGrenade = OsFps.GrenadeThrowInterval;
+    }
+    public void ClientPlayerTryToShoot(Client client, PlayerObjectComponent playerObjectComponent)
+    {
+        if (playerObjectComponent.State.CanShoot)
+        {
+            client.ClientPeer.CallRpcOnServer("ServerOnPlayerTriggerPulled", client.ClientPeer.reliableChannelId, new
+            {
+                playerId = playerObjectComponent.State.Id,
+                shotRay = PlayerObjectSystem.Instance.GetShotRay(playerObjectComponent)
+            });
+
+            // predict the shot
+            var shotRay = PlayerObjectSystem.Instance.GetShotRay(playerObjectComponent);
+            client.ShowWeaponFireEffects(playerObjectComponent, shotRay);
+
+            playerObjectComponent.State.RecoilTimeLeft = playerObjectComponent.State.CurrentWeapon.Definition.RecoilTime;
+        }
+        else
+        {
+            var equippedWeaponComponent = client.GetEquippedWeaponComponent(playerObjectComponent);
+            var weaponAudioSource = equippedWeaponComponent.GetComponent<AudioSource>();
+            weaponAudioSource?.PlayOneShot(OsFps.Instance.GunDryFireSound);
+        }
+
+        playerObjectComponent.State.CurrentWeapon.TimeSinceLastShot = 0;
     }
 
     public PlayerInput GetCurrentPlayersInput()

@@ -177,11 +177,14 @@ public class Client
 
                 if (Input.GetButtonDown("Zoom"))
                 {
-                    ChangeZoomLevel();
+                    var changedZoomLevel = TryToChangeZoomLevel();
 
-                    var equippedWeaponComponent = GetEquippedWeaponComponent(playerObjectComponent);
-                    var weaponAudioSource = equippedWeaponComponent.GetComponent<AudioSource>();
-                    weaponAudioSource?.PlayOneShot(OsFps.Instance.SniperZoomSound);
+                    if (changedZoomLevel)
+                    {
+                        var equippedWeaponComponent = GetEquippedWeaponComponent(playerObjectComponent);
+                        var weaponAudioSource = equippedWeaponComponent.GetComponent<AudioSource>();
+                        weaponAudioSource?.PlayOneShot(OsFps.Instance.SniperZoomSound);
+                    }
                 }
 
                 if (playerObjectComponent?.State.IsAlive ?? false)
@@ -575,9 +578,11 @@ public class Client
 
         return currentWeapon.Type == WeaponType.SniperRifle;
     }
-    private void ChangeZoomLevel()
+    private bool TryToChangeZoomLevel()
     {
-        if (PlayerId == null) return;
+        if (PlayerId == null) return false;
+
+        var oldZoomLevel = ZoomLevel;
 
         if (CanZoomIn())
         {
@@ -587,7 +592,10 @@ public class Client
         {
             ZoomLevel = 0;
         }
+
+        return ZoomLevel != oldZoomLevel;
     }
+
     public float GetMouseSensitivityMultiplierForZoomLevel()
     {
         switch (ZoomLevel)
@@ -606,6 +614,7 @@ public class Client
     {
         return GetMouseSensitivityMultiplierForZoomLevel() * OsFps.Instance.Settings.MouseSensitivity;
     }
+
     private void AttachCameraToPlayer(uint playerId)
     {
         var playerObject = PlayerObjectSystem.Instance.FindPlayerObject(playerId);
@@ -620,6 +629,7 @@ public class Client
     {
         Camera.transform.SetParent(null, true);
     }
+
     public EquippedWeaponComponent GetEquippedWeaponComponent(PlayerObjectComponent playerObjectComponent)
     {
         foreach (Transform weaponTransform in playerObjectComponent.HandsPointObject.transform)
@@ -679,6 +689,7 @@ public class Client
 
         ZoomLevel = 0;
     }
+
     public void Reload(PlayerObjectComponent playerObjectComponent)
     {
         ClientPeer.CallRpcOnServer("ServerOnPlayerReloadPressed", ClientPeer.reliableChannelId, new
@@ -752,18 +763,6 @@ public class Client
             Object.Destroy(bulletHole, 5);
         }
     }
-    public void ShowGrenadeExplosion(Vector3 position, GrenadeType grenadeType)
-    {
-        var explosionPrefab = GrenadeSystem.Instance.GetGrenadeDefinitionByType(grenadeType).ExplosionPrefab;
-        GameObject grenadeExplosionObject = Object.Instantiate(
-            explosionPrefab, position, Quaternion.identity
-        );
-
-        var audioSource = grenadeExplosionObject.GetComponent<AudioSource>();
-        audioSource?.Play();
-
-        Object.Destroy(grenadeExplosionObject, OsFps.GrenadeExplosionDuration);
-    }
     public void ShowRocketExplosion(Vector3 position)
     {
         var explosionPrefab = OsFps.Instance.RocketExplosionPrefab;
@@ -775,47 +774,6 @@ public class Client
         audioSource?.Play();
 
         Object.Destroy(explosionObject, OsFps.RocketExplosionDuration);
-    }
-    public void PlayerTryToShoot(PlayerObjectComponent playerObjectComponent)
-    {
-        if (playerObjectComponent.State.CanShoot)
-        {
-            ClientPeer.CallRpcOnServer("ServerOnPlayerTriggerPulled", ClientPeer.reliableChannelId, new
-            {
-                playerId = playerObjectComponent.State.Id,
-                shotRay = PlayerObjectSystem.Instance.GetShotRay(playerObjectComponent)
-            });
-
-            // predict the shot
-            var shotRay = PlayerObjectSystem.Instance.GetShotRay(playerObjectComponent);
-            ShowWeaponFireEffects(playerObjectComponent, shotRay);
-
-            playerObjectComponent.State.RecoilTimeLeft = playerObjectComponent.State.CurrentWeapon.Definition.RecoilTime;
-        }
-        else
-        {
-            var equippedWeaponComponent = GetEquippedWeaponComponent(playerObjectComponent);
-            var weaponAudioSource = equippedWeaponComponent.GetComponent<AudioSource>();
-            weaponAudioSource?.PlayOneShot(OsFps.Instance.GunDryFireSound);
-        }
-
-        playerObjectComponent.State.CurrentWeapon.TimeSinceLastShot = 0;
-    }
-
-    public void ThrowGrenade(PlayerObjectState playerObjectState)
-    {
-        ClientPeer.CallRpcOnServer("ServerOnPlayerThrowGrenade", ClientPeer.reliableChannelId, new
-        {
-            playerId = playerObjectState.Id
-        });
-
-        playerObjectState.TimeUntilCanThrowGrenade = OsFps.GrenadeThrowInterval;
-    }
-    public void SwitchGrenadeType(PlayerObjectState playerObjectState)
-    {
-        ClientPeer.CallRpcOnServer("ServerOnPlayerSwitchGrenadeType", ClientPeer.reliableChannelId, new {
-            playerId = playerObjectState.Id
-        });
     }
 
     public void RequestSwitchWeapons(PlayerObjectComponent playerObjectComponent, int weaponIndex)
@@ -832,6 +790,19 @@ public class Client
             playerId = playerObjectState.Id,
             weaponIndex = (byte)weaponIndex
         });
+    }
+    
+    public void ShowGrenadeExplosion(Vector3 position, GrenadeType grenadeType)
+    {
+        var explosionPrefab = GrenadeSystem.Instance.GetGrenadeDefinitionByType(grenadeType).ExplosionPrefab;
+        GameObject grenadeExplosionObject = Object.Instantiate(
+            explosionPrefab, position, Quaternion.identity
+        );
+
+        var audioSource = grenadeExplosionObject.GetComponent<AudioSource>();
+        audioSource?.Play();
+
+        Object.Destroy(grenadeExplosionObject, OsFps.GrenadeExplosionDuration);
     }
 
     public static Vector3 CorrectedPosition(Vector3 serverPosition, Vector3 serverVelocity, float roundTripTime, Vector3 clientPosition)

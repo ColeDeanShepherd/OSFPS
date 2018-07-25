@@ -110,47 +110,7 @@ public class Server
         _nextNetworkId++;
         return netId;
     }
-
-    public PositionOrientation3d GetNextSpawnPoint()
-    {
-        var spawnPointObjects = GameObject.FindGameObjectsWithTag(OsFps.SpawnPointTag);
-        if (spawnPointObjects.Length == 0)
-        {
-            OsFps.Logger.LogWarning("No spawn points.");
-
-            return new PositionOrientation3d
-            {
-                Position = Vector3.zero,
-                Orientation = Quaternion.identity
-            };
-        }
-
-        var unobstructedSpawnPointObjects = spawnPointObjects
-            .Where(spo => !IsSpawnPointObstructed(spo.transform.position))
-            .ToArray();
-
-        GameObject spawnPointObject;
-        if (unobstructedSpawnPointObjects.Length > 0)
-        {
-            spawnPointObject = unobstructedSpawnPointObjects[Random.Range(0, unobstructedSpawnPointObjects.Length)];
-        }
-        else
-        {
-            spawnPointObject = spawnPointObjects[Random.Range(0, spawnPointObjects.Length)];
-        }
-
-        return new PositionOrientation3d
-        {
-            Position = spawnPointObject.transform.position,
-            Orientation = spawnPointObject.transform.rotation
-        };
-    }
-    private bool IsSpawnPointObstructed(Vector3 spawnPoint)
-    {
-        var sphereRadius = 0.25f;
-        return Physics.CheckSphere(spawnPoint + Vector3.up, sphereRadius);
-    }
-
+    
     public int? GetConnectionIdByPlayerId(uint playerId)
     {
         foreach (var connectionIdPlayerIdPair in playerIdsByConnectionId)
