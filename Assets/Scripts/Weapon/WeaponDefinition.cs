@@ -14,6 +14,7 @@ public class WeaponDefinition
     public bool IsHitScan;
     public float SpawnInterval;
     public float RecoilTime;
+    public float ShotConeAngleInDegrees;
     public GameObject Prefab;
     public AudioClip ShotSound;
     public Texture2D Icon;

@@ -28,7 +28,7 @@ public class Server
         ServerPeer.OnClientDisconnected += OnClientDisconnected;
         ServerPeer.OnReceiveDataFromClient += OnReceiveDataFromClient;
 
-        var connectionConfig = OsFps.Instance.CreateConnectionConfig(
+        var connectionConfig = NetLib.CreateConnectionConfig(
             out reliableSequencedChannelId,
             out reliableChannelId,
             out unreliableStateUpdateChannelId,
@@ -119,7 +119,7 @@ public class Server
         var dedicatedServerScreenComponent = Object.Instantiate(
             OsFps.Instance.DedicatedServerScreenPrefab, OsFps.Instance.CanvasObject.transform
         ).GetComponent<DedicatedServerScreenComponent>();
-        OsFps.Instance.PushMenu(dedicatedServerScreenComponent);
+        OsFps.Instance.MenuStack.Push(dedicatedServerScreenComponent);
 
         OnServerStarted?.Invoke();
     }
@@ -150,7 +150,7 @@ public class Server
         {
             using (var writer = new BinaryWriter(memoryStream))
             {
-                writer.Write(OsFps.StateSynchronizationMessageId);
+                writer.Write(NetLib.StateSynchronizationMessageId);
                 writer.Write(gameState.SequenceNumber);
                 writer.Write(oldGameState.SequenceNumber);
                 NetworkSerializationUtils.SerializeNetworkedGameState(writer, gameState, oldGameState);
@@ -239,7 +239,7 @@ public class Server
 
                 RpcInfo rpcInfo;
 
-                if (messageTypeAsByte == OsFps.StateSynchronizationMessageId)
+                if (messageTypeAsByte == NetLib.StateSynchronizationMessageId)
                 {
                     throw new System.NotImplementedException("Servers don't support receiving state synchronization messages.");
                 }
@@ -332,7 +332,7 @@ public class Server
         if (OsFps.ShowHitScanShotsOnServer)
         {
             var serverShotRay = PlayerObjectSystem.Instance.GetShotRay(playerObjectComponent);
-            OsFps.Instance.CreateHitScanShotDebugLine(serverShotRay, OsFps.Instance.ClientShotRayMaterial);
+            WeaponSystem.Instance.CreateHitScanShotDebugLine(serverShotRay, OsFps.Instance.ClientShotRayMaterial);
         }
     }
 
@@ -375,7 +375,7 @@ public class Server
 
         if (playerObjectComponent != null)
         {
-            var playersClosestWeaponInfo = WeaponObjectSystem.Instance.ClosestWeaponInfoByPlayerId
+            var playersClosestWeaponInfo = WeaponSystem.Instance.ClosestWeaponInfoByPlayerId
                 .GetValueOrDefault(playerId);
 
             if (playersClosestWeaponInfo != null)
@@ -384,7 +384,7 @@ public class Server
 
                 if (weaponId == closestWeaponId)
                 {
-                    var weaponComponent = WeaponObjectSystem.Instance.FindWeaponComponent(weaponId);
+                    var weaponComponent = WeaponSystem.Instance.FindWeaponComponent(weaponId);
 
                     if (weaponComponent != null)
                     {

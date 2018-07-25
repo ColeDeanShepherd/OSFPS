@@ -163,7 +163,7 @@ public class GrenadeSystem : ComponentSystem
         var grenadePosition = (float3)grenadeComponent.transform.position;
 
         // apply damage & forces to players within range
-        OsFps.Instance.ApplyExplosionDamageAndForces(
+        WeaponSystem.Instance.ApplyExplosionDamageAndForces(
             server, grenadePosition, grenadeDefinition.ExplosionRadius, OsFps.GrenadeExplosionForce,
             grenadeDefinition.Damage, grenade.ThrowerPlayerId
         );

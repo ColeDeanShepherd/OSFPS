@@ -32,14 +32,14 @@ public class RocketComponent : MonoBehaviour
     private void LateUpdate()
     {
         State.RigidBodyState = (Rigidbody != null)
-            ? OsFps.ToRigidBodyState(Rigidbody)
+            ? RigidBodyState.FromRigidbody(Rigidbody)
             : new RigidBodyState();
     }
     private void ApplyStateFromServer(object newState)
     {
         var newRocketState = (RocketState)newState;
 
-        OsFps.ApplyRigidbodyState(
+        Client.ApplyRigidbodyState(
             newRocketState.RigidBodyState,
             State.RigidBodyState,
             Rigidbody,

@@ -26,8 +26,8 @@ public class OptionsScreenComponent : MonoBehaviour
     public void OnOkClick()
     {
         UpdateSettingsFromUi();
-        OsFps.Instance.SaveSettings();
-        OsFps.Instance.PopMenu();
+        Settings.SaveSettings(OsFps.Instance.Settings, OsFps.SettingsFilePath);
+        OsFps.Instance.MenuStack.Pop();
     }
 
     public void OnResetClick()

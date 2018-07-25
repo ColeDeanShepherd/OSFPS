@@ -2,11 +2,16 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using UnityEngine.Networking;
 
 namespace NetworkLibrary
 {
     public static class NetLib
     {
+        public const string LocalHostIpv4Address = "127.0.0.1";
+        public const byte StateSynchronizationMessageId = 0;
+        public const bool EnableRpcLogging = false;
+
         public const string ApplyStateMethodName = "ApplyStateFromServer";
         public static bool ParseIpAddressAndPort(
             string ipAddressAndPort, ushort defaultPortNumber, out string ipAddress, out ushort portNumber
@@ -263,7 +268,25 @@ namespace NetworkLibrary
             UnityEngine.Profiling.Profiler.EndSample();
             return id;
         }
-        
+
+        public static ConnectionConfig CreateConnectionConfig(
+            out int reliableSequencedChannelId,
+            out int reliableChannelId,
+            out int unreliableStateUpdateChannelId,
+            out int unreliableFragmentedChannelId,
+            out int unreliableChannelId
+        )
+        {
+            var connectionConfig = new ConnectionConfig();
+            reliableSequencedChannelId = connectionConfig.AddChannel(QosType.ReliableSequenced);
+            reliableChannelId = connectionConfig.AddChannel(QosType.Reliable);
+            unreliableStateUpdateChannelId = connectionConfig.AddChannel(QosType.StateUpdate);
+            unreliableFragmentedChannelId = connectionConfig.AddChannel(QosType.UnreliableFragmented);
+            unreliableChannelId = connectionConfig.AddChannel(QosType.Unreliable);
+
+            return connectionConfig;
+        }
+
         private static uint _nextGameStateSequenceNumber = 1;
         public static uint GenerateGameStateSequenceNumber()
         {

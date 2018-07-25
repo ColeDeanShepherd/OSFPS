@@ -10,7 +10,7 @@ public class WeaponComponent : MonoBehaviour
     {
         get
         {
-            return WeaponObjectSystem.Instance.GetWeaponDefinitionByType(State.Type);
+            return WeaponSystem.Instance.GetWeaponDefinitionByType(State.Type);
         }
     }
 
@@ -44,7 +44,7 @@ public class WeaponComponent : MonoBehaviour
 
             if (weaponSpawnerComponent != null)
             {
-                weaponSpawnerComponent.State.TimeUntilNextSpawn = WeaponObjectSystem.Instance.GetWeaponDefinitionByType(weaponSpawnerComponent.State.Type).SpawnInterval;
+                weaponSpawnerComponent.State.TimeUntilNextSpawn = WeaponSystem.Instance.GetWeaponDefinitionByType(weaponSpawnerComponent.State.Type).SpawnInterval;
             }
         }
     }
@@ -53,7 +53,7 @@ public class WeaponComponent : MonoBehaviour
         if (State != null)
         {
             State.RigidBodyState = (Rigidbody != null)
-                ? OsFps.ToRigidBodyState(Rigidbody)
+                ? RigidBodyState.FromRigidbody(Rigidbody)
                 : new RigidBodyState();
         }
     }
@@ -61,7 +61,7 @@ public class WeaponComponent : MonoBehaviour
     {
         var newWeaponObjectState = (WeaponObjectState)newState;
 
-        OsFps.ApplyRigidbodyState(
+        Client.ApplyRigidbodyState(
             newWeaponObjectState.RigidBodyState,
             State.RigidBodyState,
             Rigidbody,

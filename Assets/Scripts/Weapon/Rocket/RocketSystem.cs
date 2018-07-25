@@ -72,8 +72,8 @@ public class RocketSystem : ComponentSystem
         var rocketPosition = (float3)rocketComponent.transform.position;
 
         // apply damage & forces to players within range
-        var rocketLauncherDefinition = WeaponObjectSystem.Instance.GetWeaponDefinitionByType(WeaponType.RocketLauncher);
-        OsFps.Instance.ApplyExplosionDamageAndForces(
+        var rocketLauncherDefinition = WeaponSystem.Instance.GetWeaponDefinitionByType(WeaponType.RocketLauncher);
+        WeaponSystem.Instance.ApplyExplosionDamageAndForces(
             server, rocketPosition, OsFps.RocketExplosionRadius, OsFps.RocketExplosionForce,
             rocketLauncherDefinition.DamagePerBullet, rocketComponent.State.ShooterPlayerId
         );

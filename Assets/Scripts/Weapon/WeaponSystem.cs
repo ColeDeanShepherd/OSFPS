@@ -3,18 +3,18 @@ using UnityEngine;
 using Unity.Entities;
 using System.Linq;
 
-public class WeaponObjectSystem : ComponentSystem
+public class WeaponSystem : ComponentSystem
 {
     public struct Data
     {
         public WeaponComponent WeaponComponent;
     }
 
-    public static WeaponObjectSystem Instance;
+    public static WeaponSystem Instance;
 
     public Dictionary<uint, System.Tuple<uint, float>> ClosestWeaponInfoByPlayerId;
 
-    public WeaponObjectSystem()
+    public WeaponSystem()
     {
         Instance = this;
         ClosestWeaponInfoByPlayerId = new Dictionary<uint, System.Tuple<uint, float>>();
@@ -92,23 +92,111 @@ public class WeaponObjectSystem : ComponentSystem
         {
             for (var i = 0; i < OsFps.ShotgunBulletsPerShot; i++)
             {
-                var currentShotRay = MathfExtensions.GetRandomRayInCone(aimRay, OsFps.ShotgunShotConeAngleInDegrees);
+                var currentShotRay = MathfExtensions.GetRandomRayInCone(aimRay, weaponDefinition.ShotConeAngleInDegrees);
                 yield return currentShotRay;
             }
         }
-        else if (weaponDefinition.Type == WeaponType.Smg)
-        {
-            var shotRay = MathfExtensions.GetRandomRayInCone(aimRay, OsFps.SmgShotConeAngleInDegrees);
-            yield return shotRay;
-        }
-        else if (weaponDefinition.Type == WeaponType.AssaultRifle)
-        {
-            var shotRay = MathfExtensions.GetRandomRayInCone(aimRay, OsFps.AssaultRifleShotConeAngleInDegrees);
-            yield return shotRay;
-        }
         else
         {
-            yield return aimRay;
+            var shotRay = MathfExtensions.GetRandomRayInCone(aimRay, weaponDefinition.ShotConeAngleInDegrees);
+            yield return shotRay;
+        }
+    }
+    public RaycastHit? GetClosestValidRaycastHitForGunShot(Ray shotRay, PlayerObjectComponent shootingPlayerObjectComponent)
+    {
+        var raycastHits = Physics.RaycastAll(shotRay);
+        var closestValidRaycastHit = raycastHits
+            .OrderBy(raycastHit => raycastHit.distance)
+            .Select(raycastHit => (RaycastHit?)raycastHit)
+            .FirstOrDefault(raycastHit =>
+            {
+                var hitPlayerObject = raycastHit.Value.collider.gameObject.FindObjectOrAncestorWithTag(OsFps.PlayerTag);
+                return (hitPlayerObject == null) || (hitPlayerObject != shootingPlayerObjectComponent.gameObject);
+            });
+        return closestValidRaycastHit;
+    }
+    public void CreateHitScanShotDebugLine(Ray ray, Material material)
+    {
+        var hitScanShotObject = new GameObject("Hit Scan Shot");
+
+        var lineRenderer = hitScanShotObject.AddComponent<LineRenderer>();
+        var lineWidth = 0.05f;
+        lineRenderer.startWidth = lineWidth;
+        lineRenderer.endWidth = lineWidth;
+        lineRenderer.SetPositions(new Vector3[] {
+            ray.origin,
+            ray.origin + (1000 * ray.direction)
+        });
+        lineRenderer.sharedMaterial = material;
+
+        Object.Destroy(hitScanShotObject, OsFps.HitScanShotDebugLineLifetime);
+    }
+
+    public void ApplyExplosionDamageAndForces(
+        Server server, Vector3 explosionPosition, float explosionRadius, float maxExplosionForce,
+        float maxDamage, uint? attackerPlayerId
+    )
+    {
+        // apply damage & forces to players within range
+        var affectedColliders = Physics.OverlapSphere(explosionPosition, explosionRadius);
+        var affectedColliderPlayerObjectComponents = affectedColliders
+            .Select(collider => collider.gameObject.FindComponentInObjectOrAncestor<PlayerObjectComponent>())
+            .ToArray();
+
+        var affectedPlayerPointPairs = affectedColliders
+            .Select((collider, colliderIndex) =>
+                new System.Tuple<PlayerObjectComponent, Vector3>(
+                    affectedColliderPlayerObjectComponents[colliderIndex],
+                    collider.ClosestPoint(explosionPosition)
+                )
+            )
+            .Where(pair => pair.Item1 != null)
+            .GroupBy(pair => pair.Item1)
+            .Select(g => g
+                .OrderBy(pair => Vector3.Distance(pair.Item2, explosionPosition))
+                .FirstOrDefault()
+            )
+            .ToArray();
+
+        foreach (var pair in affectedPlayerPointPairs)
+        {
+            // Apply damage.
+            var playerObjectComponent = pair.Item1;
+            var closestPointToExplosion = pair.Item2;
+
+            var distanceFromExplosion = Vector3.Distance(closestPointToExplosion, explosionPosition);
+            var unclampedDamagePercent = (explosionRadius - distanceFromExplosion) / explosionRadius;
+            var damagePercent = Mathf.Max(unclampedDamagePercent, 0);
+            var damage = damagePercent * maxDamage;
+
+            // TODO: don't call system directly
+            var attackingPlayerObjectComponent = attackerPlayerId.HasValue
+                ? PlayerObjectSystem.Instance.FindPlayerObjectComponent(attackerPlayerId.Value)
+                : null;
+            PlayerObjectSystem.Instance.ServerDamagePlayer(
+                server, playerObjectComponent, damage, attackingPlayerObjectComponent
+            );
+
+            // Apply forces.
+            var rigidbody = playerObjectComponent.gameObject.GetComponent<Rigidbody>();
+            if (rigidbody != null)
+            {
+                rigidbody.AddExplosionForce(maxExplosionForce, explosionPosition, explosionRadius);
+            }
+        }
+
+        for (var colliderIndex = 0; colliderIndex < affectedColliders.Length; colliderIndex++)
+        {
+            if (affectedColliderPlayerObjectComponents[colliderIndex] != null) continue;
+
+            var collider = affectedColliders[colliderIndex];
+
+            // Apply forces.
+            var rigidbody = collider.gameObject.GetComponent<Rigidbody>();
+            if (rigidbody != null)
+            {
+                rigidbody.AddExplosionForce(maxExplosionForce, explosionPosition, explosionRadius);
+            }
         }
     }
 

@@ -86,7 +86,7 @@ public class PlayerObjectComponent : MonoBehaviour
         updatedPlayerObjectState.Position = correctedPosition;
         
         // Correct velocity.
-        var correctedVelocity = OsFps.CorrectedVelocity(
+        var correctedVelocity = Client.CorrectedVelocity(
             updatedPlayerObjectState.Velocity, roundTripTime, playerObjectComponent.Rigidbody.velocity
         );
         playerObjectComponent.Rigidbody.velocity = correctedVelocity;

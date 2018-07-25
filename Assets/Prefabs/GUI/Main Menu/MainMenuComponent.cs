@@ -1,6 +1,7 @@
 ﻿using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
+using NetworkLibrary;
 
 public class MainMenuComponent : MonoBehaviour
 {
@@ -11,27 +12,27 @@ public class MainMenuComponent : MonoBehaviour
         OsFps.Instance.EnteredClientIpAddressAndPort = IpAddressPortInputField.text;
         SceneManager.sceneLoaded += OsFps.Instance.OnMapLoadedAsClient;
         SceneManager.LoadScene(OsFps.SmallMapSceneName);
-        OsFps.Instance.PopMenu();
+        OsFps.Instance.MenuStack.Pop();
     }
     public void OnStartDedicatedServerClick()
     {
         OsFps.Instance.Server = new Server();
         OsFps.Instance.Server.Start();
-        OsFps.Instance.PopMenu();
+        OsFps.Instance.MenuStack.Pop();
     }
     public void OnStartListenServerClick()
     {
-        OsFps.Instance.EnteredClientIpAddressAndPort = OsFps.LocalHostIpv4Address + ":" + Server.PortNumber;
+        OsFps.Instance.EnteredClientIpAddressAndPort = NetLib.LocalHostIpv4Address + ":" + Server.PortNumber;
         OsFps.Instance.Server = new Server();
         OsFps.Instance.Server.Start();
 
         SceneManager.sceneLoaded += OsFps.Instance.OnMapLoadedAsClient;
 
-        OsFps.Instance.PopMenu();
+        OsFps.Instance.MenuStack.Pop();
     }
     public void OnOptionsClick()
     {
-        OsFps.Instance.PushMenu(OsFps.Instance.CreateOptionsScreen().GetComponent<OptionsScreenComponent>());
+        OsFps.Instance.MenuStack.Push(OsFps.Instance.CreateOptionsScreen().GetComponent<OptionsScreenComponent>());
     }
     public void OnQuitClick()
     {
@@ -40,6 +41,6 @@ public class MainMenuComponent : MonoBehaviour
 
     private void Start()
     {
-        IpAddressPortInputField.text = OsFps.LocalHostIpv4Address + ":" + Server.PortNumber;
+        IpAddressPortInputField.text = NetLib.LocalHostIpv4Address + ":" + Server.PortNumber;
     }
 }

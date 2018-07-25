@@ -1,6 +1,5 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
-using Unity.Entities;
 using UnityEngine;
 using UnityEngine.Assertions;
 using UnityEngine.Networking;
@@ -11,17 +10,14 @@ using UnityEngine.Profiling;
 public class OsFps : MonoBehaviour
 {
     #region Constants
-    public const string LocalHostIpv4Address = "127.0.0.1";
-    public const byte StateSynchronizationMessageId = 0;
-
-    public const bool EnableRpcLogging = false;
-
     public const string StartSceneName = "Start";
     public const string SmallMapSceneName = "Small Map";
 
     public const string PlayerTag = "Player";
     public const string SpawnPointTag = "Respawn";
     public const string PlayerHeadColliderName = "Head";
+
+    public const string ShieldDownMaterialAlphaParameterName = "Vector1_14FF3C92";
 
     public static bool ShowHitScanShotsOnServer = true;
     public static bool ShowLagCompensationOnServer = false;
@@ -47,9 +43,6 @@ public class OsFps : MonoBehaviour
     public const float EquipWeaponTime = 0.5f;
 
     public const int ShotgunBulletsPerShot = 15;
-    public const float ShotgunShotConeAngleInDegrees = 15;
-    public const float SmgShotConeAngleInDegrees = 5;
-    public const float AssaultRifleShotConeAngleInDegrees = 2.5f;
 
     public const float RocketSpeed = 20;
     public const float RocketExplosionRadius = 4;
@@ -70,86 +63,22 @@ public class OsFps : MonoBehaviour
     public const float SniperRifleBulletTrailLifeTime = 3;
 
     public const float KillPlaneY = -100;
-
-    public const string ShieldDownMaterialAlphaParameterName = "Vector1_14FF3C92";
     #endregion
 
     public static OsFps Instance;
     public static CustomLogger Logger = new CustomLogger(Debug.unityLogger.logHandler);
 
-    public static RigidBodyState ToRigidBodyState(Rigidbody rigidbody)
+    public static string SettingsFilePath
     {
-        return new RigidBodyState
+        get
         {
-            Position = rigidbody.transform.position,
-            EulerAngles = rigidbody.transform.eulerAngles,
-            Velocity = rigidbody.velocity,
-            AngularVelocity = rigidbody.angularVelocity
-        };
+            return Application.persistentDataPath + "/settings.json";
+        }
     }
-    public static void ApplyRigidbodyState(RigidBodyState newRigidBodyState, RigidBodyState oldRigidBodyState, Rigidbody rigidbody, float roundTripTime)
-    {
-        // Correct position.
-        var correctedPosition = CorrectedPosition(
-            newRigidBodyState.Position, newRigidBodyState.Velocity,
-            roundTripTime, rigidbody.transform.position
-        );
-        rigidbody.transform.position = correctedPosition;
-        newRigidBodyState.Position = correctedPosition;
-
-        // Correct orientation.
-        var correctedEulerAngles = CorrectedEulerAngles(
-            newRigidBodyState.EulerAngles, newRigidBodyState.AngularVelocity,
-            roundTripTime, rigidbody.transform.eulerAngles
-        );
-        rigidbody.transform.eulerAngles = correctedEulerAngles;
-        newRigidBodyState.EulerAngles = correctedEulerAngles;
-
-        // Correct velocity.
-        var correctedVelocity = CorrectedVelocity(
-            newRigidBodyState.Velocity, roundTripTime, rigidbody.velocity
-        );
-        rigidbody.velocity = correctedVelocity;
-        newRigidBodyState.Velocity = correctedVelocity;
-
-        // Correct angular velocity.
-        var correctedAngularVelocity = CorrectedAngularVelocity(
-            newRigidBodyState.AngularVelocity, roundTripTime, rigidbody.angularVelocity
-        );
-        rigidbody.angularVelocity = correctedAngularVelocity;
-        newRigidBodyState.AngularVelocity = correctedAngularVelocity;
-    }
-    public static Vector3 CorrectedPosition(Vector3 serverPosition, Vector3 serverVelocity, float roundTripTime, Vector3 clientPosition)
-    {
-        var serverToClientLatency = roundTripTime / 2;
-        var predictedPosition = serverPosition + (serverToClientLatency * serverVelocity);
-        var positionDifference = predictedPosition - clientPosition;
-        var percentOfDiffToCorrect = 1f / 3;
-        var positionDelta = percentOfDiffToCorrect * positionDifference;
-        return clientPosition + positionDelta;
-    }
-    public static Vector3 CorrectedEulerAngles(Vector3 serverEulerAngles, Vector3 serverAngularVelocity, float roundTripTime, Vector3 clientEulerAngles)
-    {
-        return serverEulerAngles;
-    }
-    public static Vector3 CorrectedVelocity(Vector3 serverVelocity, float roundTripTime, Vector3 clientVelocity)
-    {
-        var serverToClientLatency = roundTripTime / 2;
-        var percentOfDiffToCorrect = 1f / 2;
-        var velocityDiff = percentOfDiffToCorrect * (serverVelocity - clientVelocity);
-        return clientVelocity + velocityDiff;
-    }
-    public static Vector3 CorrectedAngularVelocity(Vector3 serverAngularVelocity, float roundTripTime, Vector3 clientAngularVelocity)
-    {
-        var serverToClientLatency = roundTripTime / 2;
-        var percentOfDiffToCorrect = 1f / 2;
-        var angularVelocityDiff = percentOfDiffToCorrect * (serverAngularVelocity - clientAngularVelocity);
-        return clientAngularVelocity + angularVelocityDiff;
-    }
-
+    
     public Server Server;
     public Client Client;
-    public Stack<MonoBehaviour> MenuStack;
+    public MenuStack MenuStack;
     public bool IsInOptionsScreen
     {
         get
@@ -225,119 +154,7 @@ public class OsFps : MonoBehaviour
 
     public RuntimeAnimatorController RecoilAnimatorController;
     #endregion
-
-    public ConnectionConfig CreateConnectionConfig(
-        out int reliableSequencedChannelId,
-        out int reliableChannelId,
-        out int unreliableStateUpdateChannelId,
-        out int unreliableFragmentedChannelId,
-        out int unreliableChannelId
-    )
-    {
-        var connectionConfig = new ConnectionConfig();
-        reliableSequencedChannelId = connectionConfig.AddChannel(QosType.ReliableSequenced);
-        reliableChannelId = connectionConfig.AddChannel(QosType.Reliable);
-        unreliableStateUpdateChannelId = connectionConfig.AddChannel(QosType.StateUpdate);
-        unreliableFragmentedChannelId = connectionConfig.AddChannel(QosType.UnreliableFragmented);
-        unreliableChannelId = connectionConfig.AddChannel(QosType.Unreliable);
-
-        return connectionConfig;
-    }
     
-    public void ApplyExplosionDamageAndForces(
-        Server server, Vector3 explosionPosition, float explosionRadius, float maxExplosionForce,
-        float maxDamage, uint? attackerPlayerId
-    )
-    {
-        // apply damage & forces to players within range
-        var affectedColliders = Physics.OverlapSphere(explosionPosition, explosionRadius);
-        var affectedColliderPlayerObjectComponents = affectedColliders
-            .Select(collider => collider.gameObject.FindComponentInObjectOrAncestor<PlayerObjectComponent>())
-            .ToArray();
-
-        var affectedPlayerPointPairs = affectedColliders
-            .Select((collider, colliderIndex) =>
-                new System.Tuple<PlayerObjectComponent, Vector3>(
-                    affectedColliderPlayerObjectComponents[colliderIndex],
-                    collider.ClosestPoint(explosionPosition)
-                )
-            )
-            .Where(pair => pair.Item1 != null)
-            .GroupBy(pair => pair.Item1)
-            .Select(g => g
-                .OrderBy(pair => Vector3.Distance(pair.Item2, explosionPosition))
-                .FirstOrDefault()
-            )
-            .ToArray();
-
-        foreach (var pair in affectedPlayerPointPairs)
-        {
-            // Apply damage.
-            var playerObjectComponent = pair.Item1;
-            var closestPointToExplosion = pair.Item2;
-
-            var distanceFromExplosion = Vector3.Distance(closestPointToExplosion, explosionPosition);
-            var unclampedDamagePercent = (explosionRadius - distanceFromExplosion) / explosionRadius;
-            var damagePercent = Mathf.Max(unclampedDamagePercent, 0);
-            var damage = damagePercent * maxDamage;
-
-            // TODO: don't call system directly
-            var attackingPlayerObjectComponent = attackerPlayerId.HasValue
-                ? PlayerObjectSystem.Instance.FindPlayerObjectComponent(attackerPlayerId.Value)
-                : null;
-            PlayerObjectSystem.Instance.ServerDamagePlayer(
-                server, playerObjectComponent, damage, attackingPlayerObjectComponent
-            );
-
-            // Apply forces.
-            var rigidbody = playerObjectComponent.gameObject.GetComponent<Rigidbody>();
-            if (rigidbody != null)
-            {
-                rigidbody.AddExplosionForce(maxExplosionForce, explosionPosition, explosionRadius);
-            }
-        }
-
-        for (var colliderIndex = 0; colliderIndex < affectedColliders.Length; colliderIndex++)
-        {
-            if (affectedColliderPlayerObjectComponents[colliderIndex] != null) continue;
-
-            var collider = affectedColliders[colliderIndex];
-
-            // Apply forces.
-            var rigidbody = collider.gameObject.GetComponent<Rigidbody>();
-            if (rigidbody != null)
-            {
-                rigidbody.AddExplosionForce(maxExplosionForce, explosionPosition, explosionRadius);
-            }
-        }
-    }
-
-    public RaycastHit? GetClosestValidRaycastHitForGunShot(Ray shotRay, PlayerObjectComponent shootingPlayerObjectComponent)
-    {
-        var raycastHits = Physics.RaycastAll(shotRay);
-        var closestValidRaycastHit = raycastHits
-            .OrderBy(raycastHit => raycastHit.distance)
-            .Select(raycastHit => (RaycastHit?)raycastHit)
-            .FirstOrDefault(raycastHit =>
-            {
-                var hitPlayerObject = raycastHit.Value.collider.gameObject.FindObjectOrAncestorWithTag(PlayerTag);
-                return (hitPlayerObject == null) || (hitPlayerObject != shootingPlayerObjectComponent.gameObject);
-            });
-        return closestValidRaycastHit;
-    }
-
-    public static byte PlayerInputAsBits(PlayerInput playerInput)
-    {
-        byte bits = 0;
-        BitUtilities.SetBit(ref bits, 0, playerInput.IsMoveFowardPressed);
-        BitUtilities.SetBit(ref bits, 1, playerInput.IsMoveBackwardPressed);
-        BitUtilities.SetBit(ref bits, 2, playerInput.IsMoveRightPressed);
-        BitUtilities.SetBit(ref bits, 3, playerInput.IsMoveLeftPressed);
-        BitUtilities.SetBit(ref bits, 4, playerInput.IsFirePressed);
-
-        return bits;
-    }
-
     public MainMenuComponent CreateMainMenu()
     {
         var mainMenuObject = Instantiate(MainMenuPrefab, CanvasObject.transform);
@@ -373,33 +190,15 @@ public class OsFps : MonoBehaviour
         
         NetLib.Setup();
 
-        LoadSettings();
-    }
-    private GameObject CreateDataObject()
-    {
-        var dataObject = new GameObject("data");
-        DontDestroyOnLoad(dataObject);
-
-        foreach (var weaponDefinitionPrefab in WeaponDefinitionPrefabs)
-        {
-            GameObject weaponDefinitionObject = Instantiate(weaponDefinitionPrefab, dataObject.transform);
-            WeaponDefinitionComponents.Add(weaponDefinitionObject.GetComponent<WeaponDefinitionComponent>());
-        }
-        foreach (var grenadeDefinitionPrefab in GrenadeDefinitionPrefabs)
-        {
-            GameObject grenadeDefinitionObject = Instantiate(grenadeDefinitionPrefab, dataObject.transform);
-            GrenadeDefinitionComponents.Add(grenadeDefinitionObject.GetComponent<GrenadeDefinitionComponent>());
-        }
-
-        return dataObject;
+        Settings.LoadFromFile(SettingsFilePath);
     }
     private void Start()
     {
         // Initialize & configure network.
         NetworkTransport.Init();
 
-        MenuStack = new Stack<MonoBehaviour>();
-        PushMenu(CreateMainMenu());
+        MenuStack = new MenuStack();
+        MenuStack.Push(CreateMainMenu());
     }
     private void OnDestroy()
     {
@@ -463,27 +262,23 @@ public class OsFps : MonoBehaviour
         }
     }
 
-    public void PushMenu(MonoBehaviour menuComponent)
+    private GameObject CreateDataObject()
     {
-        if (MenuStack.Any())
+        var dataObject = new GameObject("data");
+        DontDestroyOnLoad(dataObject);
+
+        foreach (var weaponDefinitionPrefab in WeaponDefinitionPrefabs)
         {
-            MenuStack.Peek().gameObject.SetActive(false);
+            GameObject weaponDefinitionObject = Instantiate(weaponDefinitionPrefab, dataObject.transform);
+            WeaponDefinitionComponents.Add(weaponDefinitionObject.GetComponent<WeaponDefinitionComponent>());
+        }
+        foreach (var grenadeDefinitionPrefab in GrenadeDefinitionPrefabs)
+        {
+            GameObject grenadeDefinitionObject = Instantiate(grenadeDefinitionPrefab, dataObject.transform);
+            GrenadeDefinitionComponents.Add(grenadeDefinitionObject.GetComponent<GrenadeDefinitionComponent>());
         }
 
-        MenuStack.Push(menuComponent);
-    }
-    public void PopMenu()
-    {
-        if (MenuStack.Any())
-        {
-            Destroy(MenuStack.Peek().gameObject);
-            MenuStack.Pop();
-        }
-        
-        if (MenuStack.Any())
-        {
-            MenuStack.Peek().gameObject.SetActive(true);
-        }
+        return dataObject;
     }
 
     public void ShutdownServer()
@@ -491,49 +286,7 @@ public class OsFps : MonoBehaviour
         ShutdownNetworkPeers();
 
         SceneManager.LoadScene(StartSceneName);
-        PushMenu(CreateMainMenu());
-    }
-
-    public string SettingsFilePath
-    {
-        get
-        {
-            return Application.persistentDataPath + "/settings.json";
-        }
-    }
-
-    private void LoadSettings()
-    {
-        if (System.IO.File.Exists(SettingsFilePath))
-        {
-            var settingsJsonString = System.IO.File.ReadAllText(SettingsFilePath, System.Text.Encoding.UTF8);
-            Settings = JsonUtility.FromJson<Settings>(settingsJsonString);
-        }
-        else
-        {
-            Settings = new Settings();
-        }
-    }
-    public void SaveSettings()
-    {
-        System.IO.File.WriteAllText(SettingsFilePath, JsonUtility.ToJson(Settings));
-    }
-
-    public void CreateHitScanShotDebugLine(Ray ray, Material material)
-    {
-        var hitScanShotObject = new GameObject("Hit Scan Shot");
-
-        var lineRenderer = hitScanShotObject.AddComponent<LineRenderer>();
-        var lineWidth = 0.05f;
-        lineRenderer.startWidth = lineWidth;
-        lineRenderer.endWidth = lineWidth;
-        lineRenderer.SetPositions(new Vector3[] {
-            ray.origin,
-            ray.origin + (1000 * ray.direction)
-        });
-        lineRenderer.sharedMaterial = material;
-
-        Object.Destroy(hitScanShotObject, OsFps.HitScanShotDebugLineLifetime);
+        MenuStack.Push(CreateMainMenu());
     }
     
     private void ShutdownNetworkPeers()
@@ -578,6 +331,6 @@ public class OsFps : MonoBehaviour
         ShutdownNetworkPeers();
 
         SceneManager.LoadScene(StartSceneName);
-        PushMenu(CreateMainMenu());
+        MenuStack.Push(CreateMainMenu());
     }
 }

@@ -24,7 +24,7 @@ public class WeaponObjectState
     {
         get
         {
-            return WeaponObjectSystem.Instance.GetWeaponDefinitionByType(Type);
+            return WeaponSystem.Instance.GetWeaponDefinitionByType(Type);
         }
     }
 }

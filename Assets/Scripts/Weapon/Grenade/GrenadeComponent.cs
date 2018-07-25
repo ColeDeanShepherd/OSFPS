@@ -57,14 +57,14 @@ public class GrenadeComponent : MonoBehaviour
     private void LateUpdate()
     {
         State.RigidBodyState = (Rigidbody != null)
-            ? OsFps.ToRigidBodyState(Rigidbody)
+            ? RigidBodyState.FromRigidbody(Rigidbody)
             : new RigidBodyState();
     }
     private void ApplyStateFromServer(object newState)
     {
         var newGrenadeState = (GrenadeState)newState;
 
-        OsFps.ApplyRigidbodyState(
+        Client.ApplyRigidbodyState(
             newGrenadeState.RigidBodyState,
             State.RigidBodyState,
             Rigidbody,

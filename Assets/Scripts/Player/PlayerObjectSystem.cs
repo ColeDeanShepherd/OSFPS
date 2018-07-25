@@ -367,7 +367,7 @@ public class PlayerObjectSystem : ComponentSystem
 
         ServerRewindPlayers(secondsToRewind);
 
-        foreach (var shotRay in WeaponObjectSystem.Instance.ShotRays(weaponDefinition, aimRay))
+        foreach (var shotRay in WeaponSystem.Instance.ShotRays(weaponDefinition, aimRay))
         {
             ServerApplyHitscanShot(server, shootingPlayerObjectComponent, weaponDefinition, shotRay);
         }
@@ -379,7 +379,7 @@ public class PlayerObjectSystem : ComponentSystem
         WeaponDefinition weaponDefinition, Ray shotRay
     )
     {
-        var possibleHit = OsFps.Instance.GetClosestValidRaycastHitForGunShot(shotRay, shootingPlayerObjectComponent);
+        var possibleHit = WeaponSystem.Instance.GetClosestValidRaycastHitForGunShot(shotRay, shootingPlayerObjectComponent);
 
         if (possibleHit != null)
         {
@@ -407,7 +407,7 @@ public class PlayerObjectSystem : ComponentSystem
 
         if (OsFps.ShowHitScanShotsOnServer)
         {
-            OsFps.Instance.CreateHitScanShotDebugLine(shotRay, OsFps.Instance.ServerShotRayMaterial);
+            WeaponSystem.Instance.CreateHitScanShotDebugLine(shotRay, OsFps.Instance.ServerShotRayMaterial);
         }
     }
     public void ServerFireRocketLauncher(
@@ -494,10 +494,10 @@ public class PlayerObjectSystem : ComponentSystem
         }
         else if (playersMatchingWeapon != null)
         {
-            var numBulletsPickedUp = WeaponObjectSystem.Instance.ServerAddBullets(
+            var numBulletsPickedUp = WeaponSystem.Instance.ServerAddBullets(
                 playersMatchingWeapon, weaponObjectState.BulletsLeft
             );
-            WeaponObjectSystem.Instance.ServerRemoveBullets(weaponObjectState, numBulletsPickedUp);
+            WeaponSystem.Instance.ServerRemoveBullets(weaponObjectState, numBulletsPickedUp);
 
             if (weaponObjectState.BulletsLeft == 0)
             {

@@ -72,7 +72,7 @@ public class PlayerRespawnSystem : ComponentSystem
             ReloadTimeLeft = -1,
             EquipWeaponTimeLeft = -1
         };
-        var firstWeaponDefinition = WeaponObjectSystem.Instance.GetWeaponDefinitionByType(WeaponType.Pistol);
+        var firstWeaponDefinition = WeaponSystem.Instance.GetWeaponDefinitionByType(WeaponType.Pistol);
         playerObjectState.Weapons[0] = new EquippedWeaponState
         {
             Type = firstWeaponDefinition.Type,

@@ -4,7 +4,7 @@ public class ConnectingScreenComponent : MonoBehaviour
 {
     public void OnCancelClick()
     {
-        OsFps.Instance.PopMenu();
+        OsFps.Instance.MenuStack.Pop();
         OsFps.Instance.Client.InternalOnDisconnectedFromServer();
     }
 }

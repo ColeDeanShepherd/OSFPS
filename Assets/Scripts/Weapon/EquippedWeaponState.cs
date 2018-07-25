@@ -41,7 +41,7 @@ public class EquippedWeaponState : NetworkLibrary.INetworkSerializable
     {
         get
         {
-            return WeaponObjectSystem.Instance.GetWeaponDefinitionByType(Type);
+            return WeaponSystem.Instance.GetWeaponDefinitionByType(Type);
         }
     }
 

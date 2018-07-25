@@ -4,7 +4,7 @@ public class DedicatedServerScreenComponent : MonoBehaviour
 {
     public void OnShutdownClick()
     {
-        OsFps.Instance.PopMenu();
+        OsFps.Instance.MenuStack.Pop();
         OsFps.Instance.ShutdownServer();
     }
 }

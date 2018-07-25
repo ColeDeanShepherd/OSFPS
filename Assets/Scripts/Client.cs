@@ -31,7 +31,7 @@ public class Client
         ClientPeer.OnConnectedToServer += InternalOnConnectedToServer;
         ClientPeer.OnDisconnectedFromServer += InternalOnDisconnectedFromServer;
 
-        var connectionConfig = OsFps.Instance.CreateConnectionConfig(
+        var connectionConfig = NetLib.CreateConnectionConfig(
             out reliableSequencedChannelId,
             out reliableChannelId,
             out unreliableStateUpdateChannelId,
@@ -158,13 +158,13 @@ public class Client
                 if (playerObjectComponent != null)
                 {
                     var playerId = playerObjectComponent.State.Id;
-                    var playersClosestWeaponInfo = WeaponObjectSystem.Instance.ClosestWeaponInfoByPlayerId
+                    var playersClosestWeaponInfo = WeaponSystem.Instance.ClosestWeaponInfoByPlayerId
                         .GetValueOrDefault(playerId);
 
                     if (playersClosestWeaponInfo != null)
                     {
                         var closestWeaponId = playersClosestWeaponInfo.Item1;
-                        var closestWeaponComponent = WeaponObjectSystem.Instance.FindWeaponComponent(closestWeaponId);
+                        var closestWeaponComponent = WeaponSystem.Instance.FindWeaponComponent(closestWeaponId);
                         if (closestWeaponComponent != null)
                         {
                             var closestWeaponType = closestWeaponComponent.State.Type;
@@ -243,14 +243,14 @@ public class Client
                     var pauseScreenComponent = GameObject.Instantiate(
                         OsFps.Instance.PauseScreenPrefab, OsFps.Instance.CanvasObject.transform
                     ).GetComponent<PauseScreenComponent>();
-                    OsFps.Instance.PushMenu(pauseScreenComponent);
+                    OsFps.Instance.MenuStack.Push(pauseScreenComponent);
 
                     Cursor.lockState = CursorLockMode.None;
                     Cursor.visible = true;
                 }
                 else
                 {
-                    OsFps.Instance.PopMenu();
+                    OsFps.Instance.MenuStack.Pop();
                 }
             }
 
@@ -359,7 +359,7 @@ public class Client
         {
             if (_isShowingConnectingScreen)
             {
-                OsFps.Instance.PopMenu();
+                OsFps.Instance.MenuStack.Pop();
             }
 
             DrawHud();
@@ -371,12 +371,12 @@ public class Client
 
             if (PlayerId.HasValue)
             {
-                var closestWeaponInfo = WeaponObjectSystem.Instance.ClosestWeaponInfoByPlayerId
+                var closestWeaponInfo = WeaponSystem.Instance.ClosestWeaponInfoByPlayerId
                     .GetValueOrDefault(PlayerId.Value);
 
                 if (closestWeaponInfo != null)
                 {
-                    var weaponComponent = WeaponObjectSystem.Instance.FindWeaponComponent(closestWeaponInfo.Item1);
+                    var weaponComponent = WeaponSystem.Instance.FindWeaponComponent(closestWeaponInfo.Item1);
 
                     if (weaponComponent != null)
                     {
@@ -392,7 +392,7 @@ public class Client
                 var connectingScreenComponent = GameObject.Instantiate(
                     OsFps.Instance.ConnectingScreenPrefab, OsFps.Instance.CanvasObject.transform
                 ).GetComponent<ConnectingScreenComponent>();
-                OsFps.Instance.PushMenu(connectingScreenComponent);
+                OsFps.Instance.MenuStack.Push(connectingScreenComponent);
             }
         }
     }
@@ -668,7 +668,7 @@ public class Client
 
         if (playerObjectState.CurrentWeapon != null)
         {
-            var weaponPrefab = WeaponObjectSystem.Instance.GetWeaponDefinitionByType(playerObjectState.CurrentWeapon.Type).Prefab;
+            var weaponPrefab = WeaponSystem.Instance.GetWeaponDefinitionByType(playerObjectState.CurrentWeapon.Type).Prefab;
 
             GameObject weaponObject = Object.Instantiate(weaponPrefab, Vector3.zero, Quaternion.identity);
             var animator = weaponObject.AddComponent<Animator>();
@@ -738,7 +738,7 @@ public class Client
         {
             if (weapon.Type == WeaponType.SniperRifle)
             {
-                WeaponObjectSystem.Instance.CreateSniperBulletTrail(aimRay);
+                WeaponSystem.Instance.CreateSniperBulletTrail(aimRay);
             }
 
             var equippedWeaponComponent = GetEquippedWeaponComponent(playerObjectComponent);
@@ -752,7 +752,7 @@ public class Client
 
             if (weapon.Definition.IsHitScan)
             {
-                foreach (var shotRay in WeaponObjectSystem.Instance.ShotRays(weapon.Definition, aimRay))
+                foreach (var shotRay in WeaponSystem.Instance.ShotRays(weapon.Definition, aimRay))
                 {
                     CreateBulletHole(playerObjectComponent, shotRay);
                 }
@@ -761,7 +761,7 @@ public class Client
     }
     private void CreateBulletHole(PlayerObjectComponent playerObjectComponent, Ray shotRay)
     {
-        var possibleHit = OsFps.Instance.GetClosestValidRaycastHitForGunShot(shotRay, playerObjectComponent);
+        var possibleHit = WeaponSystem.Instance.GetClosestValidRaycastHitForGunShot(shotRay, playerObjectComponent);
 
         if (possibleHit != null)
         {
@@ -854,6 +854,66 @@ public class Client
             playerId = playerObjectState.Id,
             weaponIndex = (byte)weaponIndex
         });
+    }
+
+    public static Vector3 CorrectedPosition(Vector3 serverPosition, Vector3 serverVelocity, float roundTripTime, Vector3 clientPosition)
+    {
+        var serverToClientLatency = roundTripTime / 2;
+        var predictedPosition = serverPosition + (serverToClientLatency * serverVelocity);
+        var positionDifference = predictedPosition - clientPosition;
+        var percentOfDiffToCorrect = 1f / 3;
+        var positionDelta = percentOfDiffToCorrect * positionDifference;
+        return clientPosition + positionDelta;
+    }
+    public static Vector3 CorrectedEulerAngles(Vector3 serverEulerAngles, Vector3 serverAngularVelocity, float roundTripTime, Vector3 clientEulerAngles)
+    {
+        return serverEulerAngles;
+    }
+    public static Vector3 CorrectedVelocity(Vector3 serverVelocity, float roundTripTime, Vector3 clientVelocity)
+    {
+        var serverToClientLatency = roundTripTime / 2;
+        var percentOfDiffToCorrect = 1f / 2;
+        var velocityDiff = percentOfDiffToCorrect * (serverVelocity - clientVelocity);
+        return clientVelocity + velocityDiff;
+    }
+    public static Vector3 CorrectedAngularVelocity(Vector3 serverAngularVelocity, float roundTripTime, Vector3 clientAngularVelocity)
+    {
+        var serverToClientLatency = roundTripTime / 2;
+        var percentOfDiffToCorrect = 1f / 2;
+        var angularVelocityDiff = percentOfDiffToCorrect * (serverAngularVelocity - clientAngularVelocity);
+        return clientAngularVelocity + angularVelocityDiff;
+    }
+    public static void ApplyRigidbodyState(RigidBodyState newRigidBodyState, RigidBodyState oldRigidBodyState, Rigidbody rigidbody, float roundTripTime)
+    {
+        // Correct position.
+        var correctedPosition = CorrectedPosition(
+            newRigidBodyState.Position, newRigidBodyState.Velocity,
+            roundTripTime, rigidbody.transform.position
+        );
+        rigidbody.transform.position = correctedPosition;
+        newRigidBodyState.Position = correctedPosition;
+
+        // Correct orientation.
+        var correctedEulerAngles = CorrectedEulerAngles(
+            newRigidBodyState.EulerAngles, newRigidBodyState.AngularVelocity,
+            roundTripTime, rigidbody.transform.eulerAngles
+        );
+        rigidbody.transform.eulerAngles = correctedEulerAngles;
+        newRigidBodyState.EulerAngles = correctedEulerAngles;
+
+        // Correct velocity.
+        var correctedVelocity = CorrectedVelocity(
+            newRigidBodyState.Velocity, roundTripTime, rigidbody.velocity
+        );
+        rigidbody.velocity = correctedVelocity;
+        newRigidBodyState.Velocity = correctedVelocity;
+
+        // Correct angular velocity.
+        var correctedAngularVelocity = CorrectedAngularVelocity(
+            newRigidBodyState.AngularVelocity, roundTripTime, rigidbody.angularVelocity
+        );
+        rigidbody.angularVelocity = correctedAngularVelocity;
+        newRigidBodyState.AngularVelocity = correctedAngularVelocity;
     }
 
     private void ConfirmChatMessage()
@@ -1060,7 +1120,7 @@ public class Client
                 var messageTypeAsByte = reader.ReadByte();
                 RpcInfo rpcInfo;
 
-                if (messageTypeAsByte == OsFps.StateSynchronizationMessageId)
+                if (messageTypeAsByte == NetLib.StateSynchronizationMessageId)
                 {
                     OnReceiveDeltaGameStateFromServer(reader, bytesReceived, numBytesReceived);
                 }

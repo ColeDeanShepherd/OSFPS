@@ -4,15 +4,15 @@ public class PauseScreenComponent : MonoBehaviour
 {
     public void OnExitMenuClick()
     {
-        OsFps.Instance.PopMenu();
+        OsFps.Instance.MenuStack.Pop();
     }
     public void OnOptionsClick()
     {
-        OsFps.Instance.PushMenu(OsFps.Instance.CreateOptionsScreen().GetComponent<OptionsScreenComponent>());
+        OsFps.Instance.MenuStack.Push(OsFps.Instance.CreateOptionsScreen().GetComponent<OptionsScreenComponent>());
     }
     public void OnLeaveServerClick()
     {
-        OsFps.Instance.PopMenu();
+        OsFps.Instance.MenuStack.Pop();
         OsFps.Instance.Client.LeaveServer();
     }
 }

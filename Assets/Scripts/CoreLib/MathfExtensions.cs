@@ -77,6 +77,8 @@ public static class MathfExtensions
     
     public static Ray GetRandomRayInCone(Ray centerRay, float coneAngleInDegrees)
     {
+        if (coneAngleInDegrees <= 0) return centerRay;
+
         var angleFromCenterInDegrees = coneAngleInDegrees * Random.value;
         var angleFromHorizontalInDegrees = 360 * Random.value;
 

@@ -21,7 +21,7 @@ public class WeaponSpawnerSystem : ComponentSystem
     {
         if (weaponSpawnerState.TimeUntilNextSpawn > 0) return;
 
-        var weaponDefinition = WeaponObjectSystem.Instance.GetWeaponDefinitionByType(weaponSpawnerState.Type);
+        var weaponDefinition = WeaponSystem.Instance.GetWeaponDefinitionByType(weaponSpawnerState.Type);
         var bulletsLeft = weaponDefinition.MaxAmmo / 2;
         var bulletsLeftInMagazine = Mathf.Min(weaponDefinition.BulletsPerMagazine, bulletsLeft);
         var weaponSpawnerComponent = FindWeaponSpawnerComponent(weaponSpawnerState.Id);
@@ -45,7 +45,7 @@ public class WeaponSpawnerSystem : ComponentSystem
     }
     public GameObject SpawnLocalWeaponObject(WeaponObjectState weaponObjectState)
     {
-        var weaponPrefab = WeaponObjectSystem.Instance.GetWeaponDefinitionByType(weaponObjectState.Type).Prefab;
+        var weaponPrefab = WeaponSystem.Instance.GetWeaponDefinitionByType(weaponObjectState.Type).Prefab;
         var weaponObject = GameObject.Instantiate(
             weaponPrefab,
             weaponObjectState.RigidBodyState.Position,
