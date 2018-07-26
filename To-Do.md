@@ -3,9 +3,9 @@
 #### M.V.P.
 
 * Refactor
+  * Client, ClientPeer, NetLib, NetworkPeer, NetworkSerializationUtils, NonNullableElementAttribute, OsFps, PlayerObjectSystem, Server, ServerPeer
 * Optimize network bandwidth
   - Position/orientation delta thresholds?
-* Don't play zoom sound if can't zoom.
 
 #### High-Priority
 
