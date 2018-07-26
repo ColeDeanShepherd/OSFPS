@@ -32,11 +32,7 @@ public class PlayerObjectComponent : MonoBehaviour
     private void OnDestroy()
     {
         Instances.Remove(this);
-
-        if (State.Id == OsFps.Instance.Client?.PlayerId)
-        {
-            OsFps.Instance.Client.DetachCameraFromPlayer();
-        }
+        PlayerObjectSystem.Instance.OnDestroy(this);
     }
     private void ApplyStateFromServer(object newState)
     {

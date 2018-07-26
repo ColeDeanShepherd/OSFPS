@@ -11,11 +11,7 @@ namespace NetworkLibrary
         }
         public void AddGameState(NetworkedGameState gameState)
         {
-            cachedSentGameStates.Add(gameState);
-            if (cachedSentGameStates.Count > maxCachedSentGameStates)
-            {
-                cachedSentGameStates.RemoveAt(0);
-            }
+            ListExtensions.AppendWithMaxLength(cachedSentGameStates, gameState, maxCachedSentGameStates);
         }
         public void AcknowledgeGameStateForPlayer(uint playerId, uint gameStateSequenceNumber)
         {
@@ -29,7 +25,7 @@ namespace NetworkLibrary
 
             RemoveUnneededGameStates();
         }
-        public void OnPlayerDisconnected(uint playerId)
+        public void HandlePlayerDisconnect(uint playerId)
         {
             latestAcknowledgedGameStateSequenceNumberByPlayerId.Remove(playerId);
             RemoveUnneededGameStates();

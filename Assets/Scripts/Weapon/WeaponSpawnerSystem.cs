@@ -17,6 +17,41 @@ public class WeaponSpawnerSystem : ComponentSystem
         Instance = this;
     }
 
+    protected override void OnUpdate()
+    {
+        var server = OsFps.Instance?.Server;
+        if (server != null)
+        {
+            ServerOnUpdate(server);
+        }
+    }
+    private void ServerOnUpdate(Server server)
+    {
+        var spawnersReadyToSpawn = new List<WeaponSpawnerState>();
+
+        foreach (var entity in GetEntities<Data>())
+        {
+            var weaponSpawner = entity.WeaponSpawnerComponent.State;
+
+            // spawn interval
+            if (weaponSpawner.TimeUntilNextSpawn > 0)
+            {
+                weaponSpawner.TimeUntilNextSpawn -= Time.deltaTime;
+            }
+
+            if (weaponSpawner.TimeUntilNextSpawn <= 0)
+            {
+                spawnersReadyToSpawn.Add(weaponSpawner);
+            }
+        }
+
+        foreach (var weaponSpawner in spawnersReadyToSpawn)
+        {
+            ServerSpawnWeapon(server, weaponSpawner);
+            weaponSpawner.TimeUntilNextSpawn = null;
+        }
+    }
+
     public void ServerSpawnWeapon(Server server, WeaponSpawnerState weaponSpawnerState)
     {
         if (weaponSpawnerState.TimeUntilNextSpawn > 0) return;
@@ -66,41 +101,5 @@ public class WeaponSpawnerSystem : ComponentSystem
     {
         return Object.FindObjectsOfType<WeaponSpawnerComponent>()
             .FirstOrDefault(wsc => wsc.State.Id == id);
-    }
-
-    protected override void OnUpdate()
-    {
-        var server = OsFps.Instance?.Server;
-        if (server != null)
-        {
-            ServerOnUpdate(server);
-        }
-    }
-
-    private void ServerOnUpdate(Server server)
-    {
-        var spawnersReadyToSpawn = new List<WeaponSpawnerState>();
-
-        foreach (var entity in GetEntities<Data>())
-        {
-            var weaponSpawner = entity.WeaponSpawnerComponent.State;
-
-            // spawn interval
-            if (weaponSpawner.TimeUntilNextSpawn > 0)
-            {
-                weaponSpawner.TimeUntilNextSpawn -= Time.deltaTime;
-            }
-
-            if (weaponSpawner.TimeUntilNextSpawn <= 0)
-            {
-                spawnersReadyToSpawn.Add(weaponSpawner);
-            }
-        }
-
-        foreach (var weaponSpawner in spawnersReadyToSpawn)
-        {
-            ServerSpawnWeapon(server, weaponSpawner);
-            weaponSpawner.TimeUntilNextSpawn = null;
-        }
     }
 }

@@ -615,7 +615,7 @@ public class Client
         return GetMouseSensitivityMultiplierForZoomLevel() * OsFps.Instance.Settings.MouseSensitivity;
     }
 
-    private void AttachCameraToPlayer(uint playerId)
+    public void AttachCameraToPlayer(uint playerId)
     {
         var playerObject = PlayerObjectSystem.Instance.FindPlayerObject(playerId);
         var cameraPointObject = playerObject.GetComponent<PlayerObjectComponent>().CameraPointObject;
@@ -891,7 +891,7 @@ public class Client
         }
         else if (stateType.IsEquivalentTo(typeof(PlayerObjectState)))
         {
-            return SpawnPlayer((PlayerObjectState)state);
+            return PlayerRespawnSystem.Instance.ClientSpawnPlayer(this, (PlayerObjectState)state);
         }
         else if (stateType.IsEquivalentTo(typeof(WeaponObjectState)))
         {
@@ -927,19 +927,7 @@ public class Client
         }
     }
 
-    private GameObject SpawnPlayer(PlayerObjectState playerState)
-    {
-        var playerObject = PlayerRespawnSystem.Instance.SpawnLocalPlayer(playerState);
-
-        if (playerState.Id == PlayerId)
-        {
-            AttachCameraToPlayer(playerState.Id);
-            HidePlayerModelFromCamera(playerObject);
-        }
-
-        return playerObject;
-    }
-    private void HidePlayerModelFromCamera(GameObject playerObject)
+    public void HidePlayerModelFromCamera(GameObject playerObject)
     {
         var modelContainer = playerObject.FindDescendant("Model");
 

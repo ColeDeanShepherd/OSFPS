@@ -293,6 +293,8 @@ namespace NetworkLibrary
                     var objProperties = objType.GetProperties();
                     foreach (var objProperty in objProperties)
                     {
+                        if (!objProperty.CanRead || !objProperty.CanWrite) continue;
+
                         SerializeObject(
                             writer, objProperty.GetValue(obj), objProperty.PropertyType,
                             isNullableIfReferenceType: false, areElementsNullableIfReferenceType: false
@@ -603,23 +605,25 @@ namespace NetworkLibrary
                     var result = Activator.CreateInstance(type);
 
                     var objFields = type.GetFields();
-                    foreach (var field in objFields)
+                    foreach (var objField in objFields)
                     {
                         var fieldValue = Deserialize(
-                            reader, field.FieldType, isNullableIfReferenceType: false,
+                            reader, objField.FieldType, isNullableIfReferenceType: false,
                             areElementsNullableIfReferenceType: false
                         );
-                        field.SetValue(result, fieldValue);
+                        objField.SetValue(result, fieldValue);
                     }
 
                     var objProperties = type.GetProperties();
-                    foreach (var property in objProperties)
+                    foreach (var objProperty in objProperties)
                     {
+                        if (!objProperty.CanRead || !objProperty.CanWrite) continue;
+
                         var propertyValue = Deserialize(
-                            reader, property.PropertyType, isNullableIfReferenceType: false,
+                            reader, objProperty.PropertyType, isNullableIfReferenceType: false,
                             areElementsNullableIfReferenceType: false
                         );
-                        property.SetValue(result, propertyValue);
+                        objProperty.SetValue(result, propertyValue);
                     }
 
                     return result;

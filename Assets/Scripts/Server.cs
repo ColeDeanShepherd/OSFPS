@@ -205,7 +205,7 @@ public class Server
     {
         // TODO: Make sure the player ID is correct.
         var playerObjectComponent = PlayerObjectSystem.Instance.FindPlayerObjectComponent(playerId);
-        GrenadeSystem.Instance.ServerPlayerThrowGrenade(this, playerObjectComponent);
+        PlayerObjectSystem.Instance.ServerPlayerThrowGrenade(this, playerObjectComponent);
     }
     
     [Rpc(ExecuteOn = NetworkLibrary.NetworkPeerType.Server)]

@@ -95,11 +95,18 @@ public class OsFps : MonoBehaviour
             return Server != null;
         }
     }
+    public bool IsClient
+    {
+        get
+        {
+            return Client != null;
+        }
+    }
     public bool IsRemoteClient
     {
         get
         {
-            return (Server == null) && (Client != null);
+            return !IsServer && IsClient;
         }
     }
 

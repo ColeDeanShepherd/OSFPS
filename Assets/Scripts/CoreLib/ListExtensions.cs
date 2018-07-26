@@ -22,4 +22,29 @@ public static class ListExtensions
             oldList.Any(oldElement => doElementsMatch(oldElement, newElement))
         ).ToList();
     }
+
+    public static void AppendWithMaxLength<T>(List<T> list, T elementToAppend, int maxLength)
+    {
+        if (maxLength == 0) return;
+
+        if (list.Count < maxLength)
+        {
+            list.Add(elementToAppend);
+        }
+        else if (list.Count == maxLength)
+        {
+            // shift the elements down
+            for (var i = 0; i < list.Count - 1; i++)
+            {
+                list[i] = list[i + 1];
+            }
+
+            // "append" the new element
+            list[list.Count - 1] = elementToAppend;
+        }
+        else
+        {
+            throw new System.NotImplementedException();
+        }
+    }
 }

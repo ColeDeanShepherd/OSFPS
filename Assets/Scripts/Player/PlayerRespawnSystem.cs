@@ -96,7 +96,20 @@ public class PlayerRespawnSystem : ComponentSystem
         var playerObject = SpawnLocalPlayer(playerObjectState);
         return playerObject;
     }
-    
+
+    public GameObject ClientSpawnPlayer(Client client, PlayerObjectState playerState)
+    {
+        var playerObject = SpawnLocalPlayer(playerState);
+
+        if (playerState.Id == client.PlayerId)
+        {
+            client.AttachCameraToPlayer(playerState.Id);
+            client.HidePlayerModelFromCamera(playerObject);
+        }
+
+        return playerObject;
+    }
+
     public GameObject SpawnLocalPlayer(PlayerObjectState playerObjectState)
     {
         var orientation = Quaternion.Euler(

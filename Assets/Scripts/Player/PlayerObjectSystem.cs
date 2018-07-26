@@ -65,6 +65,7 @@ public class PlayerObjectSystem : ComponentSystem
             DrawPlayerInput(entity.PlayerObjectComponent);
         }
     }
+
     public void ServerOnLateUpdate(Server server)
     {
         UpdateLagCompensationSnapshots();
@@ -73,6 +74,7 @@ public class PlayerObjectSystem : ComponentSystem
     {
         UpdateLagCompensationSnapshots();
     }
+
     private void UpdateLagCompensationSnapshots()
     {
         foreach (var entity in GetEntities<Data>())
@@ -110,6 +112,18 @@ public class PlayerObjectSystem : ComponentSystem
             Position = playerObjectComponent.transform.position,
             LookDirAngles = GetPlayerLookDirAngles(playerObjectComponent)
         };
+    }
+
+    public void OnDestroy(PlayerObjectComponent playerObjectComponent)
+    {
+        var client = OsFps.Instance.Client;
+        if (client != null)
+        {
+            if (playerObjectComponent.State.Id == client.PlayerId)
+            {
+                client.DetachCameraFromPlayer();
+            }
+        }
     }
 
     private void DrawPlayerInput(PlayerObjectComponent playerObjectComponent)
@@ -923,5 +937,39 @@ public class PlayerObjectSystem : ComponentSystem
         playerDataObject.AddComponent<GameObjectEntity>();
 
         return playerDataObject;
+    }
+
+
+    public void ServerPlayerThrowGrenade(Server server, PlayerObjectComponent playerObjectComponent)
+    {
+        var playerObjectState = playerObjectComponent.State;
+        if (!playerObjectState.CanThrowGrenade) return;
+
+        var throwRay = GetShotRay(playerObjectComponent);
+        throwRay.origin += (0.5f * throwRay.direction);
+        var currentGrenadeSlot = playerObjectState.GrenadeSlots[playerObjectState.CurrentGrenadeSlotIndex];
+
+        var grenadeState = new GrenadeState
+        {
+            Id = server.GenerateNetworkId(),
+            Type = currentGrenadeSlot.GrenadeType,
+            IsActive = true,
+            TimeUntilDetonation = null,
+            RigidBodyState = new RigidBodyState
+            {
+                Position = throwRay.origin,
+                EulerAngles = Quaternion.LookRotation(throwRay.direction, Vector3.up).eulerAngles,
+                Velocity = OsFps.GrenadeThrowSpeed * throwRay.direction,
+                AngularVelocity = Vector3.zero
+            },
+            ThrowerPlayerId = playerObjectState.Id
+        };
+        var grenadeObject = GrenadeSpawnerSystem.Instance.SpawnLocalGrenadeObject(grenadeState);
+
+        // Make grenade ignore collisions with thrower.
+        GameObjectExtensions.IgnoreCollisionsRecursive(grenadeObject, playerObjectComponent.gameObject);
+
+        currentGrenadeSlot.GrenadeCount--;
+        playerObjectState.TimeUntilCanThrowGrenade = OsFps.GrenadeThrowInterval;
     }
 }

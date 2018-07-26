@@ -18,9 +18,14 @@ public class RocketSystem : ComponentSystem
         Instance = this;
     }
 
-    public void ServerRocketOnCollisionEnter(Server server, RocketComponent rocketComponent, Collision collision)
+    protected override void OnUpdate()
     {
-        ServerDetonateRocket(server, rocketComponent);
+    }
+
+    public RocketComponent FindRocketComponent(uint id)
+    {
+        return Object.FindObjectsOfType<RocketComponent>()
+           .FirstOrDefault(g => g.State.Id == id);
     }
 
     public GameObject SpawnLocalRocketObject(RocketState rocketState)
@@ -48,23 +53,9 @@ public class RocketSystem : ComponentSystem
         }
     }
 
-    public RocketComponent FindRocketComponent(uint id)
+    public void ServerRocketOnCollisionEnter(Server server, RocketComponent rocketComponent, Collision collision)
     {
-        return Object.FindObjectsOfType<RocketComponent>()
-           .FirstOrDefault(g => g.State.Id == id);
-    }
-
-    protected override void OnUpdate()
-    {
-        var server = OsFps.Instance?.Server;
-        if (server != null)
-        {
-            ServerOnUpdate(server);
-        }
-    }
-
-    private void ServerOnUpdate(Server server)
-    {
+        ServerDetonateRocket(server, rocketComponent);
     }
 
     private void ServerDetonateRocket(Server server, RocketComponent rocketComponent)

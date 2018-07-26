@@ -153,7 +153,7 @@ namespace NetworkLibrary
         {
             base.OnPeerDisconnected(connectionId);
 
-            networkedGameStateCache.OnPlayerDisconnected((uint)connectionId);
+            networkedGameStateCache.HandlePlayerDisconnect((uint)connectionId);
 
             if (OnClientDisconnected != null)
             {

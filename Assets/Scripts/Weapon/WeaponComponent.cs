@@ -26,27 +26,12 @@ public class WeaponComponent : MonoBehaviour
     }
     private void OnCollisionStay(Collision collision)
     {
-        var otherGameObject = collision.gameObject;
-        var playerObject = otherGameObject.FindObjectOrAncestorWithTag(OsFps.PlayerTag);
-
-        if (playerObject != null)
-        {
-            PlayerObjectSystem.Instance.OnPlayerCollidingWithWeapon(playerObject, gameObject);
-        }
+        WeaponSystem.Instance.WeaponOnCollisionStay(this, collision);
     }
     private void OnDestroy()
     {
         Instances.Remove(this);
-
-        if (State.WeaponSpawnerId.HasValue)
-        {
-            var weaponSpawnerComponent = WeaponSpawnerSystem.Instance.FindWeaponSpawnerComponent(State.WeaponSpawnerId.Value);
-
-            if (weaponSpawnerComponent != null)
-            {
-                weaponSpawnerComponent.State.TimeUntilNextSpawn = WeaponSystem.Instance.GetWeaponDefinitionByType(weaponSpawnerComponent.State.Type).SpawnInterval;
-            }
-        }
+        WeaponSystem.Instance.WeaponOnDestroy(this);
     }
     private void LateUpdate()
     {

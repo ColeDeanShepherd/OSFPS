@@ -9,6 +9,7 @@ public class MenuStack : IEnumerable<MonoBehaviour>
     {
         monoBehaviourStack = new Stack<MonoBehaviour>();
     }
+
     public void Push(MonoBehaviour menuComponent)
     {
         if (monoBehaviourStack.Any())
