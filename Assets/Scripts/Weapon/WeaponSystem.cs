@@ -303,7 +303,7 @@ public class WeaponSystem : ComponentSystem
             if (equippedWeaponComponent != null)
             {
                 var weaponAudioSource = equippedWeaponComponent.GetComponent<AudioSource>();
-                weaponAudioSource?.PlayOneShot(weapon.Definition.ShotSound);
+                weaponAudioSource?.PlayOneShot(weapon.Definition.ShotSound, 0.5f);
 
                 equippedWeaponComponent.Animator.Play("Recoil");
             }

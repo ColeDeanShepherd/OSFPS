@@ -97,7 +97,7 @@ public class GrenadeSystem : ComponentSystem
                 if (OsFps.Instance.IsClient)
                 {
                     var audioSource = grenadeComponent.GetComponent<AudioSource>();
-                    audioSource.PlayOneShot(OsFps.Instance.FragGrenadeBounceSound);
+                    AudioSource.PlayClipAtPoint(OsFps.Instance.FragGrenadeBounceSound, grenadeComponent.transform.position);
                 }
             }
             else if (grenadeComponent.State.Type == GrenadeType.Sticky)
@@ -145,7 +145,7 @@ public class GrenadeSystem : ComponentSystem
 
     public void ShowGrenadeExplosion(Vector3 position, GrenadeType grenadeType)
     {
-        var explosionPrefab = GrenadeSystem.Instance.GetGrenadeDefinitionByType(grenadeType).ExplosionPrefab;
+        var explosionPrefab = GetGrenadeDefinitionByType(grenadeType).ExplosionPrefab;
         GameObject grenadeExplosionObject = Object.Instantiate(
             explosionPrefab, position, Quaternion.identity
         );

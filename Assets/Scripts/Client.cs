@@ -643,7 +643,7 @@ public class Client
         var equippedWeaponComponent = PlayerObjectSystem.Instance.GetEquippedWeaponComponent(playerObjectComponent);
 
         var audioSource = equippedWeaponComponent?.GetComponent<AudioSource>();
-        audioSource?.PlayOneShot(OsFps.Instance.ReloadSound);
+        audioSource?.PlayOneShot(OsFps.Instance.ReloadSound, 0.5f);
 
         equippedWeaponComponent.Animator.Play("Reload");
     }

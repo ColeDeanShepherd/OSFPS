@@ -743,7 +743,7 @@ public class PlayerObjectSystem : ComponentSystem
         {
             var equippedWeaponComponent = GetEquippedWeaponComponent(playerObjectComponent);
             var weaponAudioSource = equippedWeaponComponent.GetComponent<AudioSource>();
-            weaponAudioSource?.PlayOneShot(OsFps.Instance.GunDryFireSound);
+            weaponAudioSource?.PlayOneShot(OsFps.Instance.GunDryFireSound, 0.7f);
         }
 
         playerObjectComponent.State.CurrentWeapon.TimeSinceLastShot = 0;
