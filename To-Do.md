@@ -4,9 +4,7 @@
 
 * Optimize network bandwidth
   - Position/orientation delta thresholds?
-* Add in-game link for patreon?
-* Refactor
-  * Client, ClientPeer, NetLib, NetworkPeer, NetworkSerializationUtils, NonNullableElementAttribute, OsFps, PlayerObjectSystem, Server, ServerPeer
+* Make sounds positioned in world.
 
 #### High-Priority
 

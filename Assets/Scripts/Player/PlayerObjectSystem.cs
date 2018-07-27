@@ -124,7 +124,7 @@ public class PlayerObjectSystem : ComponentSystem
                 client.DetachCameraFromPlayer();
             }
 
-            client.ShowPlayerDiedEffects(playerObjectComponent.transform.position + Vector3.up);
+            PlayerObjectSystem.Instance.ShowPlayerDeathEffects(playerObjectComponent.transform.position + Vector3.up);
         }
     }
 
@@ -730,18 +730,18 @@ public class PlayerObjectSystem : ComponentSystem
             client.ClientPeer.CallRpcOnServer("ServerOnPlayerTriggerPulled", client.ClientPeer.reliableChannelId, new
             {
                 playerId = playerObjectComponent.State.Id,
-                shotRay = PlayerObjectSystem.Instance.GetShotRay(playerObjectComponent)
+                shotRay = GetShotRay(playerObjectComponent)
             });
 
             // predict the shot
-            var shotRay = PlayerObjectSystem.Instance.GetShotRay(playerObjectComponent);
-            client.ShowWeaponFireEffects(playerObjectComponent, shotRay);
+            var shotRay = GetShotRay(playerObjectComponent);
+            WeaponSystem.Instance.ShowWeaponFireEffects(playerObjectComponent, shotRay);
 
             playerObjectComponent.State.RecoilTimeLeft = playerObjectComponent.State.CurrentWeapon.Definition.RecoilTime;
         }
         else
         {
-            var equippedWeaponComponent = client.GetEquippedWeaponComponent(playerObjectComponent);
+            var equippedWeaponComponent = GetEquippedWeaponComponent(playerObjectComponent);
             var weaponAudioSource = equippedWeaponComponent.GetComponent<AudioSource>();
             weaponAudioSource?.PlayOneShot(OsFps.Instance.GunDryFireSound);
         }
@@ -808,7 +808,7 @@ public class PlayerObjectSystem : ComponentSystem
         var playerObjectState = playerObjectComponent.State;
 
         var client = OsFps.Instance?.Client;
-        var equippedWeaponComponent = client?.GetEquippedWeaponComponent(playerObjectComponent);
+        var equippedWeaponComponent = GetEquippedWeaponComponent(playerObjectComponent);
 
         if (playerObjectState.IsEquippingWeapon)
         {
@@ -940,8 +940,7 @@ public class PlayerObjectSystem : ComponentSystem
 
         return playerDataObject;
     }
-
-
+    
     public void ServerPlayerThrowGrenade(Server server, PlayerObjectComponent playerObjectComponent)
     {
         var playerObjectState = playerObjectComponent.State;
@@ -973,5 +972,74 @@ public class PlayerObjectSystem : ComponentSystem
 
         currentGrenadeSlot.GrenadeCount--;
         playerObjectState.TimeUntilCanThrowGrenade = OsFps.GrenadeThrowInterval;
+    }
+
+    public void ShowPlayerDeathEffects(Vector3 position)
+    {
+        var explosionPrefab = OsFps.Instance.RocketExplosionPrefab;
+        GameObject explosionObject = Object.Instantiate(
+            explosionPrefab, position, Quaternion.identity
+        );
+
+        Object.Destroy(explosionObject, OsFps.RocketExplosionDuration);
+    }
+
+    public EquippedWeaponComponent GetEquippedWeaponComponent(PlayerObjectComponent playerObjectComponent)
+    {
+        foreach (Transform weaponTransform in playerObjectComponent.HandsPointObject.transform)
+        {
+            var equippedWeaponComponent = weaponTransform.gameObject.GetComponent<EquippedWeaponComponent>();
+            if (equippedWeaponComponent != null)
+            {
+                return equippedWeaponComponent;
+            }
+        }
+
+        return null;
+    }
+
+    public void VisualEquipWeapon(PlayerObjectState playerObjectState)
+    {
+        var playerObjectComponent = FindPlayerObjectComponent(playerObjectState.Id);
+
+        var equippedWeaponComponent = GetEquippedWeaponComponent(playerObjectComponent);
+        var wasEQCNull = equippedWeaponComponent == null;
+        if (equippedWeaponComponent != null)
+        {
+            Object.DestroyImmediate(equippedWeaponComponent.gameObject);
+        }
+
+        if (playerObjectState.CurrentWeapon != null)
+        {
+            var weaponPrefab = WeaponSystem.Instance.GetWeaponDefinitionByType(playerObjectState.CurrentWeapon.Type).Prefab;
+
+            GameObject weaponObject = Object.Instantiate(weaponPrefab, Vector3.zero, Quaternion.identity);
+            var animator = weaponObject.AddComponent<Animator>();
+            animator.runtimeAnimatorController = OsFps.Instance.RecoilAnimatorController;
+
+            weaponObject.transform.SetParent(playerObjectComponent.HandsPointObject.transform, false);
+
+            var weaponComponent = weaponObject.GetComponent<WeaponComponent>();
+            Object.DestroyImmediate(weaponComponent.Rigidbody);
+            Object.DestroyImmediate(weaponComponent.Collider);
+            Object.DestroyImmediate(weaponComponent);
+
+            playerObjectState.EquipWeaponTimeLeft = OsFps.EquipWeaponTime;
+            playerObjectState.ReloadTimeLeft = -1;
+            playerObjectState.RecoilTimeLeft = -1;
+
+            equippedWeaponComponent = weaponObject.AddComponent<EquippedWeaponComponent>();
+            equippedWeaponComponent.State = playerObjectState.CurrentWeapon;
+            equippedWeaponComponent.State.TimeSinceLastShot = equippedWeaponComponent.State.Definition.ShotInterval;
+            equippedWeaponComponent.Animator = animator;
+
+            animator.Play("Equip");
+        }
+
+        var weaponCount = 0;
+        foreach (Transform weaponTransform in playerObjectComponent.HandsPointObject.transform)
+        {
+            weaponCount++;
+        }
     }
 }

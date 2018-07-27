@@ -143,6 +143,19 @@ public class GrenadeSystem : ComponentSystem
         }
     }
 
+    public void ShowGrenadeExplosion(Vector3 position, GrenadeType grenadeType)
+    {
+        var explosionPrefab = GrenadeSystem.Instance.GetGrenadeDefinitionByType(grenadeType).ExplosionPrefab;
+        GameObject grenadeExplosionObject = Object.Instantiate(
+            explosionPrefab, position, Quaternion.identity
+        );
+
+        var audioSource = grenadeExplosionObject.GetComponent<AudioSource>();
+        audioSource?.Play();
+
+        Object.Destroy(grenadeExplosionObject, OsFps.GrenadeExplosionDuration);
+    }
+
     public GrenadeComponent FindGrenadeComponent(uint id)
     {
         return Object.FindObjectsOfType<GrenadeComponent>()

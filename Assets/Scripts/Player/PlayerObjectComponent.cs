@@ -59,12 +59,12 @@ public class PlayerObjectComponent : MonoBehaviour
         }
 
         // Handle weapon pickup.
-        var equippedWeaponType = client.GetEquippedWeaponComponent(playerObjectComponent)?.State.Type;
+        var equippedWeaponType = PlayerObjectSystem.Instance.GetEquippedWeaponComponent(playerObjectComponent)?.State.Type;
         var newWeaponType = updatedPlayerObjectState.CurrentWeapon?.Type;
 
         if (newWeaponType != equippedWeaponType)
         {
-            client.VisualEquipWeapon(updatedPlayerObjectState);
+            PlayerObjectSystem.Instance.VisualEquipWeapon(updatedPlayerObjectState);
         }
 
         // Update player object.

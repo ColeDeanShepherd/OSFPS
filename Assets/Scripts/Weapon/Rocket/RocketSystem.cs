@@ -79,4 +79,17 @@ public class RocketSystem : ComponentSystem
             position = rocketPosition
         });
     }
+
+    public void ShowRocketExplosion(Vector3 position)
+    {
+        var explosionPrefab = OsFps.Instance.RocketExplosionPrefab;
+        GameObject explosionObject = Object.Instantiate(
+            explosionPrefab, position, Quaternion.identity
+        );
+
+        var audioSource = explosionObject.GetComponent<AudioSource>();
+        audioSource?.Play();
+
+        Object.Destroy(explosionObject, OsFps.RocketExplosionDuration);
+    }
 }

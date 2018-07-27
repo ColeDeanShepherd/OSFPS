@@ -184,7 +184,7 @@ namespace NetworkLibrary
         }
 
         private List<NetworkedGameState> cachedReceivedGameStates = new List<NetworkedGameState>();
-        private System.Tuple<uint, byte[]> latestSequenceNumberDeltaGameStateBytesPair;
+        private Tuple<uint, byte[]> latestSequenceNumberDeltaGameStateBytesPair;
         private Func<object, UnityEngine.GameObject> createGameObjectFromState;
 
         private void OnReceiveDeltaGameStateFromServer(BinaryReader reader, byte[] bytesReceived, int numBytesReceived)
@@ -192,7 +192,7 @@ namespace NetworkLibrary
             uint latestReceivedGameStateSequenceNumber = (cachedReceivedGameStates.Any())
                 ? cachedReceivedGameStates[cachedReceivedGameStates.Count - 1].SequenceNumber
                 : 0;
-            latestReceivedGameStateSequenceNumber = System.Math.Max(
+            latestReceivedGameStateSequenceNumber = Math.Max(
                 latestReceivedGameStateSequenceNumber,
                 latestSequenceNumberDeltaGameStateBytesPair?.Item1 ?? 0
             );
@@ -202,8 +202,8 @@ namespace NetworkLibrary
             {
                 var bytesLeft = new byte[numBytesReceived - reader.BaseStream.Position];
 
-                System.Array.Copy(bytesReceived, reader.BaseStream.Position, bytesLeft, 0, bytesLeft.Length);
-                latestSequenceNumberDeltaGameStateBytesPair = new System.Tuple<uint, byte[]>(
+                Array.Copy(bytesReceived, reader.BaseStream.Position, bytesLeft, 0, bytesLeft.Length);
+                latestSequenceNumberDeltaGameStateBytesPair = new Tuple<uint, byte[]>(
                     sequenceNumber,
                     bytesLeft
                 );
@@ -309,7 +309,7 @@ namespace NetworkLibrary
                     }
                     else
                     {
-                        throw new System.NotImplementedException("Unknown message type: " + messageTypeAsByte);
+                        throw new NotImplementedException("Unknown message type: " + messageTypeAsByte);
                     }
                 }
             }

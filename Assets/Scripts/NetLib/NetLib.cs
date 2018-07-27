@@ -336,7 +336,7 @@ namespace NetworkLibrary
                 UnityEngine.Object.Destroy(monoBehaviour.gameObject);
             };
 
-            System.Action<object> handleAddedState = addedState =>
+            Action<object> handleAddedState = addedState =>
             {
                 createGameObjectFromState(addedState);
 
@@ -352,7 +352,7 @@ namespace NetworkLibrary
                 }
             };
 
-            System.Action<object, object> handleUpdatedState =
+            Action<object, object> handleUpdatedState =
                 (oldState, newState) =>
                 {
                     var oldStateId = GetIdFromState(networkedComponentTypeInfo, oldState);

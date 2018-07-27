@@ -214,7 +214,7 @@ namespace NetworkLibrary
             SendMessageToClient(connectionId, unreliableFragmentedChannelId, messageBytes);
         }
 
-        [Rpc(ExecuteOn = NetworkLibrary.NetworkPeerType.Server)]
+        [Rpc(ExecuteOn = NetworkPeerType.Server)]
         private void ServerOnReceiveClientGameStateAck(uint gameStateSequenceNumber)
         {
             networkedGameStateCache.AcknowledgeGameStateForPlayer(

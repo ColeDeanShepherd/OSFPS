@@ -276,4 +276,60 @@ public class WeaponSystem : ComponentSystem
             }
         }
     }
+
+    public void ShowMuzzleFlash(PlayerObjectComponent playerObjectComponent)
+    {
+        GameObject muzzleFlashObject = Object.Instantiate(
+            OsFps.Instance.MuzzleFlashPrefab, Vector3.zero, Quaternion.identity
+        );
+        var barrelExitObject = playerObjectComponent.HandsPointObject.FindDescendant("BarrelExit");
+        muzzleFlashObject.transform.SetParent(barrelExitObject.transform, false);
+
+        Object.Destroy(muzzleFlashObject, OsFps.MuzzleFlashDuration);
+    }
+    public void ShowWeaponFireEffects(PlayerObjectComponent playerObjectComponent, Ray aimRay)
+    {
+        ShowMuzzleFlash(playerObjectComponent);
+
+        var weapon = playerObjectComponent.State.CurrentWeapon;
+        if (weapon != null)
+        {
+            if (weapon.Type == WeaponType.SniperRifle)
+            {
+                CreateSniperBulletTrail(aimRay);
+            }
+
+            var equippedWeaponComponent = PlayerObjectSystem.Instance.GetEquippedWeaponComponent(playerObjectComponent);
+            if (equippedWeaponComponent != null)
+            {
+                var weaponAudioSource = equippedWeaponComponent.GetComponent<AudioSource>();
+                weaponAudioSource?.PlayOneShot(weapon.Definition.ShotSound);
+
+                equippedWeaponComponent.Animator.Play("Recoil");
+            }
+
+            if (weapon.Definition.IsHitScan)
+            {
+                foreach (var shotRay in WeaponSystem.Instance.ShotRays(weapon.Definition, aimRay))
+                {
+                    CreateBulletHole(playerObjectComponent, shotRay);
+                }
+            }
+        }
+    }
+    public void CreateBulletHole(PlayerObjectComponent playerObjectComponent, Ray shotRay)
+    {
+        var possibleHit = WeaponSystem.Instance.GetClosestValidRaycastHitForGunShot(shotRay, playerObjectComponent);
+
+        if (possibleHit != null)
+        {
+            var raycastHit = possibleHit.Value;
+            var bulletHolePosition = raycastHit.point + (0.01f * raycastHit.normal);
+            var bulletHoleOrientation = Quaternion.LookRotation(-raycastHit.normal);
+            var bulletHole = Object.Instantiate(
+                OsFps.Instance.BulletHolePrefab, bulletHolePosition, bulletHoleOrientation, raycastHit.transform
+            );
+            Object.Destroy(bulletHole, 5);
+        }
+    }
 }
