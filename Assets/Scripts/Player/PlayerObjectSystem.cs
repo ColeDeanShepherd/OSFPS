@@ -123,6 +123,8 @@ public class PlayerObjectSystem : ComponentSystem
             {
                 client.DetachCameraFromPlayer();
             }
+
+            client.ShowPlayerDiedEffects(playerObjectComponent.transform.position + Vector3.up);
         }
     }
 

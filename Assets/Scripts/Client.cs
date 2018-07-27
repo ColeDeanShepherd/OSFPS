@@ -775,6 +775,15 @@ public class Client
 
         Object.Destroy(explosionObject, OsFps.RocketExplosionDuration);
     }
+    public void ShowPlayerDiedEffects(Vector3 position)
+    {
+        var explosionPrefab = OsFps.Instance.RocketExplosionPrefab;
+        GameObject explosionObject = Object.Instantiate(
+            explosionPrefab, position, Quaternion.identity
+        );
+
+        Object.Destroy(explosionObject, OsFps.RocketExplosionDuration);
+    }
 
     public void RequestSwitchWeapons(PlayerObjectComponent playerObjectComponent, int weaponIndex)
     {

@@ -332,6 +332,7 @@ namespace NetworkLibrary
             System.Action<object> handleRemovedState = removedState =>
             {
                 var monoBehaviour = GetMonoBehaviourByState(networkedComponentTypeInfo, removedState);
+
                 UnityEngine.Object.Destroy(monoBehaviour.gameObject);
             };
 

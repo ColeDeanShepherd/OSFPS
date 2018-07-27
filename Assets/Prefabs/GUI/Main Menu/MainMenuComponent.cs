@@ -34,6 +34,10 @@ public class MainMenuComponent : MonoBehaviour
     {
         OsFps.Instance.MenuStack.Push(OsFps.Instance.CreateOptionsScreen().GetComponent<OptionsScreenComponent>());
     }
+    public void OnWebsiteClick()
+    {
+        System.Diagnostics.Process.Start("https://github.com/ColeDeanShepherd/OSFPS");
+    }
     public void OnQuitClick()
     {
         Application.Quit();

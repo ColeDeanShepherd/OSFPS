@@ -31,8 +31,8 @@ public class PlayerObjectComponent : MonoBehaviour
     }
     private void OnDestroy()
     {
-        Instances.Remove(this);
         PlayerObjectSystem.Instance.OnDestroy(this);
+        Instances.Remove(this);
     }
     private void ApplyStateFromServer(object newState)
     {

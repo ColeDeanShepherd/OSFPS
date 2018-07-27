@@ -2,10 +2,11 @@
 
 #### M.V.P.
 
-* Refactor
-  * Client, ClientPeer, NetLib, NetworkPeer, NetworkSerializationUtils, NonNullableElementAttribute, OsFps, PlayerObjectSystem, Server, ServerPeer
 * Optimize network bandwidth
   - Position/orientation delta thresholds?
+* Add in-game link for patreon?
+* Refactor
+  * Client, ClientPeer, NetLib, NetworkPeer, NetworkSerializationUtils, NonNullableElementAttribute, OsFps, PlayerObjectSystem, Server, ServerPeer
 
 #### High-Priority
 
@@ -40,4 +41,4 @@
 - Remove ECS system instances.
 - Implement dead bodies.
 - Pick up weapons when in range if already holding key and didn't just drop them.
-- Show dead/alive players in scoreboard.
+- Show dead/alive players in scoreboard.B
