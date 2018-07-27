@@ -4,7 +4,6 @@
 
 * Optimize network bandwidth
   - Position/orientation delta thresholds?
-* Make sounds positioned in world.
 
 #### High-Priority
 
