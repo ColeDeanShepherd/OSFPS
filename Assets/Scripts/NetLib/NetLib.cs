@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using UnityEngine.Networking;
 
 namespace NetworkLibrary
@@ -11,6 +12,7 @@ namespace NetworkLibrary
         public const string LocalHostIpv4Address = "127.0.0.1";
         public const byte StateSynchronizationMessageId = 0;
         public const bool EnableRpcLogging = false;
+        public const bool EnableStateDeltaLogging = false;
 
         public const string ApplyStateMethodName = "ApplyStateFromServer";
         public static bool ParseIpAddressAndPort(
@@ -53,14 +55,14 @@ namespace NetworkLibrary
             rpcIdByName = new Dictionary<string, byte>();
             rpcInfoById = new Dictionary<byte, RpcInfo>();
 
-            var assembly = System.Reflection.Assembly.GetExecutingAssembly();
+            var assembly = Assembly.GetExecutingAssembly();
 
             foreach (var type in assembly.GetTypes())
             {
                 var methodBindingFlags =
-                    System.Reflection.BindingFlags.Public |
-                    System.Reflection.BindingFlags.NonPublic |
-                    System.Reflection.BindingFlags.Instance;
+                    BindingFlags.Public |
+                    BindingFlags.NonPublic |
+                    BindingFlags.Instance;
 
                 foreach (var methodInfo in type.GetMethods(methodBindingFlags))
                 {
@@ -114,8 +116,7 @@ namespace NetworkLibrary
             var thingsToSynchronize = new List<NetworkedTypeFieldInfo>();
 
             thingsToSynchronize.AddRange(
-                type.GetFields()
-                    .Where(field => !Attribute.IsDefined(field, typeof(NotNetworkSynchronizedAttribute)))
+                GetFieldInfosToSerialize(type)
                     .Select(fieldInfo => new NetworkedTypeFieldInfo
                     {
                         FieldInfo = fieldInfo,
@@ -127,12 +128,7 @@ namespace NetworkLibrary
             );
             
             thingsToSynchronize.AddRange(
-                type.GetProperties()
-                    .Where(property =>
-                        property.CanRead &&
-                        property.CanWrite &&
-                        !Attribute.IsDefined(property, typeof(NotNetworkSynchronizedAttribute))
-                    )
+                GetPropertyInfosToSerialize(type)
                     .Select(propertyInfo => new NetworkedTypeFieldInfo
                     {
                         PropertyInfo = propertyInfo,
@@ -145,9 +141,9 @@ namespace NetworkLibrary
 
             var monoBehaviourType = synchronizedComponentAttribute.MonoBehaviourType;
             var applyStateMethod = monoBehaviourType.GetMethods(
-                    System.Reflection.BindingFlags.Public |
-                    System.Reflection.BindingFlags.NonPublic |
-                    System.Reflection.BindingFlags.Instance
+                    BindingFlags.Public |
+                    BindingFlags.NonPublic |
+                    BindingFlags.Instance
                 )
                 .FirstOrDefault(IsApplyStateFromServerMethod);
             var stateField = monoBehaviourType.GetFields()
@@ -166,7 +162,7 @@ namespace NetworkLibrary
                 SynchronizedComponentAttribute = synchronizedComponentAttribute
             };
         }
-        private static bool IsApplyStateFromServerMethod(System.Reflection.MethodInfo methodInfo)
+        private static bool IsApplyStateFromServerMethod(MethodInfo methodInfo)
         {
             if (methodInfo.Name != ApplyStateMethodName) return false;
 
@@ -181,17 +177,17 @@ namespace NetworkLibrary
         
         public static NetworkedGameState GetEmptyNetworkedGameStateForDiffing()
         {
-            var networkedComponentStateLists = new List<List<object>>(networkedComponentTypeInfos.Count);
+            var networkedComponentInfoLists = new List<List<NetworkedComponentInfo>>(networkedComponentTypeInfos.Count);
             foreach (var networkedComponentTypeInfo in networkedComponentTypeInfos)
             {
-                networkedComponentStateLists.Add(new List<object>());
+                networkedComponentInfoLists.Add(new List<NetworkedComponentInfo>());
             }
 
             return new NetworkedGameState
             {
                 SequenceNumber = 0,
                 NetworkedComponentTypeInfos = networkedComponentTypeInfos,
-                NetworkedComponentStateLists = networkedComponentStateLists
+                NetworkedComponentInfoLists = networkedComponentInfoLists
             };
         }
         public static NetworkedGameState GetCurrentNetworkedGameState(bool generateSequenceNumber)
@@ -201,31 +197,33 @@ namespace NetworkLibrary
             {
                 SequenceNumber = sequenceNumber,
                 NetworkedComponentTypeInfos = networkedComponentTypeInfos,
-                NetworkedComponentStateLists = GetComponentStateListsToSynchronize(networkedComponentTypeInfos)
+                NetworkedComponentInfoLists = GetComponentInfosToSynchronize(networkedComponentTypeInfos)
             };
 
             return networkedGameState;
         }
-        public static List<List<object>> GetComponentStateListsToSynchronize(List<NetworkedComponentTypeInfo> networkedComponentTypeInfos)
+        public static List<List<NetworkedComponentInfo>> GetComponentInfosToSynchronize(List<NetworkedComponentTypeInfo> networkedComponentTypeInfos)
         {
             return networkedComponentTypeInfos
-                .Select(GetStateObjectsToSynchronize)
+                .Select(networkedComponentTypeInfo =>
+                {
+                    var monoBehaviours = (ICollection)networkedComponentTypeInfo.MonoBehaviourInstancesField.GetValue(null);
+
+                    var componentInfos = new List<NetworkedComponentInfo>(monoBehaviours.Count);
+                    foreach (var monoBehaviour in monoBehaviours)
+                    {
+                        if (monoBehaviour == null) continue;
+
+                        var componentState = networkedComponentTypeInfo.MonoBehaviourStateField.GetValue(monoBehaviour);
+                        componentInfos.Add(new NetworkedComponentInfo
+                        {
+                            ComponentState = ObjectExtensions.DeepCopy(componentState)
+                        });
+                    }
+
+                    return componentInfos;
+                })
                 .ToList();
-        }
-        public static List<object> GetStateObjectsToSynchronize(NetworkedComponentTypeInfo networkedComponentTypeInfo)
-        {
-            var monoBehaviours = (ICollection)networkedComponentTypeInfo.MonoBehaviourInstancesField.GetValue(null);
-
-            var componentStates = new List<object>(monoBehaviours.Count);
-            foreach(var monoBehaviour in monoBehaviours)
-            {
-                if (monoBehaviour == null) continue;
-
-                var componentState = networkedComponentTypeInfo.MonoBehaviourStateField.GetValue(monoBehaviour);
-                componentStates.Add(ObjectExtensions.DeepCopy(componentState));
-            }
-
-            return componentStates;
         }
 
         public static void ExecuteRpc(byte id, object serverObj, object clientObj, params object[] arguments)
@@ -290,10 +288,10 @@ namespace NetworkLibrary
 
         public static void ApplyStates<StateType>(
             List<StateType> oldStates, List<StateType> newStates,
-            System.Func<StateType, StateType, bool> doStatesHaveSameId,
-            System.Action<StateType> removeStateObject,
-            System.Action<StateType> addStateObject,
-            System.Action<StateType, StateType> updateStateObject
+            Func<StateType, StateType, bool> doStatesHaveSameId,
+            Action<StateType> removeStateObject,
+            Action<StateType> addStateObject,
+            Action<StateType, StateType> updateStateObject
         )
         {
             List<StateType> removedStates, addedStates, updatedStates;
@@ -322,54 +320,54 @@ namespace NetworkLibrary
             }
         }
         public static void ApplyState(
-            NetworkedComponentTypeInfo networkedComponentTypeInfo, List<object> oldStates, List<object> newStates,
-            Func<object, UnityEngine.GameObject> createGameObjectFromState
+            NetworkedComponentTypeInfo networkedComponentTypeInfo, List<NetworkedComponentInfo> oldComponentInfos,
+            List<NetworkedComponentInfo> newComponentInfos, Func<object, UnityEngine.GameObject> createGameObjectFromState
         )
         {
-            System.Func<object, object, bool> doIdsMatch =
-                (s1, s2) => GetIdFromState(networkedComponentTypeInfo, s1) == NetLib.GetIdFromState(networkedComponentTypeInfo, s2);
+            Func<NetworkedComponentInfo, NetworkedComponentInfo, bool> doIdsMatch =
+                (nci1, nci2) => GetIdFromState(networkedComponentTypeInfo, nci1.ComponentState) == GetIdFromState(networkedComponentTypeInfo, nci2.ComponentState);
 
-            System.Action<object> handleRemovedState = removedState =>
+            Action<NetworkedComponentInfo> handleRemovedState = removedComponentInfo =>
             {
-                var monoBehaviour = GetMonoBehaviourByState(networkedComponentTypeInfo, removedState);
+                var monoBehaviour = GetMonoBehaviourByState(networkedComponentTypeInfo, removedComponentInfo.ComponentState);
 
                 UnityEngine.Object.Destroy(monoBehaviour.gameObject);
             };
 
-            Action<object> handleAddedState = addedState =>
+            Action<NetworkedComponentInfo> handleAddedState = addedComponentInfo =>
             {
-                createGameObjectFromState(addedState);
+                createGameObjectFromState(addedComponentInfo.ComponentState);
 
                 if (
                     (networkedComponentTypeInfo != null) &&
                     (networkedComponentTypeInfo.MonoBehaviourApplyStateMethod != null)
                 )
                 {
-                    var stateId = GetIdFromState(networkedComponentTypeInfo, addedState);
+                    var stateId = GetIdFromState(networkedComponentTypeInfo, addedComponentInfo.ComponentState);
                     var monoBehaviour = GetMonoBehaviourByStateId(networkedComponentTypeInfo, stateId);
 
-                    networkedComponentTypeInfo.MonoBehaviourApplyStateMethod.Invoke(monoBehaviour, new[] { addedState });
+                    networkedComponentTypeInfo.MonoBehaviourApplyStateMethod.Invoke(monoBehaviour, new[] { addedComponentInfo.ComponentState });
                 }
             };
 
-            Action<object, object> handleUpdatedState =
-                (oldState, newState) =>
+            Action<NetworkedComponentInfo, NetworkedComponentInfo> handleUpdatedState =
+                (oldComponentInfo, newComponentInfo) =>
                 {
-                    var oldStateId = GetIdFromState(networkedComponentTypeInfo, oldState);
+                    var oldStateId = GetIdFromState(networkedComponentTypeInfo, oldComponentInfo.ComponentState);
                     var monoBehaviour = GetMonoBehaviourByStateId(networkedComponentTypeInfo, oldStateId);
 
                     if (networkedComponentTypeInfo.MonoBehaviourApplyStateMethod == null)
                     {
-                        networkedComponentTypeInfo.MonoBehaviourStateField.SetValue(monoBehaviour, newState);
+                        networkedComponentTypeInfo.MonoBehaviourStateField.SetValue(monoBehaviour, newComponentInfo.ComponentState);
                     }
                     else
                     {
-                        networkedComponentTypeInfo.MonoBehaviourApplyStateMethod?.Invoke(monoBehaviour, new[] { newState });
+                        networkedComponentTypeInfo.MonoBehaviourApplyStateMethod?.Invoke(monoBehaviour, new[] { newComponentInfo.ComponentState });
                     }
                 };
 
             ApplyStates(
-                oldStates, newStates, doIdsMatch,
+                oldComponentInfos, newComponentInfos, doIdsMatch,
                 handleRemovedState, handleAddedState, handleUpdatedState
             );
         }
@@ -380,6 +378,23 @@ namespace NetworkLibrary
             var generatedGameStateSequenceNumber = _nextGameStateSequenceNumber;
             _nextGameStateSequenceNumber++;
             return generatedGameStateSequenceNumber;
+        }
+
+        public static IEnumerable<FieldInfo> GetFieldInfosToSerialize(Type type)
+        {
+            return type.GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+                .Where(field =>
+                    !field.IsStatic &&
+                    !field.IsLiteral &&
+                    !Attribute.IsDefined(field, typeof(NotNetworkSynchronizedAttribute)));
+        }
+        public static IEnumerable<PropertyInfo> GetPropertyInfosToSerialize(Type type)
+        {
+            return type.GetProperties(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+                .Where(property =>
+                    property.CanRead &&
+                    property.CanWrite &&
+                    !Attribute.IsDefined(property, typeof(NotNetworkSynchronizedAttribute)));
         }
     }
 }

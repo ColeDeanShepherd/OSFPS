@@ -6,6 +6,6 @@ namespace NetworkLibrary
     {
         public uint SequenceNumber;
         public List<NetworkedComponentTypeInfo> NetworkedComponentTypeInfos;
-        public List<List<object>> NetworkedComponentStateLists;
+        public List<List<NetworkedComponentInfo>> NetworkedComponentInfoLists;
     }
 }

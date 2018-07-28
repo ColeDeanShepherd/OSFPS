@@ -281,7 +281,7 @@ namespace NetworkLibrary
                 }
                 else if (objType.IsClass || objType.IsValueType)
                 {
-                    var objFields = objType.GetFields();
+                    var objFields = NetLib.GetFieldInfosToSerialize(objType);
                     foreach (var objField in objFields)
                     {
                         SerializeObject(
@@ -289,8 +289,8 @@ namespace NetworkLibrary
                             areElementsNullableIfReferenceType: false
                         );
                     }
-
-                    var objProperties = objType.GetProperties();
+                    
+                    var objProperties = NetLib.GetPropertyInfosToSerialize(objType);
                     foreach (var objProperty in objProperties)
                     {
                         if (!objProperty.CanRead || !objProperty.CanWrite) continue;
@@ -415,11 +415,11 @@ namespace NetworkLibrary
             }
         }
         public static void DeserializeDelta(
-            BinaryReader reader, NetworkedComponentTypeInfo networkedComponentTypeInfo, object oldValue
+            BinaryReader reader, NetworkedComponentTypeInfo networkedComponentTypeInfo, ref NetworkedComponentInfo oldComponentInfo
         )
         {
-            var changeMask = reader.ReadUInt32();
-            DeserializeGivenChangeMask(reader, networkedComponentTypeInfo, oldValue, changeMask);
+            oldComponentInfo.ChangeMask = reader.ReadUInt32();
+            DeserializeGivenChangeMask(reader, networkedComponentTypeInfo, oldComponentInfo.ComponentState, oldComponentInfo.ChangeMask);
         }
 
         public static object Deserialize(
@@ -604,7 +604,7 @@ namespace NetworkLibrary
                 {
                     var result = Activator.CreateInstance(type);
 
-                    var objFields = type.GetFields();
+                    var objFields = NetLib.GetFieldInfosToSerialize(type);
                     foreach (var objField in objFields)
                     {
                         var fieldValue = Deserialize(
@@ -614,7 +614,7 @@ namespace NetworkLibrary
                         objField.SetValue(result, fieldValue);
                     }
 
-                    var objProperties = type.GetProperties();
+                    var objProperties = NetLib.GetPropertyInfosToSerialize(type);
                     foreach (var objProperty in objProperties)
                     {
                         if (!objProperty.CanRead || !objProperty.CanWrite) continue;
@@ -790,26 +790,30 @@ namespace NetworkLibrary
             BinaryWriter writer, NetworkedGameState networkedGameState, NetworkedGameState oldNetworkedGameState
         )
         {
-            for (var i = 0; i < networkedGameState.NetworkedComponentStateLists.Count; i++)
+            for (var i = 0; i < networkedGameState.NetworkedComponentInfoLists.Count; i++)
             {
                 var networkedComponentTypeInfo = networkedGameState.NetworkedComponentTypeInfos[i];
-                var componentStates = networkedGameState.NetworkedComponentStateLists[i];
-                var oldComponentStates = oldNetworkedGameState.NetworkedComponentStateLists[i];
+                var componentInfos = networkedGameState.NetworkedComponentInfoLists[i];
+                var oldComponentInfos = oldNetworkedGameState.NetworkedComponentInfoLists[i];
 
-                Serialize(writer, componentStates, (binaryWriter, componentState, index) =>
+                Serialize(writer, componentInfos, (binaryWriter, componentInfo, index) =>
                 {
-                    var componentStateId = NetLib.GetIdFromState(networkedComponentTypeInfo, componentState);
+                    var componentStateId = NetLib.GetIdFromState(networkedComponentTypeInfo, componentInfo.ComponentState);
                     binaryWriter.Write(componentStateId);
 
-                    var oldComponentState = oldComponentStates
-                        .FirstOrDefault(ocs =>
-                            NetLib.GetIdFromState(networkedComponentTypeInfo, ocs) == componentStateId);
+                    var oldComponentInfoIndex = oldComponentInfos
+                        .FindIndex(oci =>
+                            NetLib.GetIdFromState(networkedComponentTypeInfo, oci.ComponentState) == componentStateId
+                        );
+                    var oldComponentState = (oldComponentInfoIndex >= 0)
+                        ? oldComponentInfos[oldComponentInfoIndex].ComponentState
+                        : null;
 
-                    var changeMask = GetChangeMask(networkedComponentTypeInfo, componentState, oldComponentState);
+                    var changeMask = GetChangeMask(networkedComponentTypeInfo, componentInfo.ComponentState, oldComponentState);
                     binaryWriter.Write(changeMask);
 
                     SerializeGivenChangeMask(
-                        binaryWriter, networkedComponentTypeInfo, componentState, changeMask
+                        binaryWriter, networkedComponentTypeInfo, componentInfo.ComponentState, changeMask
                     );
                 });
             }
@@ -819,35 +823,47 @@ namespace NetworkLibrary
         )
         {
             var networkedComponentTypeInfos = networkedGameStateRelativeTo.NetworkedComponentTypeInfos;
-            var networkedComponentStateLists = networkedComponentTypeInfos
+            var networkedComponentInfoLists = networkedComponentTypeInfos
                 .Select((networkedComponentTypeInfo, networkedComponentTypeInfosIndex) =>
                 {
-                    var oldComponentStates = networkedGameStateRelativeTo.NetworkedComponentStateLists[networkedComponentTypeInfosIndex];
-                    var componentStates = new List<object>();
+                    var oldComponentInfos = networkedGameStateRelativeTo
+                        .NetworkedComponentInfoLists[networkedComponentTypeInfosIndex];
+                    var componentInfos = new List<NetworkedComponentInfo>();
 
-                    Deserialize(reader, componentStates, (binaryReader, componentStateIndex) =>
+                    Deserialize(reader, componentInfos, (binaryReader, componentInfoIndex) =>
                     {
                         var componentStateId = reader.ReadUInt32();
 
-                        var oldStateObject = oldComponentStates
-                            .FirstOrDefault(ocs => NetLib.GetIdFromState(networkedComponentTypeInfo, ocs) == componentStateId);
-                        if (oldStateObject == null)
+                        var oldComponentInfoIndex = oldComponentInfos
+                            .FindIndex(oci =>
+                                NetLib.GetIdFromState(networkedComponentTypeInfo, oci.ComponentState) == componentStateId
+                            );
+                        NetworkedComponentInfo oldComponentInfo;
+
+                        if (oldComponentInfoIndex < 0)
                         {
                             var stateType = networkedComponentTypeInfo.StateType;
-                            oldStateObject = System.Activator.CreateInstance(stateType);
+                            oldComponentInfo = new NetworkedComponentInfo
+                            {
+                                ComponentState = Activator.CreateInstance(stateType)
+                            };
                         }
                         else
                         {
-                            oldStateObject = ObjectExtensions.DeepCopy(oldStateObject);
+                            oldComponentInfo = oldComponentInfos[oldComponentInfoIndex];
+                            oldComponentInfo = new NetworkedComponentInfo
+                            {
+                                ComponentState = ObjectExtensions.DeepCopy(oldComponentInfo.ComponentState)
+                            };
                         }
                         
                         DeserializeDelta(
-                            binaryReader, networkedComponentTypeInfo, oldStateObject
+                            binaryReader, networkedComponentTypeInfo, ref oldComponentInfo
                         );
-                        return oldStateObject;
+                        return oldComponentInfo;
                     });
 
-                    return componentStates;
+                    return componentInfos;
                 })
                 .ToList();
 
@@ -855,7 +871,7 @@ namespace NetworkLibrary
             {
                 SequenceNumber = sequenceNumber,
                 NetworkedComponentTypeInfos = networkedComponentTypeInfos,
-                NetworkedComponentStateLists = networkedComponentStateLists
+                NetworkedComponentInfoLists = networkedComponentInfoLists
             };
         }
     }

@@ -134,7 +134,12 @@ public class StateSynchronizationExperiment : MonoBehaviour
         {
             using (var reader = new BinaryReader(memoryStream))
             {
-                NetworkSerializationUtils.DeserializeDelta(reader, networkedComponentTypeInfo, clientState);
+                var componentInfo = new NetworkedComponentInfo
+                {
+                    ComponentState = clientState
+                };
+
+                NetworkSerializationUtils.DeserializeDelta(reader, networkedComponentTypeInfo, ref componentInfo);
             }
         }
 

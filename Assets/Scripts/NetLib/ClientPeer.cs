@@ -208,6 +208,49 @@ namespace NetworkLibrary
                     bytesLeft
                 );
             }
+
+            if (NetLib.EnableStateDeltaLogging)
+            {
+                var sequenceNumberRelativeTo = reader.ReadUInt32();
+                var networkedGameStateRelativeTo = GetNetworkedGameStateRelativeTo(sequenceNumberRelativeTo);
+
+                Profiler.BeginSample("State Deserialization");
+                var receivedGameState = NetworkSerializationUtils.DeserializeNetworkedGameState(
+                    reader, sequenceNumber, networkedGameStateRelativeTo
+                );
+                Profiler.EndSample();
+
+                LogReceivedStateDelta(receivedGameState);
+            }
+        }
+        private void LogReceivedStateDelta(NetworkedGameState networkedGameState)
+        {
+            OsFps.Logger.Log(networkedGameState.SequenceNumber);
+
+            for (var i = 0; i < networkedGameState.NetworkedComponentTypeInfos.Count; i++)
+            {
+                var networkedComponentTypeInfo = networkedGameState.NetworkedComponentTypeInfos[i];
+                var networkedComponentInfos = networkedGameState.NetworkedComponentInfoLists[i];
+
+                foreach (var componentInfo in networkedComponentInfos)
+                {
+                    var synchronizedFieldNames = BitUtilities.GetSetBitIndices(componentInfo.ChangeMask)
+                        .Select(bitIndex =>
+                        {
+                            if (bitIndex >= networkedComponentTypeInfo.ThingsToSynchronize.Count) return null;
+
+                            var thingToSynchronize = networkedComponentTypeInfo.ThingsToSynchronize[bitIndex];
+                            var thingName = (thingToSynchronize.FieldInfo != null)
+                                ? thingToSynchronize.FieldInfo.Name
+                                : thingToSynchronize.PropertyInfo.Name;
+                            return thingName;
+                        })
+                        .Where(x => x != null)
+                        .ToArray();
+                    
+                    OsFps.Logger.Log(networkedComponentTypeInfo.StateType.Name + ": " + Convert.ToString(componentInfo.ChangeMask, 2) + " | " + string.Join(", ", synchronizedFieldNames));
+                }
+            }
         }
 
         private void FinishHandlingDeltaGameState(uint sequenceNumber, byte[] deltaBytes)
@@ -265,21 +308,21 @@ namespace NetworkLibrary
             if (OsFps.Instance.IsRemoteClient)
             {
                 Profiler.BeginSample("Client Get Current Networked Game State");
-                var oldComponentLists = NetLib.GetComponentStateListsToSynchronize(
+                var oldComponentInfoLists = NetLib.GetComponentInfosToSynchronize(
                     receivedGameState.NetworkedComponentTypeInfos
                 );
                 Profiler.EndSample();
 
                 Profiler.BeginSample("Client Apply Networked Game State");
-                for (var i = 0; i < receivedGameState.NetworkedComponentStateLists.Count; i++)
+                for (var i = 0; i < receivedGameState.NetworkedComponentInfoLists.Count; i++)
                 {
-                    var componentList = receivedGameState.NetworkedComponentStateLists[i];
+                    var componentInfos = receivedGameState.NetworkedComponentInfoLists[i];
                     var networkedComponentTypeInfo = receivedGameState.NetworkedComponentTypeInfos[i];
                     var componentType = networkedComponentTypeInfo.StateType;
-                    var oldComponentList = oldComponentLists[i];
+                    var oldComponentInfos = oldComponentInfoLists[i];
 
                     NetLib.ApplyState(
-                        networkedComponentTypeInfo, oldComponentList, componentList, createGameObjectFromState
+                        networkedComponentTypeInfo, oldComponentInfos, componentInfos, createGameObjectFromState
                     );
                 }
                 Profiler.EndSample();

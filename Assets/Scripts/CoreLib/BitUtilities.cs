@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using UnityEngine.Assertions;
 
 public static class BitUtilities
@@ -80,5 +81,30 @@ public static class BitUtilities
 
         ClearBit(ref bits, bitIndex);
         bits |= (Convert.ToUInt64(value) << bitIndex);
+    }
+
+    public static IEnumerable<int> GetSetBitIndices(uint bits)
+    {
+        for (var i = 0; i < 32; i++)
+        {
+            if ((bits & 1) == 1)
+            {
+                yield return i;
+            }
+
+            bits >>= 1;
+        }
+    }
+    public static IEnumerable<int> GetSetBitIndices(ulong bits)
+    {
+        for (var i = 0; i < 64; i++)
+        {
+            if ((bits & 1) == 1)
+            {
+                yield return i;
+            }
+
+            bits >>= 1;
+        }
     }
 }
