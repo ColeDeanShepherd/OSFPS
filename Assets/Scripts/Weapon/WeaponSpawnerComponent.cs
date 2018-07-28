@@ -24,10 +24,19 @@ public class WeaponSpawnerComponent : MonoBehaviour
     }
 
 #if UNITY_EDITOR
+    private GUIStyle labelStyle;
     private void OnDrawGizmos()
     {
+        Gizmos.color = Color.red;
         Gizmos.DrawWireSphere(transform.position, 0.25f);
-        Handles.Label(transform.position, State.Type.ToString());
+        Gizmos.color = Color.white;
+
+        if (labelStyle == null)
+        {
+            labelStyle = new GUIStyle();
+            labelStyle.normal.textColor = Color.red;
+        }
+        Handles.Label(transform.position, State.Type.ToString(), labelStyle);
     }
 #endif
 }
