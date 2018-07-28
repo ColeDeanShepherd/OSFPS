@@ -12,6 +12,7 @@ using Unity.Mathematics;
 public class Client
 {
     public const float SendPlayerInputInterval = 1.0f / 30;
+    public static Vector2 WeaponIconSize = new Vector2(64, 64);
 
     public ClientPeer ClientPeer;
     public uint? PlayerId;
@@ -367,7 +368,7 @@ public class Client
 
                     if (weaponComponent != null)
                     {
-                        DrawWeaponPickupHud(weaponComponent);
+                        DrawWeaponPickupHud(weaponComponent, WeaponIconSize);
                     }
                 }
             }
@@ -395,11 +396,10 @@ public class Client
         var playerObjectState = playerObjectComponent.State;
 
         var weaponHudPosition = new Vector2(hudMargin, hudMargin);
-        var weaponIconSize = new Vector2(64, 64);
-        var weaponIconSpacingY = weaponIconSize.y + 30;
+        var weaponIconSpacingY = WeaponIconSize.y + 30;
         if (playerObjectState.CurrentWeapon != null)
         {
-            DrawWeaponHud(playerObjectState.CurrentWeapon, weaponHudPosition, weaponIconSize);
+            DrawWeaponHud(playerObjectState.CurrentWeapon, weaponHudPosition, WeaponIconSize);
             weaponHudPosition.y += weaponIconSpacingY;
         }
 
@@ -407,7 +407,7 @@ public class Client
         {
             if ((weapon != null) && (weapon != playerObjectState.CurrentWeapon))
             {
-                DrawWeaponHud(weapon, weaponHudPosition, weaponIconSize);
+                DrawWeaponHud(weapon, weaponHudPosition, WeaponIconSize);
                 weaponHudPosition.y += weaponIconSpacingY;
             }
         }
@@ -509,14 +509,21 @@ public class Client
             position.y += rowHeight;
         }
     }
-    private void DrawWeaponPickupHud(WeaponComponent weaponComponent)
+    private void DrawWeaponPickupHud(WeaponComponent weaponComponent, Vector2 iconSize)
     {
         const float margin = 10;
-        var labelSize = new Vector2(300, 30);
-        var labelPosition = new Vector2(Screen.width - margin - labelSize.x, Screen.height - margin - labelSize.y);
-        var text = $"Press E to pick up {weaponComponent.State.Type}.";
 
-        GUI.Label(new Rect(labelPosition, labelSize), text);
+        var labelSize = new Vector2(120, 30);
+        var labelPosition = new Vector2(Screen.width - margin - labelSize.x, Screen.height - margin - labelSize.y);
+        var labelText = $"Press E to pick up";
+        GUI.color = Color.blue;
+        GUI.Label(new Rect(labelPosition, labelSize), labelText);
+        GUI.color = Color.white;
+
+        var iconPosition = new Vector2(labelPosition.x, labelPosition.y - margin - iconSize.y);
+        GUI.DrawTexture(
+            new Rect(iconPosition, iconSize), weaponComponent.Definition.Icon
+        );
     }
     #endregion
     

@@ -2,9 +2,6 @@
 
 #### M.V.P.
 
-* Optimize network bandwidth
-  - Position/orientation delta thresholds?
-
 #### High-Priority
 
 - Implement melee.
