@@ -5,6 +5,7 @@ using System.IO;
 using UnityEngine.Assertions;
 using UnityEngine.Networking;
 using UnityEngine.Profiling;
+using UnityEngine.Networking.Match;
 
 namespace NetworkLibrary
 {
@@ -106,6 +107,20 @@ namespace NetworkLibrary
             NetworkTransport.Connect(
                 socketId.Value, serverIpv4Address, serverPortNumber, exceptionConnectionId,
                 out networkErrorAsByte
+            );
+
+            var networkError = (NetworkError)networkErrorAsByte;
+            return networkError;
+        }
+        public NetworkError StartConnectingToServerThroughRelay(MatchInfo matchInfo)
+        {
+            Assert.IsTrue(!IsConnectedToServer);
+
+            byte networkErrorAsByte;
+            NetworkTransport.ConnectToNetworkPeer(
+                hostId: socketId.Value, address: matchInfo.address, port: matchInfo.port,
+                exceptionConnectionId: 0, relaySlotId: 0, network: matchInfo.networkId,
+                source: Utility.GetSourceID(), node: matchInfo.nodeId, error: out networkErrorAsByte
             );
 
             var networkError = (NetworkError)networkErrorAsByte;

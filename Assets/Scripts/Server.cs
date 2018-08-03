@@ -11,7 +11,7 @@ using Unity.Mathematics;
 public class Server
 {
     public const int PortNumber = 32321;
-    public const int MaxPlayerCount = 16;
+    public const int MaxPlayerCount = 8;
     public const float SendGameStateInterval = 1.0f / 30;
 
     public delegate void ServerStartedHandler();

@@ -74,12 +74,30 @@ namespace NetworkLibrary
             {
                 if (!socketId.HasValue) return;
 
+                NetworkEventType networkEventType;
+                byte networkErrorAsByte;
+
+                if (false)
+                {
+                    networkEventType = NetworkTransport.ReceiveRelayEventFromHost(
+                        socketId.Value, out networkErrorAsByte
+                    );
+
+                    if (networkEventType == NetworkEventType.ConnectEvent)
+                    {
+                        OsFps.Logger.Log("Relay server connected");
+                    }
+                    else if (networkEventType == NetworkEventType.DisconnectEvent)
+                    {
+                        OsFps.Logger.Log("Relay server disconnected");
+                    }
+                }
+
                 Profiler.BeginSample("NetworkTransport.ReceiveFromHost");
                 int connectionId;
                 int channelId;
                 int numBytesReceived;
-                byte networkErrorAsByte;
-                var networkEventType = NetworkTransport.ReceiveFromHost(
+                networkEventType = NetworkTransport.ReceiveFromHost(
                    socketId.Value, out connectionId, out channelId, _netReceiveBuffer,
                    _netReceiveBuffer.Length, out numBytesReceived, out networkErrorAsByte
                 );

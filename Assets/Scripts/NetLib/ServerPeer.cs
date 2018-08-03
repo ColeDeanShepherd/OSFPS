@@ -3,6 +3,7 @@ using System.IO;
 using UnityEngine;
 using UnityEngine.Assertions;
 using UnityEngine.Networking;
+using UnityEngine.Networking.Match;
 
 namespace NetworkLibrary
 {
@@ -49,6 +50,18 @@ namespace NetworkLibrary
             {
                 SendGameStatePeriodicFunction.TryToCall();
             }
+        }
+
+        public NetworkError StartConnectingToRelayServer(MatchInfo matchInfo)
+        {
+            byte networkErrorAsByte;
+            NetworkTransport.ConnectAsNetworkHost(
+                socketId.Value, matchInfo.address, matchInfo.port, matchInfo.networkId,
+                Utility.GetSourceID(), matchInfo.nodeId, out networkErrorAsByte
+            );
+
+            var networkError = (NetworkError)networkErrorAsByte;
+            return networkError;
         }
 
         public NetworkError SendMessageToClientReturnError(int connectionId, int channelId, byte[] messageBytes)

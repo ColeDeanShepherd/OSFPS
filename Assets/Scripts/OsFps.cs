@@ -6,6 +6,7 @@ using UnityEngine.Networking;
 using UnityEngine.SceneManagement;
 using NetworkLibrary;
 using UnityEngine.Profiling;
+using UnityEngine.Networking.Match;
 
 public class OsFps : MonoBehaviour
 {
@@ -18,6 +19,8 @@ public class OsFps : MonoBehaviour
     public const string PlayerHeadColliderName = "Head";
 
     public const string ShieldDownMaterialAlphaParameterName = "Vector1_14FF3C92";
+
+    public const int MatchmakingRequestDomain = 0;
 
     public static bool ShowHitScanShotsOnServer = true;
     public static bool ShowLagCompensationOnServer = false;
@@ -75,7 +78,11 @@ public class OsFps : MonoBehaviour
             return Application.persistentDataPath + "/settings.json";
         }
     }
-    
+
+    [HideInInspector]
+    public NetworkMatch NetworkMatch;
+
+    public MatchInfo MatchInfo;
     public Server Server;
     public Client Client;
     public MenuStack MenuStack;
@@ -124,8 +131,11 @@ public class OsFps : MonoBehaviour
     public GameObject PauseScreenPrefab;
     public GameObject ConnectingScreenPrefab;
     public GameObject DedicatedServerScreenPrefab;
+    public GameObject MatchmakingScreenPrefab;
+    public GameObject ServerRowPrefab;
     public GameObject ChatBoxPrefab;
     public GameObject HealthBarPrefab;
+    public GameObject TextPrefab;
 
     public GameObject PlayerPrefab;
     public GameObject CameraPrefab;
@@ -172,11 +182,14 @@ public class OsFps : MonoBehaviour
         var optionsScreenObject = Instantiate(OptionsScreenPrefab, CanvasObject.transform);
         return optionsScreenObject.GetComponent<OptionsScreenComponent>();
     }
+    public MatchmakingScreenComponent CreateMatchmakingScreen()
+    {
+        var matchmakingScreenObject = Instantiate(MatchmakingScreenPrefab, CanvasObject.transform);
+        return matchmakingScreenObject.GetComponent<MatchmakingScreenComponent>();
+    }
 
     private void Awake()
     {
-        Assert.raiseExceptions = true;
-
         // Destroy the game object if there is already an OsFps instance.
         if(Instance != null)
         {
@@ -185,6 +198,8 @@ public class OsFps : MonoBehaviour
             Destroy(gameObject);
             return;
         }
+
+        Assert.raiseExceptions = true;
 
         Instance = this;
         DontDestroyOnLoad(gameObject);
@@ -196,6 +211,8 @@ public class OsFps : MonoBehaviour
         CanvasObject = guiContainer.FindDescendant("Canvas");
         
         NetLib.Setup();
+
+        NetworkMatch = gameObject.AddComponent<NetworkMatch>();
 
         Settings.LoadFromFile(SettingsFilePath);
     }
@@ -310,6 +327,11 @@ public class OsFps : MonoBehaviour
         {
             Server.Stop();
             Server = null;
+
+            if (MatchInfo != null)
+            {
+                NetworkMatch.DestroyMatch(MatchInfo.networkId, MatchmakingRequestDomain, OnMatchDestroy);
+            }
         }
     }
 
@@ -339,5 +361,15 @@ public class OsFps : MonoBehaviour
 
         SceneManager.LoadScene(StartSceneName);
         MenuStack.Push(CreateMainMenu());
+    }
+
+    private void OnMatchDestroy(bool success, string extendedInfo)
+    {
+        if (!success)
+        {
+            Logger.LogError("Failed unregistering a server. " + extendedInfo);
+        }
+
+        MatchInfo = null;
     }
 }

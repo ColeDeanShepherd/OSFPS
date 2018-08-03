@@ -7,6 +7,10 @@ public class MainMenuComponent : MonoBehaviour
 {
     public InputField IpAddressPortInputField;
 
+    public void OnMatchmakingClick()
+    {
+        OsFps.Instance.MenuStack.Push(OsFps.Instance.CreateMatchmakingScreen().GetComponent<MatchmakingScreenComponent>());
+    }
     public void OnConnectToServerClick()
     {
         OsFps.Instance.EnteredClientIpAddressAndPort = IpAddressPortInputField.text;
