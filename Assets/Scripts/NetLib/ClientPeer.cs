@@ -88,6 +88,11 @@ namespace NetworkLibrary
         {
             var succeeded = base.Stop();
 
+            if (matchInfo != null)
+            {
+                StartNotifyMasterServerOfDisconnect();
+            }
+
             if (!succeeded)
             {
                 OsFps.Logger.LogError("Failed stopping client.");
@@ -96,6 +101,34 @@ namespace NetworkLibrary
             ServerConnectionId = null;
 
             return succeeded;
+        }
+
+        public void StartConnectingToServerThroughMasterServer(MatchInfoSnapshot matchInfoSnapshot, string password, int requestDomain)
+        {
+            NetLib.NetworkMatch.JoinMatch(
+                netId: matchInfoSnapshot.networkId, matchPassword: password, publicClientAddress: "",
+                privateClientAddress: "", eloScoreForClient: 0, requestDomain: requestDomain,
+                callback: InternalOnRegisteredAsConnectedToServerThroughMasterServer
+            );
+        }
+        private void InternalOnRegisteredAsConnectedToServerThroughMasterServer(bool success, string extendedInfo, MatchInfo matchInfo)
+        {
+            if (success)
+            {
+                this.matchInfo = matchInfo;
+                Utility.SetAccessTokenForNetwork(matchInfo.networkId, matchInfo.accessToken);
+
+                StartConnectingToRelayServerAsClient();
+            }
+            else
+            {
+                OsFps.Logger.LogError("Failed joining a match. " + extendedInfo);
+            }
+
+            /*if (OnRegisteredWithMasterServer != null)
+            {
+                OnRegisteredWithMasterServer(success);
+            }*/
         }
 
         public NetworkError StartConnectingToServer(string serverIpv4Address, ushort serverPortNumber)
@@ -107,20 +140,6 @@ namespace NetworkLibrary
             NetworkTransport.Connect(
                 socketId.Value, serverIpv4Address, serverPortNumber, exceptionConnectionId,
                 out networkErrorAsByte
-            );
-
-            var networkError = (NetworkError)networkErrorAsByte;
-            return networkError;
-        }
-        public NetworkError StartConnectingToServerThroughRelay(MatchInfo matchInfo)
-        {
-            Assert.IsTrue(!IsConnectedToServer);
-
-            byte networkErrorAsByte;
-            NetworkTransport.ConnectToNetworkPeer(
-                hostId: socketId.Value, address: matchInfo.address, port: matchInfo.port,
-                exceptionConnectionId: 0, relaySlotId: 0, network: matchInfo.networkId,
-                source: Utility.GetSourceID(), node: matchInfo.nodeId, error: out networkErrorAsByte
             );
 
             var networkError = (NetworkError)networkErrorAsByte;
@@ -139,6 +158,22 @@ namespace NetworkLibrary
             ServerConnectionId = null;
 
             return networkError;
+        }
+        
+        private void StartNotifyMasterServerOfDisconnect()
+        {
+            NetLib.NetworkMatch.DropConnection(
+                matchInfo.networkId, matchInfo.nodeId, matchInfo.domain, OnNotifiedMasterServerOfDisconnect
+            );
+        }
+        public void OnNotifiedMasterServerOfDisconnect(bool success, string extendedInfo)
+        {
+            if (!success)
+            {
+                OsFps.Logger.LogError("Failed notifying master server of disconnect. " + extendedInfo);
+            }
+
+            matchInfo = null;
         }
 
         public void SendMessageToServer(int channelId, byte[] messageBytes)

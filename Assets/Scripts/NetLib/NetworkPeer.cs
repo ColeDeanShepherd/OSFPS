@@ -2,6 +2,7 @@
 using UnityEngine;
 using UnityEngine.Assertions;
 using UnityEngine.Networking;
+using UnityEngine.Networking.Match;
 using UnityEngine.Profiling;
 
 namespace NetworkLibrary
@@ -18,6 +19,9 @@ namespace NetworkLibrary
         public int unreliableStateUpdateChannelId;
         public int unreliableFragmentedChannelId;
         public int unreliableChannelId;
+
+        public MatchInfo matchInfo;
+        public bool IsConnectedToRelayServer;
 
         public bool IsStarted
         {
@@ -55,6 +59,46 @@ namespace NetworkLibrary
             return succeeded;
         }
 
+        public NetworkError StartConnectingToRelayServerAsServer()
+        {
+            Assert.IsNotNull(matchInfo);
+
+            byte networkErrorAsByte;
+            NetworkTransport.ConnectAsNetworkHost(
+                socketId.Value, matchInfo.address, matchInfo.port, matchInfo.networkId,
+                Utility.GetSourceID(), matchInfo.nodeId, out networkErrorAsByte
+            );
+
+            var networkError = (NetworkError)networkErrorAsByte;
+
+            if (networkError == NetworkError.Ok)
+            {
+                IsConnectedToRelayServer = true;
+            }
+
+            return networkError;
+        }
+        public NetworkError StartConnectingToRelayServerAsClient()
+        {
+            Assert.IsNotNull(matchInfo);
+
+            byte networkErrorAsByte;
+            NetworkTransport.ConnectToNetworkPeer(
+                hostId: socketId.Value, address: matchInfo.address, port: matchInfo.port,
+                exceptionConnectionId: 0, relaySlotId: 0, network: matchInfo.networkId,
+                source: Utility.GetSourceID(), node: matchInfo.nodeId, error: out networkErrorAsByte
+            );
+
+            var networkError = (NetworkError)networkErrorAsByte;
+
+            if (networkError == NetworkError.Ok)
+            {
+                IsConnectedToRelayServer = true;
+            }
+
+            return networkError;
+        }
+
         public NetworkError SendMessage(int connectionId, int channelId, byte[] messageBytes)
         {
             byte networkErrorAsByte;
@@ -70,28 +114,41 @@ namespace NetworkLibrary
         private byte[] _netReceiveBuffer = new byte[ReceiveBufferSize];
         public void ReceiveAndHandleNetworkEvents()
         {
-            while (true)
+            if (!socketId.HasValue) return;
+
+            if (IsConnectedToRelayServer)
             {
-                if (!socketId.HasValue) return;
-
-                NetworkEventType networkEventType;
-                byte networkErrorAsByte;
-
-                if (false)
+                while (true)
                 {
+                    NetworkEventType networkEventType;
+                    byte networkErrorAsByte;
+
                     networkEventType = NetworkTransport.ReceiveRelayEventFromHost(
                         socketId.Value, out networkErrorAsByte
                     );
 
                     if (networkEventType == NetworkEventType.ConnectEvent)
                     {
+                        // TODO: handle events
                         OsFps.Logger.Log("Relay server connected");
                     }
                     else if (networkEventType == NetworkEventType.DisconnectEvent)
                     {
+                        // TODO: handle events
                         OsFps.Logger.Log("Relay server disconnected");
                     }
+
+                    if (networkEventType == NetworkEventType.Nothing)
+                    {
+                        break;
+                    }
                 }
+            }
+
+            while (true)
+            {
+                NetworkEventType networkEventType;
+                byte networkErrorAsByte;
 
                 Profiler.BeginSample("NetworkTransport.ReceiveFromHost");
                 int connectionId;

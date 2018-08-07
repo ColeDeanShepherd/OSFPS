@@ -13,15 +13,23 @@ namespace NetworkLibrary
         public event ClientConnectionChangeEventHandler OnClientConnected;
         public event ClientConnectionChangeEventHandler OnClientDisconnected;
 
-        private ThrottledAction SendGameStatePeriodicFunction;
+        public delegate void ServerRegisteredWithMasterServerEventHandler(bool succeeded);
+        public event ServerRegisteredWithMasterServerEventHandler OnRegisteredWithMasterServer;
+
         public bool ShouldSendStateSnapshots;
         public object ObjectContainingRpcs;
 
-        public void Start(ushort? portNumber, int maxPlayerCount, object objectContainingRpcs, float sendGameStateInterval)
+        private ThrottledAction sendGameStatePeriodicFunction;
+        private int maxPlayerCount;
+
+        public void Start(
+            ushort? portNumber, int maxPlayerCount, object objectContainingRpcs, float sendGameStateInterval
+        )
         {
             ObjectContainingRpcs = objectContainingRpcs;
-            SendGameStatePeriodicFunction = new ThrottledAction(SendGameState, sendGameStateInterval);
             ShouldSendStateSnapshots = true;
+            sendGameStatePeriodicFunction = new ThrottledAction(SendGameState, sendGameStateInterval);
+            this.maxPlayerCount = maxPlayerCount;
 
             var connectionConfig = NetLib.CreateConnectionConfig(
                 out reliableSequencedChannelId,
@@ -37,6 +45,11 @@ namespace NetworkLibrary
         {
             var succeeded = base.Stop();
 
+            if (matchInfo != null)
+            {
+                StartUnregisteringWithMasterServer();
+            }
+
             if (!succeeded)
             {
                 OsFps.Logger.LogError("Failed stopping server.");
@@ -44,24 +57,59 @@ namespace NetworkLibrary
 
             return succeeded;
         }
+
         public void LateUpdate()
         {
-            if (ShouldSendStateSnapshots && (SendGameStatePeriodicFunction != null))
+            if (ShouldSendStateSnapshots && (sendGameStatePeriodicFunction != null))
             {
-                SendGameStatePeriodicFunction.TryToCall();
+                sendGameStatePeriodicFunction.TryToCall();
+            }
+        }
+        
+        public void StartRegisteringWithMasterServer(string serverName, string password, int requestDomain)
+        {
+            Assert.IsNull(matchInfo);
+
+            NetLib.NetworkMatch.CreateMatch(
+                matchName: serverName, matchSize: (uint)maxPlayerCount, matchAdvertise: true,
+                matchPassword: password, publicClientAddress: "", privateClientAddress: "", eloScoreForMatch: 0,
+                requestDomain: requestDomain, callback: InternalOnRegisteredWithMasterServer
+            );
+        }
+        private void InternalOnRegisteredWithMasterServer(bool success, string extendedInfo, MatchInfo matchInfo)
+        {
+            if (success)
+            {
+                this.matchInfo = matchInfo;
+                Utility.SetAccessTokenForNetwork(matchInfo.networkId, matchInfo.accessToken);
+
+                StartConnectingToRelayServerAsServer();
+            }
+            else
+            {
+                OsFps.Logger.LogError("Failed creating a match. " + extendedInfo);
+            }
+
+            if (OnRegisteredWithMasterServer != null)
+            {
+                OnRegisteredWithMasterServer(success);
             }
         }
 
-        public NetworkError StartConnectingToRelayServer(MatchInfo matchInfo)
+        private void StartUnregisteringWithMasterServer()
         {
-            byte networkErrorAsByte;
-            NetworkTransport.ConnectAsNetworkHost(
-                socketId.Value, matchInfo.address, matchInfo.port, matchInfo.networkId,
-                Utility.GetSourceID(), matchInfo.nodeId, out networkErrorAsByte
-            );
+            Assert.IsNotNull(matchInfo);
 
-            var networkError = (NetworkError)networkErrorAsByte;
-            return networkError;
+            NetLib.NetworkMatch.DestroyMatch(matchInfo.networkId, matchInfo.domain, OnUnregisteredWithMasterServer);
+        }
+        private void OnUnregisteredWithMasterServer(bool success, string extendedInfo)
+        {
+            if (!success)
+            {
+                OsFps.Logger.LogError("Failed unregistering a server. " + extendedInfo);
+            }
+
+            matchInfo = null;
         }
 
         public NetworkError SendMessageToClientReturnError(int connectionId, int channelId, byte[] messageBytes)

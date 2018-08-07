@@ -51,6 +51,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 85d9bf97959ff2f4aa6473ce13eca90d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  NetworkMatch: {fileID: 0}
   Settings:
     PlayerName: Player
     MouseSensitivity: 3
@@ -71,10 +72,13 @@ MonoBehaviour:
     type: 2}
   MatchmakingScreenPrefab: {fileID: 1194136158512078, guid: 21a02428f6ad18a48b33015d51ee7868,
     type: 2}
+  ServerRowPrefab: {fileID: 1468112780492442, guid: caf6c4d4850e7444e99f30aa2845a363,
+    type: 2}
   ChatBoxPrefab: {fileID: 1043985891111226, guid: a752e8ee14cd39e44a742b7733476a15,
     type: 2}
   HealthBarPrefab: {fileID: 1980398575313094, guid: 0393e9228f2eb9444bf7692b3765481c,
     type: 2}
+  TextPrefab: {fileID: 1786086609788956, guid: 0c8f19b93df57184ca9beda1a5b10597, type: 2}
   PlayerPrefab: {fileID: 1884725033880392, guid: dfcdd0cce8eced1418b0e59689f81abf,
     type: 2}
   CameraPrefab: {fileID: 1878530499864850, guid: 0ff536ec9b5a64a44ace81754935e61b,

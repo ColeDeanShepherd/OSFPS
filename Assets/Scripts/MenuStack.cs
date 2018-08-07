@@ -36,6 +36,13 @@ public class MenuStack : IEnumerable<MonoBehaviour>
     {
         return monoBehaviourStack.Peek();
     }
+    public void Clear()
+    {
+        while (monoBehaviourStack.Any())
+        {
+            Pop();
+        }
+    }
 
     public IEnumerator<MonoBehaviour> GetEnumerator()
     {

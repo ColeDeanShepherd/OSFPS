@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using UnityEngine.Networking;
+using UnityEngine.Networking.Match;
 
 namespace NetworkLibrary
 {
@@ -44,6 +45,7 @@ namespace NetworkLibrary
         public static Dictionary<string, byte> rpcIdByName;
         public static Dictionary<byte, RpcInfo> rpcInfoById;
         public static List<NetworkedComponentTypeInfo> networkedComponentTypeInfos;
+        public static NetworkMatch NetworkMatch;
         public static void Setup()
         {
             GetRpcInfo(out rpcIdByName, out rpcInfoById);

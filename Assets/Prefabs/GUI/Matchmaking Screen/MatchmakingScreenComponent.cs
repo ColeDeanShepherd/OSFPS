@@ -8,14 +8,13 @@ using UnityEngine.Networking;
 
 public class MatchmakingScreenComponent : MonoBehaviour
 {
-
     public List<MatchInfoSnapshot> LoadedMatches;
     public GameObject MatchesContainer;
 
     public void OnConnectToServerClick()
     {
         MatchInfoSnapshot matchInfoSnapshot = null;
-        OsFps.Instance.NetworkMatch.JoinMatch(
+        NetLib.NetworkMatch.JoinMatch(
             netId: matchInfoSnapshot.networkId, matchPassword: "", publicClientAddress: "",
             privateClientAddress: "", eloScoreForClient: 0, requestDomain: OsFps.MatchmakingRequestDomain,
             callback: OnMatchJoined
@@ -23,10 +22,13 @@ public class MatchmakingScreenComponent : MonoBehaviour
     }
     public void OnStartDedicatedServerClick()
     {
-        OsFps.Instance.NetworkMatch.CreateMatch(
-            matchName: "", matchSize: Server.MaxPlayerCount, matchAdvertise: true,
-            matchPassword: "", publicClientAddress: "", privateClientAddress: "", eloScoreForMatch: 0,
-            requestDomain: OsFps.MatchmakingRequestDomain, callback: OnMatchCreated
+        OsFps.Instance.StartDedicatedServer();
+
+        var serverName = "";
+        var serverPassword = "";
+        OsFps.Instance.Server.ServerPeer.OnRegisteredWithMasterServer += OnServerRegisteredWithMasterServer;
+        OsFps.Instance.Server.ServerPeer.StartRegisteringWithMasterServer(
+            serverName, serverPassword, OsFps.MatchmakingRequestDomain
         );
     }
     public void OnCancelClick()
@@ -38,7 +40,7 @@ public class MatchmakingScreenComponent : MonoBehaviour
     {
         UpdateUiForLoadedMatches();
 
-        OsFps.Instance.NetworkMatch.ListMatches(
+        NetLib.NetworkMatch.ListMatches(
             startPageNumber: 0, resultPageSize: 100, matchNameFilter: "",
             filterOutPrivateMatchesFromResults: false, eloScoreTarget: 0,
             requestDomain: OsFps.MatchmakingRequestDomain, callback: OnLoadMatchesComplete
@@ -90,26 +92,24 @@ public class MatchmakingScreenComponent : MonoBehaviour
             {
                 var serverRow = Instantiate(OsFps.Instance.ServerRowPrefab);
                 serverRow.GetComponent<RectTransform>().SetParent(containerTransform, false);
+
+                var serverNameObject = serverRow.FindDescendant("name");
+                serverNameObject.GetComponent<Text>().text = !string.IsNullOrWhiteSpace(matchInfoSnapshot.name)
+                    ? matchInfoSnapshot.name
+                    : "Unnamed Server";
+
+                var serverPlayerCountObject = serverRow.FindDescendant("playerCount");
+                serverPlayerCountObject.GetComponent<Text>().text =
+                    $"{matchInfoSnapshot.currentSize} / {matchInfoSnapshot.maxSize}";
+
+                var joinServerButtonObject = serverRow.FindDescendant("joinButton");
+                joinServerButtonObject.GetComponent<Button>().onClick.AddListener(() => {
+                    OsFps.Instance.ConnectToServerThroughMasterServer(matchInfoSnapshot);
+                });
             }
         }
     }
 
-    private void OnMatchCreated(bool success, string extendedInfo, MatchInfo matchInfo)
-    {
-        if (!success)
-        {
-            OsFps.Logger.LogError("Failed creating a match. " + extendedInfo);
-            return;
-        }
-
-        OsFps.Instance.MatchInfo = matchInfo;
-
-        Utility.SetAccessTokenForNetwork(matchInfo.networkId, matchInfo.accessToken);
-
-        OsFps.Instance.Server = new Server();
-        OsFps.Instance.Server.Start();
-        OsFps.Instance.MenuStack.Pop();
-    }
     private void OnMatchJoined(bool success, string extendedInfo, MatchInfo matchInfo)
     {
         if (!success)
@@ -125,5 +125,17 @@ public class MatchmakingScreenComponent : MonoBehaviour
         SceneManager.sceneLoaded += OsFps.Instance.OnMapLoadedAsClient;
         SceneManager.LoadScene(OsFps.SmallMapSceneName);
         OsFps.Instance.MenuStack.Pop();
+    }
+
+    private void OnServerRegisteredWithMasterServer(bool succeeded)
+    {
+        if (succeeded)
+        {
+            OsFps.Logger.Log("Server successfully registered with master server.");
+        }
+        else
+        {
+            OsFps.Logger.LogError("Failed registering server with master server.");
+        }
     }
 }

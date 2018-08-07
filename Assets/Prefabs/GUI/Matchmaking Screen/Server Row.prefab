@@ -40,7 +40,7 @@ GameObject:
   - component: {fileID: 114629773370978742}
   - component: {fileID: 114089469875296730}
   m_Layer: 5
-  m_Name: match
+  m_Name: Server Row
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

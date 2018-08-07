@@ -8,7 +8,7 @@ public class PauseScreenComponent : MonoBehaviour
     }
     public void OnOptionsClick()
     {
-        OsFps.Instance.MenuStack.Push(OsFps.Instance.CreateOptionsScreen().GetComponent<OptionsScreenComponent>());
+        OsFps.Instance.EnterOptionsScreen();
     }
     public void OnLeaveServerClick()
     {

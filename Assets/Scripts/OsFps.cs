@@ -79,9 +79,6 @@ public class OsFps : MonoBehaviour
         }
     }
 
-    [HideInInspector]
-    public NetworkMatch NetworkMatch;
-
     public MatchInfo MatchInfo;
     public Server Server;
     public Client Client;
@@ -172,20 +169,32 @@ public class OsFps : MonoBehaviour
     public RuntimeAnimatorController RecoilAnimatorController;
     #endregion
     
-    public MainMenuComponent CreateMainMenu()
+    public MainMenuComponent EnterMainMenu()
     {
         var mainMenuObject = Instantiate(MainMenuPrefab, CanvasObject.transform);
-        return mainMenuObject.GetComponent<MainMenuComponent>();
+        var mainMenuComponent = mainMenuObject.GetComponent<MainMenuComponent>();
+
+        MenuStack.Push(mainMenuComponent);
+
+        return mainMenuComponent;
     }
-    public OptionsScreenComponent CreateOptionsScreen()
+    public OptionsScreenComponent EnterOptionsScreen()
     {
         var optionsScreenObject = Instantiate(OptionsScreenPrefab, CanvasObject.transform);
-        return optionsScreenObject.GetComponent<OptionsScreenComponent>();
+        var optionsScreenComponent = optionsScreenObject.GetComponent<OptionsScreenComponent>();
+
+        MenuStack.Push(optionsScreenComponent);
+
+        return optionsScreenComponent;
     }
-    public MatchmakingScreenComponent CreateMatchmakingScreen()
+    public MatchmakingScreenComponent EnterMatchmakingScreen()
     {
         var matchmakingScreenObject = Instantiate(MatchmakingScreenPrefab, CanvasObject.transform);
-        return matchmakingScreenObject.GetComponent<MatchmakingScreenComponent>();
+        var matchmakingScreenComponent = matchmakingScreenObject.GetComponent<MatchmakingScreenComponent>();
+
+        MenuStack.Push(matchmakingScreenComponent);
+
+        return matchmakingScreenComponent;
     }
 
     private void Awake()
@@ -209,11 +218,12 @@ public class OsFps : MonoBehaviour
 
         CreateDataObject();
         CanvasObject = guiContainer.FindDescendant("Canvas");
-        
+
+        var networkMatch = gameObject.AddComponent<NetworkMatch>();
+
+        NetLib.NetworkMatch = networkMatch;
         NetLib.Setup();
-
-        NetworkMatch = gameObject.AddComponent<NetworkMatch>();
-
+        
         Settings.LoadFromFile(SettingsFilePath);
     }
     private void Start()
@@ -222,7 +232,7 @@ public class OsFps : MonoBehaviour
         NetworkTransport.Init();
 
         MenuStack = new MenuStack();
-        MenuStack.Push(CreateMainMenu());
+        EnterMainMenu();
     }
     private void OnDestroy()
     {
@@ -305,12 +315,44 @@ public class OsFps : MonoBehaviour
         return dataObject;
     }
 
+    public void StartDedicatedServer()
+    {
+        MenuStack.Clear();
+        Server = new Server();
+        Server.Start();
+    }
+    public void StartListenServer()
+    {
+        EnteredClientIpAddressAndPort = NetLib.LocalHostIpv4Address + ":" + Server.PortNumber;
+        
+        MenuStack.Clear();
+
+        SceneManager.sceneLoaded += OnMapLoadedAsClient;
+
+        Server = new Server();
+        Server.Start();
+    }
     public void ShutdownServer()
     {
         ShutdownNetworkPeers();
 
         SceneManager.LoadScene(StartSceneName);
-        MenuStack.Push(CreateMainMenu());
+        EnterMainMenu();
+    }
+
+    public void ConnectToServerThroughMasterServer(MatchInfoSnapshot matchInfoSnapshot)
+    {
+        this.matchInfoSnapshot = matchInfoSnapshot;
+        MenuStack.Clear();
+        SceneManager.sceneLoaded += OnMapLoadedAsClientUsingMasterServer;
+        SceneManager.LoadScene(SmallMapSceneName);
+    }
+    public void ConnectToServer(string ipAddressAndPort)
+    {
+        EnteredClientIpAddressAndPort = ipAddressAndPort;
+        MenuStack.Clear();
+        SceneManager.sceneLoaded += OnMapLoadedAsClient;
+        SceneManager.LoadScene(SmallMapSceneName);
     }
     
     private void ShutdownNetworkPeers()
@@ -327,22 +369,19 @@ public class OsFps : MonoBehaviour
         {
             Server.Stop();
             Server = null;
-
-            if (MatchInfo != null)
-            {
-                NetworkMatch.DestroyMatch(MatchInfo.networkId, MatchmakingRequestDomain, OnMatchDestroy);
-            }
         }
     }
 
     public string EnteredClientIpAddressAndPort;
+    public MatchInfoSnapshot matchInfoSnapshot;
+
     public void OnMapLoadedAsClient(Scene scene, LoadSceneMode loadSceneMode)
     {
         SceneManager.sceneLoaded -= OnMapLoadedAsClient;
 
         Client = new Client();
         Client.OnDisconnectedFromServer += OnClientDisconnectedFromServer;
-        Client.Start(true);
+        Client.Start();
 
         string ipAddress;
         ushort portNumber;
@@ -355,21 +394,32 @@ public class OsFps : MonoBehaviour
             Client.StartConnectingToServer(ipAddress, portNumber);
         }
     }
+    public void OnMapLoadedAsClientUsingMasterServer(Scene scene, LoadSceneMode loadSceneMode)
+    {
+        SceneManager.sceneLoaded -= OnMapLoadedAsClient;
+
+        Client = new Client();
+        Client.OnDisconnectedFromServer += OnClientDisconnectedFromServer;
+        Client.Start();
+
+        string ipAddress;
+        ushort portNumber;
+        var succeededParsing = NetLib.ParseIpAddressAndPort(
+            EnteredClientIpAddressAndPort, Server.PortNumber, out ipAddress, out portNumber
+        );
+
+        if (succeededParsing)
+        {
+            Client.ClientPeer.StartConnectingToServerThroughMasterServer(
+                matchInfoSnapshot, "", MatchmakingRequestDomain
+            );
+        }
+    }
     private void OnClientDisconnectedFromServer()
     {
         ShutdownNetworkPeers();
 
         SceneManager.LoadScene(StartSceneName);
-        MenuStack.Push(CreateMainMenu());
-    }
-
-    private void OnMatchDestroy(bool success, string extendedInfo)
-    {
-        if (!success)
-        {
-            Logger.LogError("Failed unregistering a server. " + extendedInfo);
-        }
-
-        MatchInfo = null;
+        EnterMainMenu();
     }
 }

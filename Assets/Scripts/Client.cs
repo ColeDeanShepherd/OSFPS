@@ -25,7 +25,7 @@ public class Client
 
     public event ClientPeer.ServerConnectionChangeEventHandler OnDisconnectedFromServer;
 
-    public void Start(bool isServerRemote)
+    public void Start()
     {
         ClientPeer = new ClientPeer();
         ClientPeer.OnConnectedToServer += InternalOnConnectedToServer;
@@ -289,7 +289,7 @@ public class Client
         {
             DisconnectFromServer();
         }
-        else
+        else // If in the process of connecting.
         {
             InternalOnDisconnectedFromServer();
         }
